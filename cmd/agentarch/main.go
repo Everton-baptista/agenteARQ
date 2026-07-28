@@ -55,6 +55,10 @@ func run(args []string) int {
 		return cmdWaive(args[1:])
 	case "mcp":
 		return cmdMCP(args[1:])
+	case "conformance":
+		return cmdConformance(args[1:])
+	case "score":
+		return cmdScore(args[1:])
 	case "version", "--version", "-v":
 		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
 		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
@@ -82,6 +86,8 @@ func usage() {
   explain     why a control exists and how to satisfy it
   waive       record a time-boxed, owned exception (max 90 days)
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
+  conformance assess L1/L2/L3 and emit a badge that expires
+  score       maturity by dimension, declared vs proven; never blocks
   version     print the CLI and spec versions
 
 Docs: https://github.com/Everton-baptista/agenteARQ

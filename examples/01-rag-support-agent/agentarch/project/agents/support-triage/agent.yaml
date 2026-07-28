@@ -119,7 +119,7 @@ agent:
 
   evaluation:
     plan_ref: evals/plan.yaml
-    last_result_ref: evals/results/2026-07-20.json
+    last_result_ref: evals/results/latest.yaml
     max_result_age_days: 30
 
   policy:

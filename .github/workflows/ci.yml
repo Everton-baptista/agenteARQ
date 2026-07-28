@@ -131,6 +131,15 @@ jobs:
           print('ok  sarif', len(run['results']), 'result(s)')
           "
 
+      - name: the reference example reaches L3
+        run: |
+          out=$(/tmp/agentarch conformance --profile standard examples/01-rag-support-agent)
+          echo "$out"
+          echo "$out" | grep -q "conformance: L3" || {
+            echo "::error::the reference example must demonstrate L3, or the level is theory"; exit 1; }
+          echo "$out" | grep -q "valid until" || {
+            echo "::error::an L3 assessment must carry an expiry"; exit 1; }
+
       - name: init works on a clean project
         run: |
           mkdir -p /tmp/greenfield && cd /tmp/greenfield

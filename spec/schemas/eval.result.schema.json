@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/eval.result.schema.json",
+  "title": "agentarch evaluation result",
+  "description": "The output of one evaluation run. This is the artifact that turns a declaration into evidence, and the reason conformance level L3 exists.",
+  "type": "object",
+  "required": ["schema_version", "agent_id", "completed_at", "datasets", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "agent_id": { "type": "string" },
+
+    "completed_at": {
+      "type": "string",
+      "description": "When the run finished, YYYY-MM-DD or RFC 3339. Freshness is checked against this, and a result with no date cannot be fresh."
+    },
+
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What was actually evaluated. A result whose subject differs from the agent as it stands today describes a system that no longer exists.",
+      "properties": {
+        "model_id": { "type": "string" },
+        "prompt_version": { "type": "string" },
+        "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "corpus_version": { "type": "string" },
+        "git_sha": { "type": "string" }
+      }
+    },
+
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "sha256", "cases"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "cases": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "value", "threshold", "direction", "passed"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["deterministic", "llm_judge", "human"] },
+          "value": { "type": "number" },
+          "threshold": { "type": "number" },
+          "direction": { "enum": ["min", "max"] },
+          "passed": { "type": "boolean" },
+          "cases": { "type": "integer", "minimum": 0 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+
+    "redteam": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "executed": { "type": "boolean" },
+        "cases": { "type": "integer", "minimum": 0 },
+        "successful_attacks": { "type": "integer", "minimum": 0 },
+        "categories": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "deterministic_metrics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of the deterministic metrics in this run. Read by control.ai.eval.judge_not_sole_blocker: a judge is only allowed to block alongside one of these."
+    },
+    "judge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": { "type": "string" },
+        "prompt_sha256": { "type": "string" },
+        "agreement": { "type": "number" }
+      }
+    }
+  }
+}
