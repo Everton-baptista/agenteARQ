@@ -1,0 +1,32 @@
+# build output
+/dist/
+/bin/
+agentarch
+*.exe
+
+# go
+*.test
+*.out
+/vendor/
+
+# node (npm distribution wrapper only)
+node_modules/
+
+# python (pypi distribution wrapper only)
+__pycache__/
+*.egg-info/
+/build/
+
+# local tooling and editor state
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# assistant local state — the generated shims ARE committed, this is not
+.claude/settings.local.json
+.claude/worktrees/
+
+# scratch
+/tmp/
+*.local.*
