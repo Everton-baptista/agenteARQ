@@ -12,9 +12,11 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	agentarch "github.com/Everton-baptista/agenteARQ"
 	"github.com/Everton-baptista/agenteARQ/internal/i18n"
+	"github.com/Everton-baptista/agenteARQ/internal/lockfile"
 	"github.com/Everton-baptista/agenteARQ/internal/mcp"
 	"github.com/Everton-baptista/agenteARQ/internal/render"
 	"github.com/Everton-baptista/agenteARQ/internal/validate"
@@ -47,6 +49,8 @@ func run(args []string) int {
 		return cmdInit(args[1:])
 	case "sync":
 		return cmdSync(args[1:])
+	case "new":
+		return cmdNew(args[1:])
 	case "validate":
 		return cmdValidate(args[1:])
 	case "check":
@@ -87,6 +91,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
 
   init        install the standard into this project
+  new         scaffold an agent, a tool or an ADR from the templates
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)
@@ -116,7 +121,9 @@ func cmdInit(args []string) int {
 	profile := fs_.String("profile", "minimal", "policy profile: minimal, standard, regulated")
 	lang := fs_.String("lang", "en", "language for the generated instruction files")
 	root := fs_.String("root", ".", "project root")
-	if err := fs_.Parse(args); err != nil {
+	jurisdictions := fs_.String("jurisdictions", "",
+		"comma-separated, e.g. EU,BR — selects which reg.* packs apply")
+	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
 
@@ -130,6 +137,13 @@ func cmdInit(args []string) int {
 		return exitUsage
 	}
 
+	// Record what was installed. Without this, `upgrade` compares the installed tree against
+	// the payload a newer binary carries, and every file the standard changed upstream looks
+	// exactly like a file the project edited.
+	if l, err := lockfile.Build(stdDir, version, time.Now().UTC().Format("2006-01-02")); err == nil {
+		_ = lockfile.Write(stdDir, l)
+	}
+
 	for _, d := range []string{"agents", "tools", "mcp", "adr"} {
 		if err := os.MkdirAll(filepath.Join(*root, "agentarch", "project", d), 0o755); err != nil {
 			fmt.Fprintln(os.Stderr, "init:", err)
@@ -139,11 +153,23 @@ func cmdInit(args []string) int {
 
 	cfg := filepath.Join(*root, "agentarch", "agentarch.yaml")
 	if _, err := os.Stat(cfg); os.IsNotExist(err) {
+		juris := "[]"
+		if *jurisdictions != "" {
+			var parts []string
+			for _, j := range strings.Split(*jurisdictions, ",") {
+				parts = append(parts, `"`+strings.ToUpper(strings.TrimSpace(j))+`"`)
+			}
+			juris = "[" + strings.Join(parts, ", ") + "]"
+		}
+
 		content := fmt.Sprintf(`schema_version: "1.0"
 installed_version: "%s"
 project:
   default_profile: %s
   lang: %s
+  # Recorded once here; `+"`agentarch new agent`"+` copies it into each manifest, and the
+  # reg.* packs resolve against it. An agent may declare more, never fewer.
+  jurisdictions: %s
 
 # Which assistant instruction files to generate. These are outputs: never edit them by
 # hand — edit agentarch/std/core/ and run "agentarch sync".
@@ -156,7 +182,7 @@ gates:
   release:
     profile: %s
     fail_on: []
-`, version, *profile, *lang, *profile)
+`, version, *profile, *lang, juris, *profile)
 		if err := os.WriteFile(cfg, []byte(content), 0o644); err != nil {
 			fmt.Fprintln(os.Stderr, "init:", err)
 			return exitUsage
@@ -164,7 +190,16 @@ gates:
 	}
 
 	fmt.Printf("installed agentarch/std (content %s) and agentarch/project\n", version)
-	return cmdSync([]string{"--root", *root, "--lang", *lang})
+	if code := cmdSync([]string{"--root", *root, "--lang", *lang}); code != exitOK {
+		return code
+	}
+	fmt.Printf("\nNext:\n")
+	fmt.Printf("  agentarch new agent <id>   scaffold your first agent\n")
+	fmt.Printf("  agentarch validate         structure and consistency\n")
+	fmt.Printf("  agentarch check            the release gate\n\n")
+	fmt.Printf("Commit the generated instruction files. They are outputs — edit\n")
+	fmt.Printf("agentarch/std/core/ and re-run sync, and let CI run `sync --check`.\n")
+	return exitOK
 }
 
 func copyEmbedded(src fs.FS, from, to string) error {

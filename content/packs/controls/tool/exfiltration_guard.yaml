@@ -2,18 +2,21 @@ schema_version: "1.0"
 control:
   id: "control.ai.tool.exfiltration_guard"
   type: "tool"
-  title: "Tool egress targets are enumerated"
-  intent: "Beyond the obvious HTTP call, a tool can leak through a URL in a returned image, a DNS lookup, or a query parameter on a legitimate host."
+  title: "Tool egress names exact hosts, never a wildcard"
+  intent: "Beyond the obvious HTTP call, a tool can leak through a URL in a returned image, a DNS lookup, or a query parameter on an otherwise legitimate host."
   status: "stable"
-  check: 
+  check:
     kind: "static_manifest"
-    expr: "all(not exists(tools[].tool.permissions.network.egress) or len(tools[].tool.permissions.network.egress) >= 1)"
-    message: "A tool permits egress without naming any host."
-  evidence: 
+    # An empty egress list is the strictest possible state, not a violation: combined with
+    # deny_by_default it means no network access at all. What defeats the control is a wildcard,
+    # which answers "anything" and makes the declaration decorative.
+    expr: 'all(not matches(tools[].tool.permissions.network.egress[], "[*]"))'
+    message: "A tool declares a wildcard egress target, which permits any host."
+  evidence:
     - "tool_spec"
     - "test_result"
-  remediation: "Enumerate exact hostnames. A wildcard answers 'anything', which makes the field decorative."
+  remediation: "Enumerate exact hostnames. Leave the list empty if the tool needs no network — that is the strictest state, not an omission."
   standard_ref: "standards/03-tools.md#controlaitoolexfiltration_guard"
-  references: 
+  references:
     - "OWASP LLM02"
     - "MITRE ATLAS"

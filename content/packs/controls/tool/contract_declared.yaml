@@ -7,7 +7,10 @@ control:
   status: "stable"
   check: 
     kind: "static_manifest"
-    expr: "all(exists(tools[].tool.id) and exists(tools[].tool.input_schema) and exists(tools[].tool.owner))"
+    # != null keeps each side a multi so all() reduces element-wise. exists() is a reducer: used
+    # here it would collapse the multi first and answer "is the collection non-empty", which is a
+    # different question and one that fails for an agent with no tools at all.
+    expr: "all(tools[].tool.id != null and tools[].tool.input_schema != null and tools[].tool.owner != null)"
     message: "A tool is missing its id, input schema or owner."
   evidence: 
     - "tool_spec"

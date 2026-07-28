@@ -36,18 +36,52 @@ It answers three questions that have no standard answer today:
 2. **How that is verified** automatically, in CI, without running the agent.
 3. **How every AI assistant** picks up those rules from one source of truth.
 
+## Getting started
+
+Install — Go 1.24+ is the only requirement today. Packaged installs (npm, PyPI, Homebrew) are
+planned but not published yet, so this is the honest instruction:
+
 ```bash
-agentarch init --profile standard --jurisdictions EU,BR
-agentarch validate            # structure and consistency        (exit 2)
-agentarch check               # the release gate                 (exit 4, 5)
-agentarch mcp audit --probe   # has a server changed since review?
-agentarch diff --base main    # which revalidation triggers fired (exit 6)
-agentarch conformance --badge # L1 / L2 / L3, with an expiry
+go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
 ```
 
-`init` writes an `agentarch/` directory into your project and generates the instruction file
-each assistant expects. `sync --check` runs in CI, so a hand-edited `CLAUDE.md` fails the pull
-request instead of silently drifting for six months.
+Then, in your project:
+
+```bash
+agentarch init --profile standard --jurisdictions EU,BR
+agentarch new agent customer-triage
+agentarch validate
+```
+
+`init` writes an `agentarch/` directory and generates the instruction file each assistant
+expects. `new agent` scaffolds a manifest and a system prompt, already hashed into each other.
+
+**`validate` will fail until you fill in the fields marked `TODO`, and that is deliberate.** A
+manifest full of plausible defaults is worse than one that refuses to validate, because it looks
+finished. The two worth thinking about before the rest are `out_of_scope` — what the agent must
+refuse — and `autonomy.level`, which is a property of the deployment rather than of the model.
+
+Once it validates:
+
+```bash
+agentarch check               # the release gate                 (exit 4 blocked, 5 waiver)
+agentarch conformance         # L1 / L2 / L3, with an expiry
+agentarch explain <control>   # why a rule exists and how to satisfy it
+```
+
+Commit the generated instruction files and run `agentarch sync --check` in CI, so a hand-edited
+`CLAUDE.md` fails the pull request instead of drifting quietly for six months. A ready-made
+workflow is in [`examples/01-rag-support-agent/.github/workflows/`](examples/01-rag-support-agent/.github/workflows/agentarch.yml).
+
+### The rest of the surface
+
+```bash
+agentarch mcp audit --probe   # has a server changed its tool descriptions since review?
+agentarch diff --base main    # which revalidation triggers fired (exit 6 with --strict)
+agentarch aibom --out ai-bom.json
+agentarch score               # maturity by dimension, declared vs proven
+agentarch upgrade --dry-run   # what a newer standard would change
+```
 
 ## What it is not
 

@@ -7,9 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/Everton-baptista/agenteARQ/internal/lockfile"
 	"github.com/Everton-baptista/agenteARQ/internal/policy"
 	"gopkg.in/yaml.v3"
 )
@@ -183,34 +183,27 @@ func cmdUpgrade(args []string) int {
 	return exitOK
 }
 
-// locallyEdited compares the vendored tree with the payload this binary carries.
+// locallyEdited compares the vendored tree against the lock written when it was installed.
+//
+// Comparing against the payload a newer binary carries would be wrong: every file the standard
+// changed upstream would look exactly like a file the project edited, and the upgrade would
+// refuse to proceed on its own improvements.
 func locallyEdited(root string) ([]string, error) {
 	stdDir := filepath.Join(root, "agentarch", "std")
+	l, err := lockfile.Read(stdDir)
+	if err != nil || l == nil {
+		return nil, err
+	}
+	changes, err := lockfile.Diff(stdDir, l)
+	if err != nil {
+		return nil, err
+	}
 	var out []string
-
-	err := filepath.WalkDir(stdDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
+	for _, c := range changes {
+		if c.Kind == "added" {
+			continue // a file the project added survives the upgrade; it is not lost
 		}
-		rel, err := filepath.Rel(stdDir, p)
-		if err != nil {
-			return err
-		}
-		if strings.HasPrefix(rel, "schemas"+string(os.PathSeparator)) {
-			return nil // copied from spec/, compared separately
-		}
-		want, err := readEmbeddedContent(rel)
-		if err != nil {
-			return nil // a file the payload does not have is a local addition, not an edit
-		}
-		got, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		if string(got) != string(want) {
-			out = append(out, filepath.Join("agentarch", "std", rel))
-		}
-		return nil
-	})
-	return out, err
+		out = append(out, fmt.Sprintf("%s  (%s)", filepath.Join("agentarch", "std", c.Path), c.Kind))
+	}
+	return out, nil
 }

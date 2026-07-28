@@ -178,9 +178,63 @@ jobs:
           print('ok  ai-bom', len(a['components']), 'components')
           "
 
-      - name: init works on a clean project
+      # The onboarding path is the most-used code path in the project and the easiest to break
+      # without noticing, because nobody runs it twice.
+      - name: a new user can go from nothing to a passing gate
         run: |
-          mkdir -p /tmp/greenfield && cd /tmp/greenfield
-          /tmp/agentarch init --profile minimal
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile standard --jurisdictions EU,BR
           test -f AGENTS.md && test -f agentarch/agentarch.yaml
+          test -f agentarch/std/LOCK.json
           /tmp/agentarch sync --check
+
+          /tmp/agentarch new agent customer-triage
+          test -f agentarch/project/agents/customer-triage/agent.yaml
+          grep -q '"EU", "BR"' agentarch/project/agents/customer-triage/agent.yaml
+
+          # The scaffold must fail validation on the TODOs, and only on the TODOs.
+          set +e; /tmp/agentarch validate >/dev/null 2>&1; got=$?; set -e
+          [ "$got" -eq 2 ] || { echo "::error::a fresh scaffold should fail validate, got $got"; exit 1; }
+
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("agentarch/project/agents/customer-triage/agent.yaml"); s = p.read_text()
+          for a, b in [("    accountable: TODO", "    accountable: a.person"),
+                       ("    team: TODO", "    team: t"),
+                       ("    contact: TODO@example.com", "    contact: t@example.com"),
+                       ("  purpose: TODO", "  purpose: Answers questions and escalates the rest."),
+                       ("  out_of_scope:\n    - TODO", "  out_of_scope:\n    - Never issues refunds"),
+                       ("    stop_conditions:\n      - TODO", "    stop_conditions:\n      - Answer delivered"),
+                       ("    provider: TODO", "    provider: anthropic"),
+                       ("    id: TODO", "    id: claude-sonnet-4-5-20250929")]:
+              s = s.replace(a, b)
+          p.write_text(s)
+          PY
+
+          /tmp/agentarch validate
+          /tmp/agentarch check --profile standard
+          echo "ok  nothing -> passing gate"
+
+      - name: upgrade tells a local edit apart from an upstream change
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile minimal >/dev/null
+
+          # An untouched install must upgrade cleanly, whatever the payload now contains.
+          /tmp/agentarch upgrade >/dev/null
+          echo "ok  clean upgrade"
+
+          # An edited vendored file must be reported rather than silently overwritten.
+          echo "# local edit" >> agentarch/std/core/en/10-invariants.md
+          set +e; /tmp/agentarch upgrade >/dev/null 2>&1; got=$?; set -e
+          [ "$got" -eq 2 ] || { echo "::error::an edited vendored file should block upgrade, got $got"; exit 1; }
+          echo "ok  local edit detected"
+
+      - name: new tool scaffolds an approval block for an irreversible effect
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile minimal >/dev/null
+          /tmp/agentarch new tool delete_account --effect irreversible >/dev/null
+          grep -q "on_timeout: deny" agentarch/project/tools/delete_account.tool.yaml
+          grep -q "sandbox: container" agentarch/project/tools/delete_account.tool.yaml
+          echo "ok  irreversible tool scaffolds its approval"

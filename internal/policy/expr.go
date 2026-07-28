@@ -824,6 +824,9 @@ var functions = map[string]int{
 	"matches": 2, "age_days": 1, "date": 1, "lower": 1, "upper": 1,
 }
 
+// reducers collapse a multi to one value. Everything else maps across it — see evalCall.
+var reducers = map[string]bool{"all": true, "any": true, "len": true, "exists": true}
+
 // reCache keeps compiled patterns. Go's regexp is RE2 and runs in linear time, which satisfies
 // the spec's requirement that a pack cannot supply a denial-of-service through a pattern.
 var reCache = map[string]*regexp.Regexp{}
@@ -840,6 +843,28 @@ func (e *evaluator) evalCall(c *nCall) (any, error) {
 			return nil, err
 		}
 		args[i] = v
+	}
+
+	// Reducers consume a multi; every other function maps across it.
+	//
+	// Without this split, a scalar function inside all() collapses the multi before all() can
+	// reduce it, and the expression quietly answers a different question — `matches` over a
+	// list of hosts would test the list rather than each host. That is the failure this
+	// language exists to prevent, so it must not be reachable from a well-formed expression.
+	if !reducers[c.fn] {
+		if m, ok := args[0].(Multi); ok {
+			out := make(Multi, len(m))
+			for i, x := range m {
+				sub := append([]any{x}, args[1:]...)
+				v, err := e.applyScalar(c.fn, sub)
+				if err != nil {
+					return nil, err
+				}
+				out[i] = v
+			}
+			return out, nil
+		}
+		return e.applyScalar(c.fn, args)
 	}
 
 	switch c.fn {
@@ -883,6 +908,13 @@ func (e *evaluator) evalCall(c *nCall) (any, error) {
 	case "exists":
 		return truthy(args[0]), nil
 
+	}
+	return nil, fmt.Errorf("unknown function %q", c.fn)
+}
+
+// applyScalar evaluates a non-reducing function over single values.
+func (e *evaluator) applyScalar(fn string, args []any) (any, error) {
+	switch fn {
 	case "matches":
 		s, ok := args[0].(string)
 		if !ok {
@@ -925,7 +957,7 @@ func (e *evaluator) evalCall(c *nCall) (any, error) {
 		s, _ := args[0].(string)
 		return strings.ToUpper(s), nil
 	}
-	return nil, fmt.Errorf("unknown function %q", c.fn)
+	return nil, fmt.Errorf("unknown function %q", fn)
 }
 
 func parseDate(v any) (time.Time, bool) {
