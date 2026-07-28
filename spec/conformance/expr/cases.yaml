@@ -1,0 +1,242 @@
+# Conformance fixtures for the expression language (spec/normative/04-expression-language.md).
+#
+# These are for OTHER implementations, not only for the reference one. An implementation
+# claiming `spec/1.0` must reproduce every result here, including the errors: rejecting a
+# malformed expression and rejecting an unreduced multi are conformance requirements, not
+# implementation choices. Without this file "open standard" would mean "one implementation".
+#
+# Each case has `expr`, `ctx`, and exactly one of:
+#
+#   result: <bool>   the expression must evaluate to this
+#   error:  any      the expression must be REJECTED; the wording is the implementation's own
+#   error:  "<text>" the message must contain this text
+#
+# The `any` form is the default for rejection cases. Pinning exact error wording would force
+# every implementation to copy this one's phrasing, which is the opposite of what a conformance
+# suite is for. A specific substring is required only where the message itself is part of the
+# contract — the unreduced-multi case must tell the author to reach for all() or any(), because
+# an error that does not say what to do is a dead end.
+#
+# `now` is fixed at 2026-07-28 for every case, so date arithmetic is reproducible.
+
+now: "2026-07-28"
+
+cases:
+  # ---- literals and operators -------------------------------------------
+  - id: literal-true
+    expr: "true"
+    ctx: {}
+    result: true
+
+  - id: negation
+    expr: "not false"
+    ctx: {}
+    result: true
+
+  - id: numeric-ordering
+    expr: "2 <= 2 and 3 > 2 and 1 < 2"
+    ctx: {}
+    result: true
+
+  - id: string-equality
+    expr: '"a" == "a" and "a" != "b"'
+    ctx: {}
+    result: true
+
+  - id: membership
+    expr: '"b" in ["a", "b"]'
+    ctx: {}
+    result: true
+
+  - id: negated-membership
+    expr: '"z" not in ["a", "b"]'
+    ctx: {}
+    result: true
+
+  - id: precedence-or-binds-loosest
+    expr: "false and false or true"
+    ctx: {}
+    result: true
+
+  # ---- paths -------------------------------------------------------------
+  - id: nested-path
+    expr: "agent.model.pinned == true"
+    ctx: { agent: { model: { pinned: true } } }
+    result: true
+
+  - id: missing-path-is-null-not-error
+    expr: "agent.nope.deeper == true"
+    ctx: { agent: {} }
+    result: false
+
+  - id: missing-path-is-falsy
+    expr: "exists(agent.nope)"
+    ctx: { agent: {} }
+    result: false
+
+  # ---- multi semantics ---------------------------------------------------
+  - id: all-over-multi
+    expr: 'all(tools[].effect == "read")'
+    ctx: { tools: [{ effect: read }, { effect: read }] }
+    result: true
+
+  - id: all-fails-on-one-element
+    expr: 'all(tools[].effect == "read")'
+    ctx: { tools: [{ effect: read }, { effect: write }] }
+    result: false
+
+  - id: any-over-multi
+    expr: 'any(tools[].effect == "write")'
+    ctx: { tools: [{ effect: read }, { effect: write }] }
+    result: true
+
+  # An empty collection makes all() vacuously true and any() false. A tool control has to hold
+  # for an agent with no tools, or every tool rule would block the simplest agents.
+  - id: all-over-empty-is-vacuously-true
+    expr: 'all(tools[].effect == "read")'
+    ctx: { tools: [] }
+    result: true
+
+  - id: any-over-empty-is-false
+    expr: 'any(tools[].effect == "read")'
+    ctx: { tools: [] }
+    result: false
+
+  - id: multi-over-missing-key-is-empty-not-error
+    expr: 'all(tools[].effect == "read")'
+    ctx: {}
+    result: true
+
+  - id: multi-over-scalar-is-empty
+    expr: 'all(tools[].effect == "read")'
+    ctx: { tools: "not-a-list" }
+    result: true
+
+  # "some tool denies egress" and "every tool denies egress" are different claims. An
+  # implementation that guesses is silently answering a question the author did not ask.
+  - id: unreduced-multi-is-an-error
+    expr: 'tools[].effect == "read"'
+    ctx: { tools: [{ effect: read }] }
+    error: "all()"
+
+  - id: multi-element-wise-projection
+    expr: "all(tools[].permissions.network.deny_by_default == true)"
+    ctx:
+      tools:
+        - { permissions: { network: { deny_by_default: true } } }
+        - { permissions: { network: { deny_by_default: true } } }
+    result: true
+
+  - id: multi-projection-through-missing-field
+    expr: "all(tools[].permissions.network.deny_by_default == true)"
+    ctx:
+      tools:
+        - { permissions: { network: { deny_by_default: true } } }
+        - { permissions: {} }
+    result: false
+
+  # ---- functions ---------------------------------------------------------
+  - id: len-of-list
+    expr: "len(agent.out_of_scope) >= 1"
+    ctx: { agent: { out_of_scope: ["no refunds"] } }
+    result: true
+
+  - id: exists-empty-string-is-false
+    expr: "exists(agent.owner)"
+    ctx: { agent: { owner: "" } }
+    result: false
+
+  - id: matches-anchored
+    expr: 'matches(agent.model.id, "(latest|current|stable)$")'
+    ctx: { agent: { model: { id: "claude-x-latest" } } }
+    result: true
+
+  - id: matches-negative
+    expr: 'matches(agent.model.id, "(latest|current|stable)$")'
+    ctx: { agent: { model: { id: "claude-sonnet-4-5-20250929" } } }
+    result: false
+
+  - id: age-days-within-window
+    expr: "age_days(evals.completed_at) <= 30"
+    ctx: { evals: { completed_at: "2026-07-01" } }
+    result: true
+
+  - id: age-days-outside-window
+    expr: "age_days(evals.completed_at) <= 30"
+    ctx: { evals: { completed_at: "2026-01-01" } }
+    result: false
+
+  # A missing date yields null and comparisons against null are false, so a freshness control
+  # fails rather than passing because nothing was ever recorded.
+  - id: age-days-missing-date-fails-closed
+    expr: "age_days(evals.completed_at) <= 30"
+    ctx: { evals: {} }
+    result: false
+
+  - id: age-days-accepts-timestamp
+    expr: "age_days(evals.completed_at) <= 30"
+    ctx: { evals: { completed_at: "2026-07-20T14:03:00Z" } }
+    result: true
+
+  - id: case-folding
+    expr: 'lower("ABC") == "abc" and upper("abc") == "ABC"'
+    ctx: {}
+    result: true
+
+  # ---- the closed function set ------------------------------------------
+  - id: unknown-function-rejected
+    expr: "sqrt(4) == 2"
+    ctx: {}
+    error: any
+
+  # ---- a pack is data, never code ---------------------------------------
+  - id: reject-exec
+    expr: 'exec("rm -rf /")'
+    ctx: {}
+    error: any
+
+  - id: reject-import
+    expr: '__import__("os")'
+    ctx: {}
+    error: any
+
+  - id: reject-eval
+    expr: 'eval("1+1")'
+    ctx: {}
+    error: any
+
+  - id: reject-template-injection
+    expr: "{{7*7}}"
+    ctx: {}
+    error: any
+
+  - id: reject-shell-substitution
+    expr: "$(whoami)"
+    ctx: {}
+    error: any
+
+  - id: reject-method-call-on-value
+    expr: 'agent.id.constructor("return 1")()'
+    ctx: { agent: { id: "x" } }
+    error: any
+
+  # ---- malformed input is an error, never a quiet false ------------------
+  - id: unbalanced-paren
+    expr: "(1 <"
+    ctx: {}
+    error: any
+
+  - id: bare-keyword
+    expr: "and"
+    ctx: {}
+    error: any
+
+  - id: unterminated-string
+    expr: '"abc'
+    ctx: {}
+    error: any
+
+  - id: dangling-operator
+    expr: "1 =="
+    ctx: {}
+    error: any

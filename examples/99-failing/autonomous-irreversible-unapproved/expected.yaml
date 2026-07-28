@@ -1,0 +1,28 @@
+# This example MUST fail — at the gate, not at validation.
+#
+# Every artifact here is schema-valid: notify_customer declares a full approval policy, as the
+# tool schema requires. The defect is in the composition, which only exists once an agent wires
+# a tool up: autonomy was raised to L2, and that tool is attached with approval: none. Nothing
+# in either file is wrong on its own.
+#
+# This is why the control is written against the agent rather than the tool. A control that
+# re-checked what the schema already guarantees could never fail, and a catalogue full of those
+# looks rigorous while enforcing nothing.
+case: autonomous-irreversible-unapproved
+artifact: agent.yaml
+kind: agent
+phase: 2
+expect:
+  validate:
+    exit_code: 0
+    reason: Both the manifest and the tool spec are structurally valid.
+  check:
+    exit_code: 4
+    profile: standard
+    control: control.ai.tool.irreversible_requires_approval
+    severity: blocker
+    reason: >-
+      A communication-effect tool runs with no approval in the path while the agent acts alone
+      at L2. A sent message cannot be recalled. Invariant 1.
+    remediation: >-
+      Set approval to human for that tool, or lower autonomy back to L1_act_with_approval.

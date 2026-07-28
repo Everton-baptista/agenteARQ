@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.tool.contract_declared"
+  type: "tool"
+  title: "Every tool exists as a reviewable artifact"
+  intent: "Permissions expressed only in code cannot be reviewed in a diff, checked by a gate, or reasoned about by someone who does not read that language."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "all(exists(tools[].tool.id) and exists(tools[].tool.input_schema) and exists(tools[].tool.owner))"
+    message: "A tool is missing its id, input schema or owner."
+  evidence: 
+    - "tool_spec"
+  remediation: "Write a .tool.yaml alongside the implementation and reference it from the manifest."
+  standard_ref: "standards/03-tools.md#controlaitoolcontract_declared"
+  references: 
+    - "OWASP LLM06"

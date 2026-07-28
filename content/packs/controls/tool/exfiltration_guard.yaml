@@ -1,0 +1,19 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.tool.exfiltration_guard"
+  type: "tool"
+  title: "Tool egress targets are enumerated"
+  intent: "Beyond the obvious HTTP call, a tool can leak through a URL in a returned image, a DNS lookup, or a query parameter on a legitimate host."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "all(not exists(tools[].tool.permissions.network.egress) or len(tools[].tool.permissions.network.egress) >= 1)"
+    message: "A tool permits egress without naming any host."
+  evidence: 
+    - "tool_spec"
+    - "test_result"
+  remediation: "Enumerate exact hostnames. A wildcard answers 'anything', which makes the field decorative."
+  standard_ref: "standards/03-tools.md#controlaitoolexfiltration_guard"
+  references: 
+    - "OWASP LLM02"
+    - "MITRE ATLAS"

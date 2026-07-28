@@ -25,6 +25,9 @@ const (
 	exitUsage     = 1 // usage, internal, or version incompatibility
 	exitStructure = 2 // structural validation failed
 	exitDrift     = 3 // generated files are out of date
+	exitGate      = 4 // a blocker-severity control failed
+	exitWaiver    = 5 // a waiver is invalid or has expired
+	exitRevalid   = 6 // a revalidation trigger fired without revalidation
 )
 
 var version = "0.1.0-dev"
@@ -43,6 +46,12 @@ func run(args []string) int {
 		return cmdSync(args[1:])
 	case "validate":
 		return cmdValidate(args[1:])
+	case "check":
+		return cmdCheck(args[1:])
+	case "explain":
+		return cmdExplain(args[1:])
+	case "waive":
+		return cmdWaive(args[1:])
 	case "version", "--version", "-v":
 		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
 		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
@@ -64,6 +73,11 @@ func usage() {
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)
+  check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
+              --profile minimal|standard|regulated  --format text|json|sarif
+              --explain-resolution  show which pack imposed each control
+  explain     why a control exists and how to satisfy it
+  waive       record a time-boxed, owned exception (max 90 days)
   version     print the CLI and spec versions
 
 Docs: https://github.com/Everton-baptista/agenteARQ
@@ -292,7 +306,7 @@ func readConfigTargets(root string) []render.Target {
 func cmdValidate(args []string) int {
 	fs_ := flag.NewFlagSet("validate", flag.ContinueOnError)
 	root := fs_.String("root", ".", "project root")
-	if err := fs_.Parse(args); err != nil {
+	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
 	if fs_.NArg() > 0 {

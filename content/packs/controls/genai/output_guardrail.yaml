@@ -1,0 +1,19 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.genai.output_guardrail"
+  type: "genai"
+  title: "Model output is checked before anyone sees it"
+  intent: "The model's output reaches a user, a downstream system, or a tool call \u2014 all three are places where an unchecked string does damage."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "len(agent.guardrails.output) >= 1"
+    message: "No output guardrail is declared."
+  evidence: 
+    - "manifest_field"
+    - "eval_result"
+  remediation: "Add PII redaction and, for structured output, schema conformance. For RAG, check citation presence."
+  standard_ref: "standards/08-guardrails.md#controlaigenaioutput_guardrail"
+  references: 
+    - "OWASP LLM02"
+    - "OWASP LLM05"

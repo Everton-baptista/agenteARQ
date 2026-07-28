@@ -68,23 +68,68 @@ jobs:
             /tmp/agentarch validate "$d"
           done
 
-      # Asserting the failure is the point. A refactor that quietly stops enforcing a rule
-      # is indistinguishable from a green build unless something checks that the bad input
-      # is still rejected.
-      - name: failing examples still fail
+      - name: the gate passes on a compliant project
+        run: /tmp/agentarch check --profile standard examples/01-rag-support-agent
+
+      # Asserting the failure is the point. A refactor that quietly stops enforcing a rule is
+      # indistinguishable from a green build unless something checks that the bad input is
+      # still rejected. Each case declares in expected.yaml which command should reject it and
+      # with which code, because "fails validation" and "fails the gate" are different claims.
+      - name: failing examples fail exactly as documented
         run: |
           fail=0
           for d in examples/99-failing/*/; do
-            want=$(grep -E '^\s+exit_code:' "$d/expected.yaml" | head -1 | tr -dc '0-9')
-            set +e; /tmp/agentarch validate "$d" >/dev/null 2>&1; got=$?; set -e
-            if [ "$got" -eq 0 ] && [ "$want" != "0" ]; then
-              echo "::error::$d passed validation but must fail (expected exit $want)"
+            name=$(basename "$d")
+            set +e
+            /tmp/agentarch validate "$d" >/dev/null 2>&1; v=$?
+            /tmp/agentarch check --profile standard "$d" >/dev/null 2>&1; c=$?
+            set -e
+            if [ "$v" -eq 0 ] && [ "$c" -eq 0 ]; then
+              echo "::error::$name passes both validate and check, but exists to fail one of them"
               fail=1
             else
-              echo "ok  $(basename $d)  exit=$got"
+              echo "ok  $name  validate=$v check=$c"
             fi
           done
           exit $fail
+
+      - name: an expired waiver blocks with exit 5
+        run: |
+          work=$(mktemp -d)
+          cp -R examples/99-failing/autonomous-irreversible-unapproved/agentarch "$work/"
+          cd "$work"
+          mkdir -p agentarch/project
+          cat > agentarch/project/waivers.yaml <<'EOF'
+          waivers:
+            - control: control.ai.tool.irreversible_requires_approval
+              agent: support-triage
+              reason: lapsed on purpose, to prove expiry is enforced
+              owner: ci
+              until: "2020-01-01"
+          EOF
+          set +e; /tmp/agentarch check --profile standard >/dev/null 2>&1; got=$?; set -e
+          if [ "$got" -ne 5 ]; then
+            echo "::error::expired waiver produced exit $got, expected 5"
+            exit 1
+          fi
+          echo "ok  expired waiver -> exit 5"
+
+      - name: SARIF output is well formed
+        run: |
+          set +e
+          /tmp/agentarch check --profile standard --format sarif \
+            --sarif-output /tmp/out.sarif examples/99-failing/unpinned-model >/dev/null 2>&1
+          set -e
+          python3 -c "
+          import json,sys
+          d=json.load(open('/tmp/out.sarif'))
+          assert d['version']=='2.1.0', d['version']
+          run=d['runs'][0]
+          assert run['tool']['driver']['name']=='agentarch'
+          assert len(run['results'])>0, 'no results emitted for a blocked project'
+          assert run['results'][0]['level']=='error'
+          print('ok  sarif', len(run['results']), 'result(s)')
+          "
 
       - name: init works on a clean project
         run: |

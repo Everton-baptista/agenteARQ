@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/policy.pack.schema.json",
+  "title": "agentarch policy pack",
+  "description": "A versioned set of controls with severities. Packs are data that travels — through the registry, from third parties — and never carries executable content.",
+  "type": "object",
+  "required": ["schema_version", "pack"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "pack": { "$ref": "#/$defs/pack" }
+  },
+
+  "$defs": {
+    "pack": {
+      "type": "object",
+      "required": ["id", "version", "title", "authority_status", "reviewed_at", "requires"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$",
+          "description": "Dotted, e.g. core.agent, sec.owasp-llm, reg.eu-ai-act."
+        },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "title": { "type": "string", "minLength": 5 },
+        "description": { "type": "string" },
+
+        "authority_status": {
+          "enum": ["binding_law", "regulatory_instrument", "draft", "voluntary_standard", "best_practice"],
+          "description": "What the pack's requirements rest on. This is what stops a draft bill or an internal preference from being presented as a legal obligation."
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "reference": { "type": "string" },
+            "jurisdiction": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[A-Z]{2}$|^EU$|^\\*$" },
+              "description": "Where it applies. * means everywhere. Matched against agent.jurisdictions."
+            },
+            "url": { "type": "string" }
+          }
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date",
+          "description": "When a human last checked this against its source. External frameworks move faster than this package does."
+        },
+
+        "applies_when": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Conditions under which the pack is selected for an agent at all.",
+          "properties": {
+            "system_type": { "type": "array", "items": { "type": "string" } },
+            "stage": { "type": "array", "items": { "type": "string" } },
+            "processes_personal_data": { "type": "boolean" },
+            "audience": { "type": "array", "items": { "type": "string" } },
+            "jurisdictions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+
+        "requires": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["control", "severity"],
+            "additionalProperties": false,
+            "properties": {
+              "control": {
+                "type": "string",
+                "pattern": "^control\\.ai\\.[a-z]+\\.[a-z0-9_]+$"
+              },
+              "severity": { "enum": ["blocker", "major", "minor"] },
+              "enforced_from": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d+\\.\\d+$",
+                "description": "Pack version from which this severity applies. Before it, the control runs in warn mode. No control is born blocking."
+              },
+              "required_evidence": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

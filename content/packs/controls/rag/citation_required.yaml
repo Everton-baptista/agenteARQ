@@ -1,0 +1,18 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.rag.citation_required"
+  type: "rag"
+  title: "Grounded answers cite their source"
+  intent: "A confident answer without a source is a failure presented as a fallback."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "not exists(agent.context.rag.enabled) or agent.context.rag.enabled == false or agent.context.rag.citation_required == true"
+    message: "RAG is enabled but citations are not required."
+  evidence: 
+    - "manifest_field"
+    - "eval_result"
+  remediation: "Require a citation per factual claim, and escalate when the passages do not support an answer."
+  standard_ref: "standards/02-prompt-and-context.md#controlairagcitation_required"
+  references: 
+    - "NIST AI RMF MEASURE 2.9"
