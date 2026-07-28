@@ -48,6 +48,10 @@ var Targets = []Target{
 		Covers:      "Cursor",
 	},
 	{Name: "copilot", Path: ".github/copilot-instructions.md", Budget: 6144, Covers: "GitHub Copilot"},
+	// Derived from agentarch/project/mcp/allowlist.yaml rather than from the core, so the
+	// reviewed document is the source and the runtime config is the derivative. Handled
+	// specially by sync; the budget is nominal.
+	{Name: "mcp_json", Path: ".mcp.json", Budget: 1 << 20, Covers: "any MCP client reading .mcp.json"},
 	{
 		Name: "windsurf", Path: ".windsurf/rules/agentarch-core.md", Budget: 6144,
 		FrontMatter: "---\ntrigger: always_on\n---\n",

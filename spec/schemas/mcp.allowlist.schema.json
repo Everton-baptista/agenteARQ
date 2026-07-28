@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/mcp.allowlist.schema.json",
+  "title": "agentarch MCP allowlist",
+  "description": "Which MCP servers this project trusts, which of their tools it accepts, and what those tool descriptions said when a human last reviewed them. An MCP server contributes tool descriptions the model treats as authoritative, so accepting a server implicitly is accepting instructions from a third party.",
+  "type": "object",
+  "required": ["schema_version", "default", "servers"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "default": {
+      "const": "deny",
+      "description": "Only one legal value. An allowlist that defaults to allow is a list, not an allowlist."
+    },
+    "servers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/server" }
+    }
+  },
+
+  "$defs": {
+    "server": {
+      "type": "object",
+      "required": ["name", "transport", "trust", "reviewed_at", "reviewer", "tools_allow"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "description": { "type": "string" },
+
+        "transport": { "enum": ["stdio", "http", "sse"] },
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "url": { "type": "string" },
+
+        "pin": {
+          "type": "object",
+          "required": ["version"],
+          "additionalProperties": false,
+          "properties": {
+            "package": { "type": "string" },
+            "version": {
+              "type": "string",
+              "not": { "enum": ["latest", "*", "main", "master", "next"] },
+              "description": "An exact version. A floating tag means the server you reviewed and the server you run are different programs."
+            },
+            "integrity": {
+              "type": "string",
+              "description": "Subresource-integrity style digest of the package, where the ecosystem provides one."
+            }
+          }
+        },
+
+        "trust": {
+          "enum": ["first_party", "vendor_reviewed", "community"],
+          "description": "Where it came from. community means nobody you can call is accountable for it."
+        },
+        "reviewed_at": { "type": "string", "format": "date" },
+        "reviewer": {
+          "type": "string",
+          "minLength": 2,
+          "description": "A named person. Review is an act someone performed, not a state a file is in."
+        },
+
+        "tools_allow": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Exactly the tools this project accepts. Anything the server offers that is not listed is refused."
+        },
+        "tools_deny": { "type": "array", "items": { "type": "string" } },
+
+        "tool_description_sha256": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "description": "Digest of each allowed tool's description as it read at review time. This is the defence against a rug pull: a server can serve a benign description during review and a hostile one afterwards, and nothing else in the protocol would notice. `agentarch mcp audit --probe` compares these against what the server currently serves."
+        },
+
+        "resources_allow": { "type": "array", "items": { "type": "string" } },
+        "prompts_allow": { "type": "array", "items": { "type": "string" } },
+
+        "env_allow": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "description": "Environment variables passed through. Everything else is withheld — a server inheriting the full environment inherits every credential in it."
+        },
+        "network_egress": { "type": "array", "items": { "type": "string" } },
+        "requires_human_approval": { "type": "boolean", "default": false },
+        "sandbox": { "enum": ["container", "subprocess", "none"] }
+      },
+
+      "allOf": [
+        {
+          "$comment": "A server you actually run has to be pinned; one reached over a URL is pinned by the operator at the other end.",
+          "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
+          "then": { "required": ["command", "pin"] }
+        },
+        {
+          "if": { "properties": { "transport": { "enum": ["http", "sse"] } }, "required": ["transport"] },
+          "then": { "required": ["url"] }
+        },
+        {
+          "$comment": "A community-trust server runs somewhere bounded. Nobody you can call is accountable for its contents.",
+          "if": { "properties": { "trust": { "const": "community" } }, "required": ["trust"] },
+          "then": {
+            "required": ["sandbox"],
+            "properties": { "sandbox": { "enum": ["container", "subprocess"] } }
+          }
+        }
+      ]
+    }
+  }
+}

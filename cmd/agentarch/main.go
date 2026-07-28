@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	agentarch "github.com/Everton-baptista/agenteARQ"
+	"github.com/Everton-baptista/agenteARQ/internal/mcp"
 	"github.com/Everton-baptista/agenteARQ/internal/render"
 	"github.com/Everton-baptista/agenteARQ/internal/validate"
 )
@@ -52,6 +53,8 @@ func run(args []string) int {
 		return cmdExplain(args[1:])
 	case "waive":
 		return cmdWaive(args[1:])
+	case "mcp":
+		return cmdMCP(args[1:])
 	case "version", "--version", "-v":
 		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
 		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
@@ -78,6 +81,7 @@ func usage() {
               --explain-resolution  show which pack imposed each control
   explain     why a control exists and how to satisfy it
   waive       record a time-boxed, owned exception (max 90 days)
+  mcp audit   check the MCP allowlist; --probe compares live tool descriptions
   version     print the CLI and spec versions
 
 Docs: https://github.com/Everton-baptista/agenteARQ
@@ -222,7 +226,22 @@ func cmdSync(args []string) int {
 	}
 
 	drift := 0
+
+	// .mcp.json is derived from the reviewed allowlist rather than rendered from the core.
+	// Keeping it generated is what makes the auditable document the source: two hand-kept
+	// files agree right up until one of them is edited.
+	if wantsTarget(selected, "mcp_json") || *targets == "" {
+		n, code := syncMCPJSON(*root, *check)
+		if code != exitOK {
+			return code
+		}
+		drift += n
+	}
+
 	for _, t := range selected {
+		if t.Name == "mcp_json" {
+			continue
+		}
 		dst := filepath.Join(*root, t.Path)
 		existing, _ := os.ReadFile(dst)
 
@@ -333,4 +352,49 @@ func cmdValidate(args []string) int {
 	}
 	fmt.Fprintf(os.Stderr, "\n%d finding(s)\n", len(findings))
 	return exitStructure
+}
+
+// wantsTarget reports whether a target was selected.
+func wantsTarget(sel []render.Target, name string) bool {
+	for _, t := range sel {
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// syncMCPJSON regenerates .mcp.json from the reviewed allowlist. Returns the number of files
+// found to be out of date under --check.
+func syncMCPJSON(root string, check bool) (int, int) {
+	a, _, err := mcp.Load(root)
+	if err != nil {
+		return 0, exitOK // no allowlist, nothing to derive
+	}
+	want, err := mcp.RenderMCPJSON(a)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sync:", err)
+		return 0, exitUsage
+	}
+	want = append(want, '\n')
+
+	dst := filepath.Join(root, ".mcp.json")
+	existing, _ := os.ReadFile(dst)
+	if string(existing) == string(want) {
+		return 0, exitOK
+	}
+	if check {
+		reason := "content differs from agentarch/project/mcp/allowlist.yaml"
+		if len(existing) == 0 {
+			reason = "file is missing"
+		}
+		fmt.Fprintf(os.Stderr, "drift  .mcp.json\n    %s\n", reason)
+		return 1, exitOK
+	}
+	if err := os.WriteFile(dst, want, 0o644); err != nil {
+		fmt.Fprintln(os.Stderr, "sync:", err)
+		return 0, exitUsage
+	}
+	fmt.Printf("wrote .mcp.json (%d server(s) from the allowlist)\n", len(a.Servers))
+	return 0, exitOK
 }

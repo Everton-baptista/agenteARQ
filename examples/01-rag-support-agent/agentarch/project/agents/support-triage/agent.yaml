@@ -79,6 +79,10 @@ agent:
     - ref: ../../tools/notify_customer.tool.yaml
       approval: human
 
+  mcp:
+    allowlist_ref: ../../mcp/allowlist.yaml
+    servers_used: [help-centre-docs]
+
   guardrails:
     input:
       - control: control.ai.genai.prompt_injection
