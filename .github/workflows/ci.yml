@@ -156,6 +156,28 @@ jobs:
       - name: the shipped registry verifies
         run: /tmp/agentarch pack verify
 
+      - name: the core names no framework
+        run: |
+          # AA-FWK-014 runs inside validate. Without it, "framework-neutral core" is a claim
+          # nobody checks, and an example creeps into a standard within two releases.
+          /tmp/agentarch validate examples/01-rag-support-agent
+
+      - name: every pack resolves and every control it names exists
+        run: /tmp/agentarch pack list --installed
+
+      - name: the AI-BOM generates from the manifests
+        run: |
+          /tmp/agentarch aibom --root examples/01-rag-support-agent --out /tmp/ai-bom.json
+          python3 -c "
+          import json
+          d=json.load(open('/tmp/ai-bom.json'))
+          a=d['agents'][0]
+          kinds={c['type'] for c in a['components']}
+          for want in ('model','prompt','corpus','tool','mcp_server'):
+              assert want in kinds, f'AI-BOM is missing {want}; an SBOM already covers packages'
+          print('ok  ai-bom', len(a['components']), 'components')
+          "
+
       - name: init works on a clean project
         run: |
           mkdir -p /tmp/greenfield && cd /tmp/greenfield

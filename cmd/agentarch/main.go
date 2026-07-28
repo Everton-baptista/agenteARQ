@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -62,6 +63,12 @@ func run(args []string) int {
 		return cmdScore(args[1:])
 	case "pack":
 		return cmdPack(args[1:])
+	case "diff":
+		return cmdDiff(args[1:])
+	case "upgrade":
+		return cmdUpgrade(args[1:])
+	case "aibom":
+		return cmdAIBOM(args[1:])
 	case "version", "--version", "-v":
 		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
 		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
@@ -93,6 +100,9 @@ func usage() {
   conformance assess L1/L2/L3 and emit a badge that expires
   score       maturity by dimension, declared vs proven; never blocks
   pack        list|verify|add community packs (checksum verified, never executed)
+  diff        which revalidation triggers fired since a git ref (--base)
+  upgrade     replace agentarch/std, never touching agentarch/project
+  aibom       what this agent is made of: models, prompts, corpora, tools, MCP
   version     print the CLI and spec versions
 
 Docs: https://github.com/Everton-baptista/agenteARQ
@@ -345,6 +355,7 @@ func cmdValidate(args []string) int {
 	}
 
 	i18nProblems := checkTranslations(*root)
+	contentFindings := lintContent(*root)
 
 	v, err := validate.New(agentarch.Spec)
 	if err != nil {
@@ -360,6 +371,8 @@ func cmdValidate(args []string) int {
 	for _, p := range i18nProblems {
 		fmt.Fprintln(os.Stderr, p)
 	}
+
+	findings = append(findings, contentFindings...)
 
 	if len(findings) == 0 {
 		if len(i18nProblems) == 0 {
@@ -377,6 +390,23 @@ func cmdValidate(args []string) int {
 	}
 	fmt.Fprintf(os.Stderr, "\n%d finding(s)\n", len(findings))
 	return exitStructure
+}
+
+// lintContent runs the checks that keep the standard itself honest: no framework named outside
+// the adapters, and every adapter answering the same questions.
+func lintContent(root string) []validate.Finding {
+	src, err := contentFS(root)
+	if err != nil {
+		return nil
+	}
+	var out []validate.Finding
+	if fs, err := validate.LintFrameworkNeutrality(src); err == nil {
+		out = append(out, fs...)
+	}
+	if fs, err := validate.LintAdapterCoverage(src); err == nil {
+		out = append(out, fs...)
+	}
+	return out
 }
 
 // checkTranslations reports translations whose source has moved. Warnings by default: a project
@@ -437,4 +467,10 @@ func syncMCPJSON(root string, check bool) (int, int) {
 	}
 	fmt.Printf("wrote .mcp.json (%d server(s) from the allowlist)\n", len(a.Servers))
 	return 0, exitOK
+}
+
+// readEmbeddedContent reads one file from the payload this binary carries, using the same
+// relative path an installed agentarch/std uses.
+func readEmbeddedContent(rel string) ([]byte, error) {
+	return fs.ReadFile(agentarch.Content, path.Join("content", filepath.ToSlash(rel)))
 }

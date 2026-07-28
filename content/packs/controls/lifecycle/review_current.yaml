@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.lifecycle.review_current"
+  type: "lifecycle"
+  title: "The agent has been reviewed within its own interval"
+  intent: "An agent nobody has looked at in a year is running on assumptions nobody has checked in a year."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "not exists(agent.lifecycle.review_interval_days) or (exists(agent.lifecycle.last_validated_at) and age_days(agent.lifecycle.last_validated_at) <= agent.lifecycle.review_interval_days)"
+    message: "The last validation is older than the review interval the agent set for itself."
+  evidence:
+    - "manifest_field"
+  remediation: "Re-run the evals, re-read the threat model, then update lifecycle.last_validated_at."
+  standard_ref: "standards/14-lifecycle.md#controlailifecyclereview_current"
+  references:
+    - "ISO/IEC 42001:2023 Clause 9"

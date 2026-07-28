@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.eval.dataset_versioned"
+  type: "eval"
+  title: "Every evaluation dataset is hashed"
+  intent: "Without a hash, a quietly edited dataset makes a regression look like an improvement and nobody can say which run the numbers came from."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "all(evals.datasets[].sha256 != null)"
+    message: "An evaluation dataset has no recorded hash."
+  evidence:
+    - "eval_result"
+  remediation: "Record sha256 and a case count per dataset. Two results are only comparable against the same cases."
+  standard_ref: "standards/11-evaluation.md#controlaievaldataset_versioned"
+  references:
+    - "NIST AI RMF MEASURE 2.3"

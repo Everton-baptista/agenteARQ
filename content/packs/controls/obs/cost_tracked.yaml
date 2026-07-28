@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.obs.cost_tracked"
+  type: "obs"
+  title: "Cost per run is measured against its declared budget"
+  intent: "Cost is an availability property: an attacker who cannot take a system down can make it expensive enough to be switched off."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "exists(agent.autonomy.budget.usd_per_run) or exists(agent.autonomy.budget.tokens_per_run)"
+    message: "No per-run cost or token budget is declared, so nothing can alert on exceeding it."
+  evidence:
+    - "manifest_field"
+  remediation: "Declare a budget from an observed p95 and alert on cost per run, not on total spend, which moves for legitimate reasons."
+  standard_ref: "standards/12-observability.md#controlaiobscost_tracked"
+  references:
+    - "OWASP LLM10"

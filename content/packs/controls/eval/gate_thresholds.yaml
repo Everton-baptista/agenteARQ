@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.eval.gate_thresholds"
+  type: "eval"
+  title: "Some metric actually blocks a release"
+  intent: "A plan that measures everything and blocks on nothing is a dashboard."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "any(evals.metrics[].passed != null)"
+    message: "No evaluation metric is wired to the gate."
+  evidence:
+    - "eval_result"
+  remediation: "Name the blocking metrics in gate.block_on, and prefer deterministic ones."
+  standard_ref: "standards/11-evaluation.md#controlaievalgate_thresholds"
+  references:
+    - "NIST AI RMF MEASURE 2.1"

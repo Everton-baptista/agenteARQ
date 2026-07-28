@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.eval.result_fresh"
+  type: "eval"
+  title: "The evaluation result is within its freshness window"
+  intent: "A stale result describes a system that may no longer exist, which is worse than no result because it reads as assurance."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "exists(evals.completed_at) and age_days(evals.completed_at) <= agent.evaluation.max_result_age_days"
+    message: "The evaluation result is missing or older than max_result_age_days."
+  evidence:
+    - "eval_result"
+  remediation: "Re-run the evals. Extending the window instead is how a freshness control stops meaning anything."
+  standard_ref: "standards/11-evaluation.md#controlaievalresult_fresh"
+  references:
+    - "NIST AI RMF MEASURE 2.3"
