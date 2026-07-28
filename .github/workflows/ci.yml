@@ -1,0 +1,94 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast, no secrets, no network. This is the job that makes the standard self-enforcing:
+  # a hand-edited CLAUDE.md fails the pull request in seconds rather than drifting unnoticed
+  # for months.
+  sync-check:
+    name: generated files are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: build
+        run: go build -o /tmp/agentarch ./cmd/agentarch
+      - name: sync --check
+        run: /tmp/agentarch sync --check --targets agents_md,claude,gemini
+
+  test:
+    name: build, vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l ./cmd ./internal payload.go)
+          if [ -n "$unformatted" ]; then
+            echo "::error::not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test ./... -v
+
+  examples:
+    name: examples behave as documented
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build -o /tmp/agentarch ./cmd/agentarch
+
+      - name: passing examples validate cleanly
+        run: |
+          for d in examples/0*/; do
+            echo "── $d"
+            /tmp/agentarch validate "$d"
+          done
+
+      # Asserting the failure is the point. A refactor that quietly stops enforcing a rule
+      # is indistinguishable from a green build unless something checks that the bad input
+      # is still rejected.
+      - name: failing examples still fail
+        run: |
+          fail=0
+          for d in examples/99-failing/*/; do
+            want=$(grep -E '^\s+exit_code:' "$d/expected.yaml" | head -1 | tr -dc '0-9')
+            set +e; /tmp/agentarch validate "$d" >/dev/null 2>&1; got=$?; set -e
+            if [ "$got" -eq 0 ] && [ "$want" != "0" ]; then
+              echo "::error::$d passed validation but must fail (expected exit $want)"
+              fail=1
+            else
+              echo "ok  $(basename $d)  exit=$got"
+            fi
+          done
+          exit $fail
+
+      - name: init works on a clean project
+        run: |
+          mkdir -p /tmp/greenfield && cd /tmp/greenfield
+          /tmp/agentarch init --profile minimal
+          test -f AGENTS.md && test -f agentarch/agentarch.yaml
+          /tmp/agentarch sync --check

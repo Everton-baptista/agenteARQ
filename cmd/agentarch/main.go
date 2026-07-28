@@ -1,0 +1,322 @@
+// Command agentarch is the reference implementation of the agentarch standard.
+//
+// It is a reference implementation, not the standard itself. The normative contracts live in
+// spec/, and spec/conformance/ exists so a second implementation can prove itself correct.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+
+	agentarch "github.com/Everton-baptista/agenteARQ"
+	"github.com/Everton-baptista/agenteARQ/internal/render"
+	"github.com/Everton-baptista/agenteARQ/internal/validate"
+)
+
+// Exit codes are normative — see spec/normative/06-exit-codes.md. They are distinct because CI
+// must be able to tell "you forgot to run sync" apart from "your agent is unsafe"; collapsing
+// them into a single failure teaches people to ignore both.
+const (
+	exitOK        = 0 // success
+	exitUsage     = 1 // usage, internal, or version incompatibility
+	exitStructure = 2 // structural validation failed
+	exitDrift     = 3 // generated files are out of date
+)
+
+var version = "0.1.0-dev"
+
+func main() { os.Exit(run(os.Args[1:])) }
+
+func run(args []string) int {
+	if len(args) == 0 {
+		usage()
+		return exitUsage
+	}
+	switch args[0] {
+	case "init":
+		return cmdInit(args[1:])
+	case "sync":
+		return cmdSync(args[1:])
+	case "validate":
+		return cmdValidate(args[1:])
+	case "version", "--version", "-v":
+		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
+		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
+		return exitOK
+	case "help", "--help", "-h":
+		usage()
+		return exitOK
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", args[0])
+		usage()
+		return exitUsage
+	}
+}
+
+func usage() {
+	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
+
+  init        install the standard into this project
+  sync        regenerate the assistant instruction files
+              --check   report drift without writing (exit 3)
+  validate    check artifacts for structure and consistency (exit 2)
+  version     print the CLI and spec versions
+
+Docs: https://github.com/Everton-baptista/agenteARQ
+`)
+}
+
+// ---------------------------------------------------------------- init
+
+func cmdInit(args []string) int {
+	fs_ := flag.NewFlagSet("init", flag.ContinueOnError)
+	profile := fs_.String("profile", "minimal", "policy profile: minimal, standard, regulated")
+	lang := fs_.String("lang", "en", "language for the generated instruction files")
+	root := fs_.String("root", ".", "project root")
+	if err := fs_.Parse(args); err != nil {
+		return exitUsage
+	}
+
+	stdDir := filepath.Join(*root, "agentarch", "std")
+	if err := copyEmbedded(agentarch.Content, "content", stdDir); err != nil {
+		fmt.Fprintln(os.Stderr, "init:", err)
+		return exitUsage
+	}
+	if err := copyEmbedded(agentarch.Spec, "spec/schemas", filepath.Join(stdDir, "schemas")); err != nil {
+		fmt.Fprintln(os.Stderr, "init:", err)
+		return exitUsage
+	}
+
+	for _, d := range []string{"agents", "tools", "mcp", "adr"} {
+		if err := os.MkdirAll(filepath.Join(*root, "agentarch", "project", d), 0o755); err != nil {
+			fmt.Fprintln(os.Stderr, "init:", err)
+			return exitUsage
+		}
+	}
+
+	cfg := filepath.Join(*root, "agentarch", "agentarch.yaml")
+	if _, err := os.Stat(cfg); os.IsNotExist(err) {
+		content := fmt.Sprintf(`schema_version: "1.0"
+installed_version: "%s"
+project:
+  default_profile: %s
+  lang: %s
+
+# Which assistant instruction files to generate. These are outputs: never edit them by
+# hand — edit agentarch/std/core/ and run "agentarch sync".
+sync:
+  targets: [agents_md, claude, gemini]
+
+# The release gate. Left empty until you have controls in place — a gate that blocks on
+# day one gets switched off on day two.
+gates:
+  release:
+    profile: %s
+    fail_on: []
+`, version, *profile, *lang, *profile)
+		if err := os.WriteFile(cfg, []byte(content), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "init:", err)
+			return exitUsage
+		}
+	}
+
+	fmt.Printf("installed agentarch/std (content %s) and agentarch/project\n", version)
+	return cmdSync([]string{"--root", *root, "--lang", *lang})
+}
+
+func copyEmbedded(src fs.FS, from, to string) error {
+	return fs.WalkDir(src, from, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(from, p)
+		if err != nil {
+			return err
+		}
+		dst := filepath.Join(to, rel)
+		if d.IsDir() {
+			return os.MkdirAll(dst, 0o755)
+		}
+		b, err := fs.ReadFile(src, p)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(dst, b, 0o644)
+	})
+}
+
+// ---------------------------------------------------------------- sync
+
+func cmdSync(args []string) int {
+	fs_ := flag.NewFlagSet("sync", flag.ContinueOnError)
+	check := fs_.Bool("check", false, "report drift without writing; exit 3 if any")
+	root := fs_.String("root", ".", "project root")
+	lang := fs_.String("lang", "en", "language of the generated files")
+	targets := fs_.String("targets", "", "comma-separated subset of targets")
+	if err := fs_.Parse(args); err != nil {
+		return exitUsage
+	}
+
+	// Prefer the project's installed copy so that a project pinned to an older content
+	// release keeps rendering that release. Falling back to the embedded payload is what
+	// makes this repository able to host itself before anything is installed.
+	//
+	// Both are rooted at the content tree so BuildCore sees the same layout either way.
+	source, err := fs.Sub(agentarch.Content, "content")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sync:", err)
+		return exitUsage
+	}
+	if _, statErr := os.Stat(filepath.Join(*root, "agentarch", "std", "core")); statErr == nil {
+		source = os.DirFS(filepath.Join(*root, "agentarch", "std"))
+	}
+
+	core, err := render.BuildCore(source, *lang)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sync:", err)
+		return exitUsage
+	}
+	if len(core.Text) > render.BudgetCore {
+		fmt.Fprintf(os.Stderr,
+			"AA-BUD-010  content/core/%s is %d bytes, over the %d byte budget by %d\n"+
+				"    fix: remove an invariant or demote it to a standard. The budget is fixed on\n"+
+				"    purpose — raising it is how the core grows until assistants stop reading it.\n",
+			*lang, len(core.Text), render.BudgetCore, len(core.Text)-render.BudgetCore)
+		return exitStructure
+	}
+
+	selected := render.Targets
+	if *targets != "" {
+		selected = nil
+		for _, n := range strings.Split(*targets, ",") {
+			t, ok := render.TargetByName(strings.TrimSpace(n))
+			if !ok {
+				fmt.Fprintf(os.Stderr, "sync: unknown target %q\n", n)
+				return exitUsage
+			}
+			selected = append(selected, t)
+		}
+	} else if cfgTargets := readConfigTargets(*root); len(cfgTargets) > 0 {
+		selected = cfgTargets
+	}
+
+	drift := 0
+	for _, t := range selected {
+		dst := filepath.Join(*root, t.Path)
+		existing, _ := os.ReadFile(dst)
+
+		out, err := render.Render(t, core, version, string(existing))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "AA-BUD-010  %s\n", err)
+			return exitStructure
+		}
+
+		if string(existing) == out {
+			continue
+		}
+
+		if *check {
+			drift++
+			reason := "content differs from the core"
+			switch {
+			case len(existing) == 0:
+				reason = "file is missing"
+			case render.CoreSHAOf(string(existing)) == "":
+				reason = "file has no agentarch header — it was written by hand"
+			case render.CoreSHAOf(string(existing)) != core.SHA256:
+				reason = fmt.Sprintf("generated from core %s…, current core is %s…",
+					core.SHA256[:8], render.CoreSHAOf(string(existing))[:8])
+			}
+			fmt.Fprintf(os.Stderr, "drift  %s\n    %s\n", t.Path, reason)
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			fmt.Fprintln(os.Stderr, "sync:", err)
+			return exitUsage
+		}
+		if err := os.WriteFile(dst, []byte(out), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "sync:", err)
+			return exitUsage
+		}
+		fmt.Printf("wrote %s (%d/%d bytes)\n", t.Path, len(out), t.Budget)
+	}
+
+	if *check {
+		if drift > 0 {
+			fmt.Fprintf(os.Stderr,
+				"\n%d generated file(s) out of date.\n"+
+					"Run `agentarch sync`. Do not edit these files directly — put your own\n"+
+					"additions between <!-- agentarch:custom:start --> and :end, which sync preserves.\n",
+				drift)
+			return exitDrift
+		}
+		fmt.Printf("all %d generated file(s) up to date (core %s…)\n", len(selected), core.SHA256[:8])
+	}
+	return exitOK
+}
+
+// readConfigTargets pulls sync.targets out of agentarch.yaml with a deliberately small parser:
+// this runs before any schema is available, and a full YAML load here would make a
+// misconfigured file fail in a way that is hard to explain.
+func readConfigTargets(root string) []render.Target {
+	raw, err := os.ReadFile(filepath.Join(root, "agentarch", "agentarch.yaml"))
+	if err != nil {
+		return nil
+	}
+	var out []render.Target
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "targets:") {
+			continue
+		}
+		list := strings.Trim(strings.TrimPrefix(line, "targets:"), " []")
+		for _, n := range strings.Split(list, ",") {
+			if t, ok := render.TargetByName(strings.TrimSpace(n)); ok {
+				out = append(out, t)
+			}
+		}
+	}
+	return out
+}
+
+// ---------------------------------------------------------------- validate
+
+func cmdValidate(args []string) int {
+	fs_ := flag.NewFlagSet("validate", flag.ContinueOnError)
+	root := fs_.String("root", ".", "project root")
+	if err := fs_.Parse(args); err != nil {
+		return exitUsage
+	}
+	if fs_.NArg() > 0 {
+		*root = fs_.Arg(0)
+	}
+
+	v, err := validate.New(agentarch.Spec)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "validate: cannot compile schemas:", err)
+		return exitUsage
+	}
+
+	findings, err := v.Project(*root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "validate:", err)
+		return exitUsage
+	}
+	if len(findings) == 0 {
+		fmt.Println("validate: no findings")
+		return exitOK
+	}
+	for _, f := range findings {
+		fmt.Fprintln(os.Stderr, f)
+	}
+	fmt.Fprintf(os.Stderr, "\n%d finding(s)\n", len(findings))
+	return exitStructure
+}

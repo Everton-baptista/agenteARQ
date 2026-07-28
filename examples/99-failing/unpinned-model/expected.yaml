@@ -13,7 +13,7 @@ phase: 2
 expect:
   validate:
     exit_code: 0
-    reason: Structurally valid. `pinned: false` is a well-formed value.
+    reason: "Structurally valid: `pinned: false` is a well-formed boolean."
   check:
     exit_code: 4
     profile: standard
