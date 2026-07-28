@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	agentarch "github.com/Everton-baptista/agenteARQ"
+	"github.com/Everton-baptista/agenteARQ/internal/i18n"
 	"github.com/Everton-baptista/agenteARQ/internal/mcp"
 	"github.com/Everton-baptista/agenteARQ/internal/render"
 	"github.com/Everton-baptista/agenteARQ/internal/validate"
@@ -59,6 +60,8 @@ func run(args []string) int {
 		return cmdConformance(args[1:])
 	case "score":
 		return cmdScore(args[1:])
+	case "pack":
+		return cmdPack(args[1:])
 	case "version", "--version", "-v":
 		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
 		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
@@ -80,6 +83,7 @@ func usage() {
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)
+              --strict-i18n  fail on a stale translation instead of warning
   check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
               --profile minimal|standard|regulated  --format text|json|sarif
               --explain-resolution  show which pack imposed each control
@@ -88,6 +92,7 @@ func usage() {
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
   conformance assess L1/L2/L3 and emit a badge that expires
   score       maturity by dimension, declared vs proven; never blocks
+  pack        list|verify|add community packs (checksum verified, never executed)
   version     print the CLI and spec versions
 
 Docs: https://github.com/Everton-baptista/agenteARQ
@@ -331,12 +336,15 @@ func readConfigTargets(root string) []render.Target {
 func cmdValidate(args []string) int {
 	fs_ := flag.NewFlagSet("validate", flag.ContinueOnError)
 	root := fs_.String("root", ".", "project root")
+	strictI18n := fs_.Bool("strict-i18n", false, "treat a stale translation as an error, not a warning")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
 	if fs_.NArg() > 0 {
 		*root = fs_.Arg(0)
 	}
+
+	i18nProblems := checkTranslations(*root)
 
 	v, err := validate.New(agentarch.Spec)
 	if err != nil {
@@ -349,8 +357,19 @@ func cmdValidate(args []string) int {
 		fmt.Fprintln(os.Stderr, "validate:", err)
 		return exitUsage
 	}
+	for _, p := range i18nProblems {
+		fmt.Fprintln(os.Stderr, p)
+	}
+
 	if len(findings) == 0 {
-		fmt.Println("validate: no findings")
+		if len(i18nProblems) == 0 {
+			fmt.Println("validate: no findings")
+			return exitOK
+		}
+		fmt.Fprintf(os.Stderr, "\n%d translation warning(s)\n", len(i18nProblems))
+		if *strictI18n {
+			return exitStructure
+		}
 		return exitOK
 	}
 	for _, f := range findings {
@@ -358,6 +377,21 @@ func cmdValidate(args []string) int {
 	}
 	fmt.Fprintf(os.Stderr, "\n%d finding(s)\n", len(findings))
 	return exitStructure
+}
+
+// checkTranslations reports translations whose source has moved. Warnings by default: a project
+// that installed the standard did not write the translations and cannot fix them, so failing its
+// build over upstream drift would only teach it to stop running validate.
+func checkTranslations(root string) []i18n.Status {
+	src, err := contentFS(root)
+	if err != nil {
+		return nil
+	}
+	all, err := i18n.Check(src)
+	if err != nil {
+		return nil
+	}
+	return i18n.Problems(all)
 }
 
 // wantsTarget reports whether a target was selected.

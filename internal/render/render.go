@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Everton-baptista/agenteARQ/internal/i18n"
 )
 
 // Target is one assistant's instruction file.
@@ -112,10 +114,17 @@ func BuildCore(fsys fs.FS, lang string) (Core, error) {
 		if err != nil {
 			return Core{}, err
 		}
+		// Translation front matter is bookkeeping for `validate`, not something an
+		// assistant should read. Leaving it in would spend context budget on a hash and
+		// invite the model to reason about provenance instead of about the rules.
+		_, body, hasFM := i18n.ParseFrontMatter(string(raw))
+		if !hasFM {
+			body = string(raw)
+		}
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		b.Write(raw)
+		b.WriteString(strings.TrimLeft(body, "\n"))
 	}
 
 	text := b.String()

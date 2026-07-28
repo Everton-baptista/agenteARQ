@@ -140,6 +140,22 @@ jobs:
           echo "$out" | grep -q "valid until" || {
             echo "::error::an L3 assessment must carry an expiry"; exit 1; }
 
+      - name: translations are not stale
+        run: /tmp/agentarch validate --strict-i18n examples/01-rag-support-agent
+
+      - name: the pt-BR core renders within budget
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --lang pt-BR --profile standard
+          grep -q "Regras de arquitetura de agentes" CLAUDE.md
+          grep -q "source_sha256" CLAUDE.md && {
+            echo "::error::translation front matter leaked into the shim; it spends context budget"; exit 1; }
+          /tmp/agentarch sync --check --lang pt-BR
+          echo "ok  pt-BR core renders clean"
+
+      - name: the shipped registry verifies
+        run: /tmp/agentarch pack verify
+
       - name: init works on a clean project
         run: |
           mkdir -p /tmp/greenfield && cd /tmp/greenfield
