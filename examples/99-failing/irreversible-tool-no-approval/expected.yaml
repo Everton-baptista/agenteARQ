@@ -1,0 +1,14 @@
+# This example MUST fail. CI asserts the failure, not the success.
+case: irreversible-tool-no-approval
+artifact: delete_account.tool.yaml
+kind: tool
+expect:
+  exit_code: 2
+  finding: AA-SCH-001
+  json_pointer: /tool
+  reason: >-
+    A tool with effect: irreversible omits the approval block. The schema requires it,
+    because a capability that cannot be undone must state who approves it and what
+    happens when nobody answers.
+  invariant: 1
+  control: control.ai.tool.irreversible_requires_approval

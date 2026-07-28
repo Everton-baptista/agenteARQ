@@ -1,0 +1,33 @@
+schema_version: "1.0"
+tool:
+  id: delete_account
+  description_for_model: >-
+    Permanently delete a customer account and all associated data. This cannot be undone.
+  input_schema:
+    type: object
+    required: [customer_id]
+    properties:
+      customer_id: { type: string }
+
+  effect: irreversible
+
+  idempotency:
+    idempotent: false
+    key_field: request_id
+
+  permissions:
+    scopes: ["accounts:delete"]
+    network:
+      deny_by_default: true
+      egress: ["accounts-api.internal.example.com"]
+    secrets: ["ACCOUNTS_ADMIN_TOKEN"]
+    sandbox: container
+
+  limits:
+    timeout_ms: 5000
+    max_retries: 0
+
+  # VIOLATION: effect is irreversible but there is no `approval` block.
+  # The schema requires one; control.ai.tool.irreversible_requires_approval enforces it.
+
+  owner: team-accounts

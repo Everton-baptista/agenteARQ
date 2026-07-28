@@ -1,8 +1,11 @@
 # build output
 /dist/
 /bin/
-agentarch
 *.exe
+# the compiled binary at the repo root only. NOT anchored would also match every
+# `agentarch/` directory the standard installs into a project — including the ones
+# under examples/, which must be committed.
+/agentarch
 
 # go
 *.test
