@@ -102,8 +102,13 @@ func cmdDiff(args []string) int {
 }
 
 // gitShow reads one file as it stood at a revision.
+//
+// The path is prefixed with ./ so git resolves it relative to -C rather than to the repository
+// root. Without that, running diff from anywhere but the top of the repo silently finds nothing
+// and reports that no triggers fired — the worst possible failure for this command, because it
+// looks exactly like success.
 func gitShow(root, ref, path string) (map[string]any, error) {
-	cmd := exec.Command("git", "-C", root, "show", ref+":"+path)
+	cmd := exec.Command("git", "-C", root, "show", ref+":./"+filepath.ToSlash(path))
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err

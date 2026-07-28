@@ -7,6 +7,8 @@ project — Claude Code, Gemini CLI, Cursor, Copilot, Codex, Grok, Kimi, Qwen Co
 local models — follows the same architecture rules, from a single source of truth.
 
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
+>
+> 16 standards · 39 controls · 9 packs · 11 framework adapters · `en` and `pt-BR`.
 
 ---
 
@@ -35,10 +37,12 @@ It answers three questions that have no standard answer today:
 3. **How every AI assistant** picks up those rules from one source of truth.
 
 ```bash
-npx agentarch@1 init          # or: pipx install agentarch && agentarch init
-agentarch new agent triage
-agentarch validate
-agentarch check               # the release gate
+agentarch init --profile standard --jurisdictions EU,BR
+agentarch validate            # structure and consistency        (exit 2)
+agentarch check               # the release gate                 (exit 4, 5)
+agentarch mcp audit --probe   # has a server changed since review?
+agentarch diff --base main    # which revalidation triggers fired (exit 6)
+agentarch conformance --badge # L1 / L2 / L3, with an expiry
 ```
 
 `init` writes an `agentarch/` directory into your project and generates the instruction file
@@ -89,6 +93,15 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
   which makes "what is truly non-negotiable" a scarce, contested decision.
 
 ---
+
+## What is in the box
+
+| | |
+|---|---|
+| **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain |
+| **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
+| **Adapters** | LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Agno, Vercel AI SDK, and no framework at all |
+| **Generated for** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot, Windsurf, `.mcp.json` |
 
 ## Conformance
 
