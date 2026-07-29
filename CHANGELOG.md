@@ -3,7 +3,7 @@
 Three version lines move independently — see `spec/normative/08-versioning.md`. Each entry says
 which one changed.
 
-## Unreleased
+## v0.1.3 — 2026-07-29
 
 `cli/0.1.3`. Spec and content unchanged.
 
