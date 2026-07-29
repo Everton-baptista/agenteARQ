@@ -49,12 +49,33 @@ Then, in your project:
 
 ```bash
 agentarch init --profile standard --jurisdictions EU,BR
-agentarch new agent customer-triage
-agentarch validate
+agentarch blueprint
 ```
 
 `init` writes an `agentarch/` directory and generates the instruction file each assistant
-expects. `new agent` scaffolds a manifest and a system prompt, already hashed into each other.
+expects. `blueprint` asks what you are building and installs a complete, working project for it
+— manifest, prompt, tools, evals, threat model, CI, and code that runs:
+
+```
+What are you building?
+
+  1. An agent that acts on my systems, with a human approving the dangerous part
+  2. An agent that answers from my documents and cites its sources
+  3. An agent that uses MCP servers I did not write
+  4. Several agents working together without losing track of who may do what
+```
+
+Every blueprint passes the gate the moment it lands, so you start from something that works and
+edit it, rather than assembling one and finding out later what was missing. `agentarch blueprint
+show <id>` explains what each demonstrates.
+
+Prefer to start empty?
+
+```bash
+agentarch new agent customer-triage
+```
+
+`new agent` scaffolds a manifest and a system prompt already hashed into each other.
 
 **`validate` will fail until you fill in the fields marked `TODO`, and that is deliberate.** A
 manifest full of plausible defaults is worse than one that refuses to validate, because it looks

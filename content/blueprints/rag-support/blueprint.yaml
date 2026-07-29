@@ -1,0 +1,25 @@
+id: rag-support
+title: Grounded support agent with citations
+need: An agent that answers from my documents and cites its sources
+system_type: generative_rag
+provider: anthropic
+conformance: L2
+
+description: >-
+  Answers questions from a corpus you control, cites the passage it used, and escalates when it
+  cannot ground an answer rather than improvising one. Ships with a read-only lookup tool and an
+  irreversible outbound-message tool behind human approval, so both halves of the tool model are
+  visible in one project.
+
+  The parts worth reading first are the system prompt — where the untrusted block and the
+  refusal policy live — and dispatch() in app/agent.py, where identity is injected server-side
+  instead of being trusted from the model.
+
+frameworks: [none]
+
+demonstrates:
+  - Retrieved passages kept as data in a delimited block, never concatenated into the prompt
+  - A citation required per factual claim, with escalation when the sources do not support one
+  - Identity resolved from the session, so an injected instruction cannot choose the customer
+  - An irreversible tool gated on human approval that denies on timeout
+  - Guardrails at all three points, with the action check never consulting the model

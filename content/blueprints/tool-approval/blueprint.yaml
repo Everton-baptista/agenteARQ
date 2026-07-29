@@ -1,0 +1,18 @@
+id: tool-approval
+title: Task agent with an irreversible action behind approval
+need: An agent that acts on my systems, with a human approving the dangerous part
+system_type: agentic_task
+provider: anthropic
+conformance: L2
+
+description: >-
+  Runs at L2 — it acts alone on anything reversible — while every irreversible action stops for a named approver. That combination is the whole point of the level, and the manifest is where it is declared rather than being an accident of how the code was written. The approval request shows the arguments, the effect and what happens on timeout: a dialog that says only "approve?" produces a click, not a decision.
+
+frameworks: [none]
+
+demonstrates:
+  - L2 autonomy where reversible actions run alone and irreversible ones do not
+  - An approval request that shows the arguments, not just the tool name
+  - "on_timeout: deny — an unanswered request is not consent"
+  - domain_limits, so a successful injection stays cheap
+  - Effect classification driving approval, guardrails and blast radius

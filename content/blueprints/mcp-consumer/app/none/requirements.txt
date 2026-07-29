@@ -1,0 +1,4 @@
+# Pinned, for the same reason the model is: a floating dependency changes behaviour with
+# nothing in the repository to review.
+anthropic==0.69.0
+pyyaml==6.0.2

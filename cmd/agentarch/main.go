@@ -49,6 +49,8 @@ func run(args []string) int {
 		return cmdInit(args[1:])
 	case "sync":
 		return cmdSync(args[1:])
+	case "blueprint", "bp":
+		return cmdBlueprint(args[1:])
 	case "new":
 		return cmdNew(args[1:])
 	case "validate":
@@ -91,7 +93,9 @@ func usage() {
 	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
 
   init        install the standard into this project
-  new         scaffold an agent, a tool or an ADR from the templates
+  blueprint   start from a complete, working project — run it with no
+              arguments to choose from the catalogue
+  new         scaffold an empty agent, tool or ADR from the templates
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)

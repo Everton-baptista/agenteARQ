@@ -215,6 +215,31 @@ jobs:
           /tmp/agentarch check --profile standard
           echo "ok  nothing -> passing gate"
 
+      # A blueprint that does not install clean and pass the gate is a starting point that
+      # starts you in a hole. This is the promise the whole feature rests on.
+      - name: every blueprint installs clean and passes the gate
+        run: |
+          for bp in $(/tmp/agentarch blueprint list | grep -oE '^  [a-z-]+' | tr -d ' '); do
+            work=$(mktemp -d)
+            (cd "$work"
+             /tmp/agentarch init --profile standard >/dev/null
+             /tmp/agentarch blueprint add "$bp" --yes >/dev/null
+             /tmp/agentarch validate
+             /tmp/agentarch check --profile standard >/dev/null
+             test -f app/agent.py && test -f app/README.md
+             python3 -c "import ast,sys; ast.parse(open('app/agent.py').read())"
+             echo "ok  $bp installs, validates, passes the gate, and parses")
+          done
+
+      - name: a blueprint refuses to overwrite existing work
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile standard >/dev/null
+          /tmp/agentarch blueprint add rag-support --yes >/dev/null
+          set +e; /tmp/agentarch blueprint add rag-support --yes >/dev/null 2>&1; got=$?; set -e
+          [ "$got" -eq 2 ] || { echo "::error::a second install should refuse, got $got"; exit 1; }
+          echo "ok  refuses to overwrite"
+
       - name: upgrade tells a local edit apart from an upstream change
         run: |
           work=$(mktemp -d) && cd "$work"

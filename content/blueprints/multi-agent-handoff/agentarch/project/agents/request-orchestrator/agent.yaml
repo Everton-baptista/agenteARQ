@@ -1,0 +1,145 @@
+schema_version: "1.0"
+agent:
+  id: request-orchestrator
+  name: Orchestrator with specialists and a typed handoff
+  owner:
+    team: customer-support
+    contact: support-eng@example.com
+    accountable: alex.moreau
+
+  stage: pilot
+  system_type: multi_agent
+  purpose: >-
+    Triages a request and delegates to a specialist, keeping the budget and the authority bounded.
+  out_of_scope:
+    - Never delegates to an agent not declared in hands_off_to
+    - Never passes its own tools to a specialist
+    - Never exceeds the shared step budget, whatever the delegation depth
+
+  users:
+    audience: external
+    minors_likely: false
+  jurisdictions: ["EU", "BR"]
+  languages: ["en", "pt-BR"]
+
+  autonomy:
+    level: L1_act_with_approval
+    max_steps: 8
+    max_tool_calls: 12
+    stop_conditions:
+      - Answer delivered with at least one citation
+      - Escalated to a human agent
+      - Step or cost budget exhausted
+    budget:
+      usd_per_run: 0.15
+      tokens_per_run: 40000
+      latency_p95_ms: 6000
+
+  model:
+    provider: anthropic
+    id: claude-sonnet-4-5-20250929
+    pinned: true
+    params:
+      temperature: 0.2
+      max_output_tokens: 1200
+
+  prompts:
+    system:
+      path: prompts/system.v1.md
+      version: 1.0.0
+      sha256: "9b521aa3a11d29e3527adc99c8cd2b27921c2ab200683e7ebf54e09081b6b6bd"
+    variables:
+      - name: customer_tier
+        source: app
+        trusted: true
+      - name: question
+        source: user
+        trusted: false
+
+  context:
+    memory:
+      kind: session
+      ttl_days: 1
+      scope_key: conversation_id
+      pii_allowed: false
+
+  tools:
+    - ref: ../../tools/search_orders.tool.yaml
+      approval: none
+      rate_limit:
+        rpm: 60
+    - ref: ../../tools/notify_customer.tool.yaml
+      approval: human
+
+  handoff:
+    accepts_from: []
+    hands_off_to:
+      # Authority does not travel with the message. read_only means the specialist gets no
+      # tools at all; delegated means it gets the ones its OWN manifest declares — never the
+      # orchestrator's. An orchestrator that can issue refunds must not make everything it
+      # delegates to able to.
+      - agent_id: billing-specialist
+        payload_schema: handoff/to-billing.schema.json
+        authority: read_only
+        return_point: orchestrator.after_billing
+        timeout_s: 120
+
+  guardrails:
+    input:
+      - control: control.ai.genai.prompt_injection
+        fail_mode: fail_closed
+    output:
+      - control: control.ai.privacy.pii_leakage
+        fail_mode: fail_closed
+      - control: control.ai.rag.citation_required
+        fail_mode: fail_warn
+        note: A missing citation degrades to escalation rather than blocking the reply.
+    action:
+      - control: control.ai.tool.least_privilege
+        fail_mode: fail_closed
+
+  privacy:
+    processes_personal_data: true
+    data_categories: [contact, transactional]
+    legal_basis: contract_performance
+    capture_content: false
+    redaction:
+      enabled: true
+      profile: pii_default_v1
+    retention_days: 30
+
+  observability:
+    otel:
+      enabled: true
+      semconv_version: "1.29.0"
+      capture_content: false
+    slo:
+      availability: 0.99
+      latency_p95_ms: 6000
+      task_success_rate: 0.85
+
+  evaluation:
+    plan_ref: evals/plan.yaml
+    last_result_ref: evals/results/latest.yaml
+    max_result_age_days: 30
+
+  policy:
+    packs: ["core.agent.v1", "sec.owasp-llm.v1", "obs.otel.v1"]
+    waivers_ref: ../../waivers.yaml
+
+  lifecycle:
+    revalidate_on:
+      - model_changed
+      - system_prompt_changed
+      - rag_corpus_changed
+      - provider_changed
+      - tool_added
+      - autonomy_raised
+      - guardrail_disabled
+    last_validated_at: "2026-07-20"
+    review_interval_days: 90
+
+  links:
+    threat_model: threat-model.md
+    model_card: model-card.md
+    runbook: runbook.md
