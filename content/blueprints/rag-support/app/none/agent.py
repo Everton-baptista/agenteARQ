@@ -164,9 +164,17 @@ def retrieve(question: str) -> list[dict]:
         {"id": "kb-002", "text": "Returns are accepted within 30 days of delivery, unopened."},
         {"id": "kb-003", "text": "Delivery estimates come from the carrier and can change."},
     ]
-    terms = set(question.lower().split())
-    scored = [(len(terms & set(p["text"].lower().split())), p) for p in corpus]
-    return [p for score, p in sorted(scored, key=lambda x: -x[0]) if score > 0][:3]
+
+    # Prefix matching rather than exact words, so "order" finds "Orders" and "shipping" finds
+    # "ship". Crude, and deliberately so — but a placeholder that returns nothing for the
+    # question in the README teaches the reader that the agent does not work.
+    terms = [t.strip("?.,!") for t in question.lower().split() if len(t) > 3]
+    def score(text: str) -> int:
+        words = text.lower().replace(".", " ").split()
+        return sum(1 for t in terms if any(w.startswith(t[:4]) for w in words))
+
+    ranked = sorted(((score(p["text"]), p) for p in corpus), key=lambda x: -x[0])
+    return [p for s, p in ranked if s > 0][:3]
 
 
 def render_untrusted(passages: list[dict], question: str) -> str:

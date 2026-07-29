@@ -38,38 +38,70 @@ It answers three questions that have no standard answer today:
 
 ## Getting started
 
-Install. Pick whichever fits your stack — the CLI is a single static binary, so nothing here
-pulls in a runtime you did not already have:
+### 1. Install
+
+The CLI is a single static binary, so nothing here pulls in a runtime you did not already have.
+Pick whichever fits your stack:
 
 ```bash
-npx agentarch@latest init          # any project with Node
-pipx install agentarch             # any project with Python
-docker run --rm -v "$PWD:/work" ghcr.io/everton-baptista/agentarch check
+# Go — works today
 go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
+
+# Container — works today, needs nothing installed
+docker run --rm -v "$PWD:/work" ghcr.io/everton-baptista/agentarch:latest version
+
+# npm and PyPI — publish once their tokens are configured
+npx agentarch@latest --help
+pipx install agentarch
 ```
 
-In CI, the composite action hides the language entirely:
-
-```yaml
-- uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v1
-  with:
-    command: check --profile standard
-```
-
-> The npm and PyPI packages publish on the first tagged release; until then use `go install` or
-> the container. Every artifact is signed with cosign and its checksum is verified before
-> anything is unpacked — including by the action itself.
-
-Then, in your project:
+Or download a signed binary from [Releases](https://github.com/Everton-baptista/agenteARQ/releases)
+and verify it before you run it:
 
 ```bash
-agentarch init --profile standard --jurisdictions EU,BR
+gh release download v0.1.1 --repo Everton-baptista/agenteARQ \
+  -p 'agentarch_0.1.1_darwin_arm64.tar.gz' -p 'checksums.txt'
+shasum -a 256 -c checksums.txt --ignore-missing
+tar -xzf agentarch_0.1.1_darwin_arm64.tar.gz
+./agentarch version
+```
+
+Every release is signed with cosign; the footer of each release page has the verification
+command.
+
+### 2. Install the standard into your project
+
+```bash
+cd my-project
+agentarch init --profile standard --jurisdictions BR
+```
+
+This writes:
+
+```
+agentarch/
+  agentarch.yaml        your settings — never overwritten by an upgrade
+  std/                  the standard itself — replaced wholesale by `upgrade`
+  project/              your artifacts — never touched by an upgrade
+AGENTS.md               generated, read by Codex, Cursor, Gemini CLI, Grok, Kimi, Zed, Aider
+CLAUDE.md               generated, read by Claude Code
+GEMINI.md               generated, read by Gemini CLI
+```
+
+`--jurisdictions` decides which regulatory packs apply — `BR` brings LGPD, `EU` brings GDPR and
+the AI Act. Leave it out if none apply.
+
+**Commit the generated files.** They are outputs: edit `agentarch/std/core/` and re-run `sync`.
+CI checks they are current, so a hand-edited `CLAUDE.md` fails the pull request instead of
+drifting quietly for six months.
+
+### 3. Start from something that works
+
+```bash
 agentarch blueprint
 ```
 
-`init` writes an `agentarch/` directory and generates the instruction file each assistant
-expects. `blueprint` asks what you are building and installs a complete, working project for it
-— manifest, prompt, tools, evals, threat model, CI, and code that runs:
+With no arguments it asks what you are building:
 
 ```
 What are you building?
@@ -78,46 +110,124 @@ What are you building?
   2. An agent that answers from my documents and cites its sources
   3. An agent that uses MCP servers I did not write
   4. Several agents working together without losing track of who may do what
+
+Choose 1–4 (or q to quit):
 ```
 
-Every blueprint passes the gate the moment it lands, so you start from something that works and
-edit it, rather than assembling one and finding out later what was missing. `agentarch blueprint
-show <id>` explains what each demonstrates.
+It shows every file it will write, asks before writing, and refuses to overwrite anything that
+already exists. You end up with a complete project — manifest, prompt, tool specs, evals, threat
+model, CI workflow, and code that runs.
 
-Prefer to start empty?
+Non-interactively, for a script or CI:
 
 ```bash
-agentarch new agent customer-triage
+agentarch blueprint list                                    # what exists
+agentarch blueprint show rag-support                        # what it demonstrates
+agentarch blueprint add rag-support --framework none --yes  # install it
 ```
 
-`new agent` scaffolds a manifest and a system prompt already hashed into each other.
-
-**`validate` will fail until you fill in the fields marked `TODO`, and that is deliberate.** A
-manifest full of plausible defaults is worse than one that refuses to validate, because it looks
-finished. The two worth thinking about before the rest are `out_of_scope` — what the agent must
-refuse — and `autonomy.level`, which is a property of the deployment rather than of the model.
-
-Once it validates:
+### 4. Run the agent
 
 ```bash
-agentarch check               # the release gate                 (exit 4 blocked, 5 waiver)
-agentarch conformance         # L1 / L2 / L3, with an expiry
-agentarch explain <control>   # why a rule exists and how to satisfy it
+python -m venv .venv && source .venv/bin/activate
+pip install -r app/requirements.txt
+export ANTHROPIC_API_KEY=...
+
+python app/agent.py "where is my order BR-77120?"
 ```
 
-Commit the generated instruction files and run `agentarch sync --check` in CI, so a hand-edited
-`CLAUDE.md` fails the pull request instead of drifting quietly for six months. A ready-made
-workflow is in [`examples/01-rag-support-agent/.github/workflows/`](examples/01-rag-support-agent/.github/workflows/agentarch.yml).
+`app/README.md` explains what to read first and what to change. The short version: replace
+`retrieve()` with your retriever, edit `out_of_scope` in the manifest, mirror it into the
+prompt's refusal section, and replace the tools with yours.
 
-### The rest of the surface
+### 5. Check it
 
 ```bash
-agentarch mcp audit --probe   # has a server changed its tool descriptions since review?
-agentarch diff --base main    # which revalidation triggers fired (exit 6 with --strict)
-agentarch aibom --out ai-bom.json
-agentarch score               # maturity by dimension, declared vs proven
-agentarch upgrade --dry-run   # what a newer standard would change
+agentarch validate      # structure and internal consistency
+agentarch check         # the release gate
+agentarch conformance   # L1 / L2 / L3, with an expiry
 ```
+
+Exit codes are distinct so CI can route them:
+
+| Code | Means | What to do |
+|---:|---|---|
+| 0 | passed | — |
+| 2 | an artifact is malformed or inconsistent | read the finding; it names the field |
+| 3 | a generated file is out of date | run `agentarch sync` |
+| 4 | a blocker-severity control failed | `agentarch explain <control.id>` |
+| 5 | a waiver expired | it belongs to the person named on it |
+| 6 | a revalidation trigger fired | re-run evals, update `last_validated_at` |
+
+When something fails, `agentarch explain <control.id>` gives the reasoning, the fix, and which
+pack imposed it.
+
+### 6. Wire it into CI
+
+```yaml
+name: agentarch
+on: [pull_request]
+jobs:
+  agentarch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v1
+        with:
+          command: sync --check
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v1
+        with:
+          command: check --profile standard
+```
+
+The blueprints ship this file already, at `.github/workflows/agentarch.yml`.
+
+---
+
+## Already have agents?
+
+Do not start over, and do not switch the gate off on day one.
+
+```bash
+agentarch init --adopt --profile standard
+```
+
+It scans for what already exists — providers, models, frameworks, likely prompt files — and
+writes a manifest describing it. **Everything it could not determine is left as `unknown`**, on
+purpose: a plausible-looking wrong value is worse than a blank one, because nobody re-examines a
+field that is already filled in.
+
+Fill in the unknowns, starting with `owner.accountable` and `out_of_scope`. Then:
+
+```bash
+agentarch check --adopt-baseline
+```
+
+That records today's failures as the starting point. From then on the gate blocks only what is
+**new or worse**. Nothing is forgiven — `agentarch score` still counts the debt, and you close it
+deliberately:
+
+```bash
+agentarch check --update-baseline   # drops entries you have fixed
+```
+
+---
+
+## The rest of the commands
+
+| | |
+|---|---|
+| `agentarch new agent <id>` | scaffold an empty agent instead of using a blueprint |
+| `agentarch new tool <id> --effect irreversible` | scaffold a tool, with its approval block |
+| `agentarch mcp audit --probe` | has a server changed its tool descriptions since review? |
+| `agentarch diff --base main` | which revalidation triggers fired, and is validation overdue |
+| `agentarch report --out reports/` | markdown and a self-contained HTML page |
+| `agentarch score` | maturity by dimension, declared vs proven; never blocks |
+| `agentarch aibom --out ai-bom.json` | models, prompts, corpora, tools, MCP servers |
+| `agentarch upgrade --dry-run` | what a newer standard would change here |
+| `agentarch pack list --installed` | which packs are judging this project |
+
+Every command takes `--root` to work on a directory other than the current one.
 
 ## What it is not
 
