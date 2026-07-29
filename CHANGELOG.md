@@ -3,6 +3,21 @@
 Three version lines move independently — see `spec/normative/08-versioning.md`. Each entry says
 which one changed.
 
+## v0.1.1 — 2026-07-29
+
+`cli/0.1.1`. Spec and content unchanged.
+
+The v0.1.0 release published fifteen signed artifacts and then failed to push the container: OCI
+repository names must be lowercase and the owner is not. Rerunning did not help, because a
+tag-triggered workflow reruns from the tag.
+
+Fixed by computing the owner rather than hardcoding it, so a fork works too, and the image now
+receives its version instead of reporting `dev`.
+
+The image could have been pushed by hand from a laptop. It was not: an artifact built outside the
+pipeline has no provenance and is not reproducible, which would undo the point of signing the
+rest.
+
 ## v0.1.0 — 2026-07-29
 
 First release. `spec/1.0.0-draft.1`, `content/1.0.0`, `cli/0.1.0`.
