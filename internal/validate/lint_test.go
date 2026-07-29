@@ -61,6 +61,17 @@ func TestFrameworkNameInReferencesIsFine(t *testing.T) {
 	}
 }
 
+// A blueprint ships code that runs, which means choosing a stack. Naming it is the point.
+func TestFrameworkNameInABlueprintIsFine(t *testing.T) {
+	got, _ := LintFrameworkNeutrality(mapfs(map[string]string{
+		"blueprints/rag-support/blueprint.yaml":     "frameworks: [none, langgraph]\n",
+		"blueprints/rag-support/app/langgraph/x.md": "LangGraph state carries the prompt.\n",
+	}))
+	if len(got) != 0 {
+		t.Fatalf("blueprints must be allowed to name their framework; got %v", ids(got))
+	}
+}
+
 func TestFrameworkNameInACoreFileIsReported(t *testing.T) {
 	got, _ := LintFrameworkNeutrality(mapfs(map[string]string{
 		"core/en/10-invariants.md": "NEVER let CrewAI delegate without a budget.\n",

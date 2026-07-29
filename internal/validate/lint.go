@@ -37,8 +37,16 @@ var codeFenceRe = regexp.MustCompile("(?s)```.*?```")
 
 // LintFrameworkNeutrality reports framework names outside the places allowed to mention them.
 //
-// Allowed: content/adapters/ (that is what it is for), and content/references/ (external
-// mappings, where naming the thing being mapped is the point).
+// The rule protects the core and the standards, which must outlive any framework's release
+// cycle. Three directories are exempt because naming a framework is their purpose:
+//
+//	adapters/    translating the standard into one stack
+//	references/  mapping external material, where naming the thing mapped is the point
+//	blueprints/  shipping code that runs, which means choosing a stack
+//
+// The exemption is by directory rather than by file. A blueprint that named its framework only
+// in the code and not in its description would be harder to choose from a catalogue, which is
+// the opposite of what blueprints are for.
 func LintFrameworkNeutrality(fsys fs.FS) ([]Finding, error) {
 	var out []Finding
 
@@ -49,7 +57,9 @@ func LintFrameworkNeutrality(fsys fs.FS) ([]Finding, error) {
 		if !strings.HasSuffix(p, ".md") && !strings.HasSuffix(p, ".yaml") {
 			return nil
 		}
-		if strings.HasPrefix(p, "adapters/") || strings.HasPrefix(p, "references/") {
+		if strings.HasPrefix(p, "adapters/") ||
+			strings.HasPrefix(p, "references/") ||
+			strings.HasPrefix(p, "blueprints/") {
 			return nil
 		}
 

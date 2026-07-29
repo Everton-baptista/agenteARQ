@@ -247,6 +247,33 @@ jobs:
           bash -n scripts/build-wheels.sh
           echo "ok  launchers and publish scripts parse"
 
+      - name: every pt-BR translation is current
+        run: |
+          /tmp/agentarch validate --strict-i18n examples/01-rag-support-agent
+          en=$(ls content/standards/en/*.md | wc -l)
+          pt=$(ls content/standards/pt-BR/*.md | wc -l)
+          [ "$en" -eq "$pt" ] || {
+            echo "::error::$en standards in English, $pt in pt-BR"; exit 1; }
+          echo "ok  $pt standards translated and current"
+
+      - name: framework selection writes only what was chosen
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile standard >/dev/null
+          /tmp/agentarch blueprint add rag-support --framework langgraph --yes >/dev/null
+          grep -q StateGraph app/agent.py || {
+            echo "::error::--framework langgraph did not write the langgraph variant"; exit 1; }
+          test ! -d app/none && test ! -d app/langgraph || {
+            echo "::error::the framework directory leaked into the project"; exit 1; }
+          /tmp/agentarch check --profile standard >/dev/null
+
+          # A framework it does not ship must be refused, naming what it does.
+          set +e; out=$(/tmp/agentarch blueprint add rag-support --framework crewai --yes 2>&1); code=$?; set -e
+          [ "$code" -ne 0 ] || { echo "::error::an unshipped framework should be refused"; exit 1; }
+          echo "$out" | grep -q "It ships" || {
+            echo "::error::the refusal should say what is available"; exit 1; }
+          echo "ok  framework selection is a real choice"
+
       - name: the shipped registry verifies
         run: /tmp/agentarch pack verify
 

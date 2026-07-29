@@ -15,7 +15,7 @@ description: >-
   refusal policy live — and dispatch() in app/agent.py, where identity is injected server-side
   instead of being trusted from the model.
 
-frameworks: [none]
+frameworks: [none, langgraph]
 
 demonstrates:
   - Retrieved passages kept as data in a delimited block, never concatenated into the prompt
