@@ -203,6 +203,40 @@ jobs:
           assert n >= 12, f'expected at least 12 schemas, found {n}'
           "
 
+      - name: the report renders and stays self-contained
+        run: |
+          /tmp/agentarch report --root examples/01-rag-support-agent --out /tmp/rep
+          test -s /tmp/rep/agentarch-report.md
+          test -s /tmp/rep/agentarch-report.html
+          python3 -c "
+          from html.parser import HTMLParser
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.stack=[]; self.bad=[]
+              def handle_starttag(self, t, a):
+                  if t not in ('meta','br','hr','img','link'): self.stack.append(t)
+              def handle_endtag(self, t):
+                  if not self.stack or self.stack[-1] != t: self.bad.append(t)
+                  else: self.stack.pop()
+          body = open('/tmp/rep/agentarch-report.html').read()
+          p = P(); p.feed(body)
+          assert not p.bad, f'unbalanced tags: {p.bad[:3]}'
+          assert not p.stack, f'unclosed tags: {p.stack}'
+          # Read from an artifact store or an air-gapped machine, so no external requests.
+          for bad in ('<script', 'src=\"http', 'href=\"http', '@import'):
+              assert bad not in body, f'report makes an external request: {bad}'
+          print('ok  report renders, balanced and self-contained')
+          "
+
+      - name: external references are dated
+        run: |
+          for f in content/references/en/*.md; do
+            grep -q "Reviewed 20" "\$f" || {
+              echo "::error::\$f has no review date; a mapping nobody re-read may no longer be true"
+              exit 1; }
+          done
+          echo "ok  every reference records when it was last checked"
+
       - name: the shipped registry verifies
         run: /tmp/agentarch pack verify
 

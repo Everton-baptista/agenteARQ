@@ -75,6 +75,8 @@ func run(args []string) int {
 		return cmdUpgrade(args[1:])
 	case "aibom":
 		return cmdAIBOM(args[1:])
+	case "report":
+		return cmdReport(args[1:])
 	case "version", "--version", "-v":
 		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
 		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
@@ -115,6 +117,7 @@ func usage() {
   diff        which revalidation triggers fired since a git ref (--base)
   upgrade     replace agentarch/std, never touching agentarch/project
   aibom       what this agent is made of: models, prompts, corpora, tools, MCP
+  report      everything the gate knows, as markdown and a self-contained page
   version     print the CLI and spec versions
 
 Docs: https://github.com/Everton-baptista/agenteARQ
