@@ -93,6 +93,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
 
   init        install the standard into this project
+              --adopt   scan for agents that already exist and describe them
   blueprint   start from a complete, working project — run it with no
               arguments to choose from the catalogue
   new         scaffold an empty agent, tool or ADR from the templates
@@ -103,6 +104,8 @@ func usage() {
   check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
               --profile minimal|standard|regulated  --format text|json|sarif
               --explain-resolution  show which pack imposed each control
+              --adopt-baseline      ratchet: block only on what is new or worse
+              --update-baseline     drop entries you have since fixed
   explain     why a control exists and how to satisfy it
   waive       record a time-boxed, owned exception (max 90 days)
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
@@ -127,6 +130,9 @@ func cmdInit(args []string) int {
 	root := fs_.String("root", ".", "project root")
 	jurisdictions := fs_.String("jurisdictions", "",
 		"comma-separated, e.g. EU,BR — selects which reg.* packs apply")
+	adopt := fs_.Bool("adopt", false,
+		"scan for agents that already exist and scaffold manifests describing them")
+	adoptID := fs_.String("adopt-id", "", "id for the adopted agent (default: the directory name)")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
@@ -197,8 +203,13 @@ gates:
 	if code := cmdSync([]string{"--root", *root, "--lang", *lang}); code != exitOK {
 		return code
 	}
+	if *adopt {
+		return finishAdopt(*root, *adoptID)
+	}
+
 	fmt.Printf("\nNext:\n")
-	fmt.Printf("  agentarch new agent <id>   scaffold your first agent\n")
+	fmt.Printf("  agentarch blueprint        start from a working project\n")
+	fmt.Printf("  agentarch new agent <id>   or scaffold an empty one\n")
 	fmt.Printf("  agentarch validate         structure and consistency\n")
 	fmt.Printf("  agentarch check            the release gate\n\n")
 	fmt.Printf("Commit the generated instruction files. They are outputs — edit\n")
@@ -591,4 +602,96 @@ func syncSkills(root string, check bool) (int, int) {
 		fmt.Printf("wrote .claude/skills (%d file(s) from %d skill(s))\n", copied, len(entries))
 	}
 	return drift, exitOK
+}
+
+// finishAdopt scaffolds a manifest describing an agent that already exists.
+//
+// The adoption path matters more than it looks. A project with existing agents fails dozens of
+// controls on day one; without a way in that costs nothing on the first day, the gate is
+// switched off and nothing improves. That risk was named in the plan and this is the mitigation.
+func finishAdopt(root, id string) int {
+	if id == "" {
+		abs, err := filepath.Abs(root)
+		if err != nil {
+			id = "adopted-agent"
+		} else {
+			id = slugify(filepath.Base(abs))
+		}
+	}
+	if !slugRe.MatchString(id) {
+		id = "adopted-agent"
+	}
+
+	fmt.Printf("\nscanning for an agent that already exists…\n")
+	scan := scanForAgents(root)
+
+	if err := writeAdoptedManifest(root, id, scan); err != nil {
+		fmt.Fprintln(os.Stderr, "adopt:", err)
+		return exitUsage
+	}
+
+	rel := filepath.Join("agentarch", "project", "agents", id)
+	fmt.Printf("\nwrote %s/agent.yaml\n\n", rel)
+
+	switch {
+	case len(scan.Providers) == 0 && len(scan.Models) == 0:
+		fmt.Printf("Nothing recognisable was found, so almost everything is `unknown`.\n")
+	default:
+		if len(scan.Providers) > 0 {
+			fmt.Printf("  providers   %s\n", strings.Join(scan.Providers, ", "))
+		}
+		if len(scan.Models) > 0 {
+			shown := scan.Models
+			if len(shown) > 5 {
+				shown = shown[:5]
+			}
+			fmt.Printf("  models      %s\n", strings.Join(shown, ", "))
+		}
+		if len(scan.Frameworks) > 0 {
+			fmt.Printf("  frameworks  %s\n", strings.Join(scan.Frameworks, ", "))
+		}
+		if len(scan.Prompts) > 0 {
+			fmt.Printf("  prompts?    %s\n", strings.Join(scan.Prompts[:min(3, len(scan.Prompts))], ", "))
+		}
+	}
+
+	fmt.Printf(`
+Anything the scan could not determine is left as "unknown" on purpose. A
+plausible-looking wrong value is worse than a blank one, because nobody
+re-examines a field that is already filled in.
+
+Next:
+
+  1. Fill in the unknowns, starting with owner.accountable and out_of_scope.
+     Describe the agent as it is TODAY, not as you would like it to be.
+  2. agentarch check --adopt-baseline
+
+The second one records today's failures as the starting point, so the gate
+blocks only what is new or worse. Nothing is forgiven — the score still
+counts it, and you close entries deliberately with --update-baseline.
+`)
+	return exitOK
+}
+
+func slugify(s string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevDash = false
+		case !prevDash && b.Len() > 0:
+			b.WriteByte('-')
+			prevDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

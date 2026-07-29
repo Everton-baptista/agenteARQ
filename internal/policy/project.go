@@ -177,15 +177,16 @@ func PacksFor(profile string, agentNode map[string]any) []string {
 
 // Summary aggregates results for exit-code and reporting purposes.
 type Summary struct {
-	Total    int
-	Passed   int
-	Skipped  int
-	Waived   int
-	Blockers []Result
-	Majors   []Result
-	Minors   []Result
-	Warns    []Result
-	Errors   []Result
+	Total     int
+	Passed    int
+	Skipped   int
+	Waived    int
+	Baselined int
+	Blockers  []Result
+	Majors    []Result
+	Minors    []Result
+	Warns     []Result
+	Errors    []Result
 }
 
 // Summarize partitions results. A waived failure counts as waived, not as passed: the debt
@@ -204,6 +205,10 @@ func Summarize(results []Result) Summary {
 			s.Passed++
 		case r.Waived:
 			s.Waived++
+		case r.Baselined:
+			// Not a pass. The gate lets it through; the score still counts it against the
+			// project, because a ratchet that hides its debt is an amnesty.
+			s.Baselined++
 		default:
 			switch r.Severity {
 			case SevBlocker:

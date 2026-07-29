@@ -195,23 +195,27 @@ const MaxWaiverDays = 90
 
 // Result is one control's outcome for one agent.
 type Result struct {
-	AgentID     string   `json:"agent"`
-	ControlID   string   `json:"control"`
-	Title       string   `json:"title"`
-	Severity    Severity `json:"severity"`
-	Passed      bool     `json:"passed"`
-	Skipped     bool     `json:"skipped,omitempty"`
-	SkipReason  string   `json:"skip_reason,omitempty"`
-	Waived      bool     `json:"waived,omitempty"`
-	WaiverUntil string   `json:"waiver_until,omitempty"`
-	WaiverOwner string   `json:"waiver_owner,omitempty"`
-	Message     string   `json:"message,omitempty"`
-	Remediation string   `json:"remediation,omitempty"`
-	FromPack    string   `json:"from_pack"`
-	PackVersion string   `json:"pack_version"`
-	Evidence    []string `json:"evidence,omitempty"`
-	Error       string   `json:"error,omitempty"`
-	StandardRef string   `json:"standard_ref,omitempty"`
+	AgentID    string   `json:"agent"`
+	ControlID  string   `json:"control"`
+	Title      string   `json:"title"`
+	Severity   Severity `json:"severity"`
+	Passed     bool     `json:"passed"`
+	Skipped    bool     `json:"skipped,omitempty"`
+	SkipReason string   `json:"skip_reason,omitempty"`
+	Waived     bool     `json:"waived,omitempty"`
+	// Baselined means the failure was present when the project adopted the standard. It does
+	// not pass — the score still counts it — but the gate does not block on it.
+	Baselined     bool     `json:"baselined,omitempty"`
+	BaselineSince string   `json:"baseline_since,omitempty"`
+	WaiverUntil   string   `json:"waiver_until,omitempty"`
+	WaiverOwner   string   `json:"waiver_owner,omitempty"`
+	Message       string   `json:"message,omitempty"`
+	Remediation   string   `json:"remediation,omitempty"`
+	FromPack      string   `json:"from_pack"`
+	PackVersion   string   `json:"pack_version"`
+	Evidence      []string `json:"evidence,omitempty"`
+	Error         string   `json:"error,omitempty"`
+	StandardRef   string   `json:"standard_ref,omitempty"`
 }
 
 // Resolution records which pack imposed a control at which severity, so `--explain-resolution`

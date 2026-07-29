@@ -261,6 +261,54 @@ jobs:
           [ "$got" -eq 2 ] || { echo "::error::a second install should refuse, got $got"; exit 1; }
           echo "ok  refuses to overwrite"
 
+      # A project with existing agents fails on day one. Without a way in that costs nothing
+      # that day, the gate is switched off and nothing improves. This is that way in, and the
+      # ratchet must only ever turn one direction.
+      - name: a legacy project can adopt without switching the gate off
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          mkdir -p src
+          cat > src/bot.py <<'PY'
+          from anthropic import Anthropic
+          SYSTEM = "You are a helpful assistant for internal tools."
+          PY
+
+          /tmp/agentarch init --adopt --profile standard >/dev/null
+          test -f agentarch/project/agents/*/agent.yaml || {
+            echo "::error::adopt scaffolded nothing"; exit 1; }
+          grep -rq "unknown" agentarch/project/agents/*/agent.yaml || {
+            echo "::error::adopt should leave what it cannot determine as unknown"; exit 1; }
+
+          python3 - <<'PY'
+          import glob, pathlib
+          p = pathlib.Path(glob.glob("agentarch/project/agents/*/agent.yaml")[0])
+          s = p.read_text()
+          s = s.replace("accountable: unknown      #", "accountable: a.person  #")
+          s = s.replace("  purpose: unknown", "  purpose: Answers questions about internal tools.")
+          s = s.replace("    - unknown                 # the three", "    - Never runs a destructive query  #")
+          s = s.replace("      - unknown\n", "      - Answer delivered\n")
+          s = s.replace("sha256: unknown", 'sha256: "' + "0"*64 + '"')
+          p.write_text(s)
+          PY
+
+          set +e; /tmp/agentarch check --profile standard >/dev/null 2>&1; before=$?; set -e
+          [ "$before" -eq 4 ] || { echo "::error::a legacy project should fail before adopting, got $before"; exit 1; }
+
+          /tmp/agentarch check --profile standard --adopt-baseline >/dev/null
+          test -f agentarch/project/baseline.json
+
+          /tmp/agentarch check --profile standard >/dev/null
+          echo "ok  baselined failures no longer block"
+
+          # The ratchet turns one way: a new agent's failures were never baselined.
+          cp -R agentarch/project/agents/* /tmp/newagent-src 2>/dev/null || true
+          d=$(ls -d agentarch/project/agents/*/ | head -1)
+          cp -R "$d" agentarch/project/agents/brand-new
+          sed -i 's/^  id: .*/  id: brand-new/' agentarch/project/agents/brand-new/agent.yaml
+          set +e; /tmp/agentarch check --profile standard >/dev/null 2>&1; after=$?; set -e
+          [ "$after" -eq 4 ] || { echo "::error::a new agent's failures must still block, got $after"; exit 1; }
+          echo "ok  the ratchet only turns one way"
+
       - name: upgrade tells a local edit apart from an upstream change
         run: |
           work=$(mktemp -d) && cd "$work"

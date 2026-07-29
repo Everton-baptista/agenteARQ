@@ -57,6 +57,9 @@ func cmdCheck(args []string) int {
 	format := fs_.String("format", "text", "text, json or sarif")
 	sarifOut := fs_.String("sarif-output", "", "write SARIF to this file instead of stdout")
 	explainRes := fs_.Bool("explain-resolution", false, "show which pack imposed each control")
+	baselinePath := fs_.String("baseline", "", "ratchet mode: block only on what is new or worse")
+	adoptBaseline := fs_.Bool("adopt-baseline", false, "record today's failures as the starting point")
+	updateBaseline := fs_.Bool("update-baseline", false, "drop entries that are now fixed")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
@@ -140,6 +143,50 @@ func cmdCheck(args []string) int {
 		return exitUsage
 	}
 
+	// Ratchet mode. A project with existing agents fails dozens of controls on day one; without
+	// this the gate is switched off and nothing improves. With it, only what is new or worse
+	// blocks, and the debt stays visible in `score` rather than being forgotten.
+	if *baselinePath == "" {
+		*baselinePath = defaultBaselinePath(*root)
+	}
+	baseline, err := policy.LoadBaseline(*baselinePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "check:", err)
+		return exitUsage
+	}
+
+	if *adoptBaseline {
+		b := policy.NewBaseline(all, *profile, now)
+		if err := b.Save(*baselinePath); err != nil {
+			fmt.Fprintln(os.Stderr, "check:", err)
+			return exitUsage
+		}
+		fmt.Printf("\nrecorded %d existing failure(s) as the baseline in %s\n\n",
+			len(b.Accepted), *baselinePath)
+		fmt.Printf("The gate now blocks only on what is new or worse than this.\n")
+		fmt.Printf("Nothing here is forgiven — `agentarch score` still counts it, and\n")
+		fmt.Printf("`agentarch check --update-baseline` removes each entry as you fix it.\n")
+		return exitOK
+	}
+
+	if baseline != nil && *updateBaseline {
+		next := baseline.Update(all, now)
+		fixed := len(baseline.Accepted) - len(next.Accepted)
+		if err := next.Save(*baselinePath); err != nil {
+			fmt.Fprintln(os.Stderr, "check:", err)
+			return exitUsage
+		}
+		fmt.Printf("baseline updated: %d fixed, %d still open\n", fixed, len(next.Accepted))
+		if fixed == 0 {
+			fmt.Printf("Nothing closed since the last update.\n")
+		}
+		return exitOK
+	}
+
+	if baseline != nil {
+		all = policy.ApplyBaseline(all, baseline)
+	}
+
 	sum := policy.Summarize(all)
 	fileFor := func(r policy.Result) string {
 		if f, ok := fileOf[r.AgentID+"\x00"+r.ControlID]; ok {
@@ -214,6 +261,8 @@ func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverP
 			case r.Passed:
 			case r.Waived:
 				fmt.Printf("  WAIVED  %s  until %s (%s)\n", r.ControlID, r.WaiverUntil, r.WaiverOwner)
+			case r.Baselined:
+				fmt.Printf("  DEBT    %s  baselined since %s\n", r.ControlID, r.BaselineSince)
 			default:
 				fmt.Printf("  %-7s %s\n          %s\n", strings.ToUpper(string(r.Severity)), r.ControlID, r.Message)
 				if r.Remediation != "" {
@@ -226,6 +275,10 @@ func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverP
 
 	fmt.Printf("\nprofile %s · %d control(s) evaluated · %d passed · %d waived\n",
 		profile, sum.Total, sum.Passed, sum.Waived)
+	if sum.Baselined > 0 {
+		fmt.Printf("%d baselined — not blocking, still counted against the score.\n"+
+			"Run `agentarch check --update-baseline` as you close them.\n", sum.Baselined)
+	}
 	if n := len(sum.Blockers); n > 0 {
 		fmt.Printf("%d blocker(s)\n", n)
 	}
@@ -245,6 +298,11 @@ func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverP
 			"or `agentarch waive <control.id> --agent <id> --reason ... --owner ... --until YYYY-MM-DD`\n"+
 			"to take the debt on deliberately.\n")
 	}
+}
+
+// defaultBaselinePath is where a project's ratchet lives when one exists.
+func defaultBaselinePath(root string) string {
+	return filepath.Join(root, "agentarch", "project", "baseline.json")
 }
 
 func configProfile(root string) string {
