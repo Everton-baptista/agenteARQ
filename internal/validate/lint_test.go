@@ -1,6 +1,8 @@
 package validate
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -115,5 +117,75 @@ func TestReadmeIsNotTreatedAsAnAdapter(t *testing.T) {
 	}))
 	if len(got) != 0 {
 		t.Fatalf("the README is not an adapter; got %v", ids(got))
+	}
+}
+
+// A skill with no checklist means the standard works better in assistants that load skills —
+// which contradicts the promise it makes on its own front page.
+func TestSkillWithoutChecklistIsReported(t *testing.T) {
+	got, err := LintSkillChecklistParity(mapfs(map[string]string{
+		"skills/agentarch-new-agent/SKILL.md": "---\nname: x\n---\n",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].ID != "AA-SKL-018" {
+		t.Fatalf("expected AA-SKL-018, got %v", ids(got))
+	}
+	if !strings.Contains(got[0].Fix, "checklists/new-agent.md") {
+		t.Errorf("the fix should name the file to create, got: %s", got[0].Fix)
+	}
+}
+
+func TestChecklistWithoutSkillIsReported(t *testing.T) {
+	got, _ := LintSkillChecklistParity(mapfs(map[string]string{
+		"skills/agentarch-new-agent/SKILL.md": "---\nname: x\n---\n",
+		"checklists/new-agent.md":             "# c\n",
+		"checklists/orphan.md":                "# c\n",
+	}))
+	if len(got) != 1 {
+		t.Fatalf("expected one orphan checklist, got %v", got)
+	}
+	if !strings.Contains(got[0].File, "orphan") {
+		t.Errorf("wrong file reported: %s", got[0].File)
+	}
+}
+
+func TestMatchedPairIsAccepted(t *testing.T) {
+	got, _ := LintSkillChecklistParity(mapfs(map[string]string{
+		"skills/agentarch-new-agent/SKILL.md": "---\nname: x\n---\n",
+		"checklists/new-agent.md":             "# c\n",
+		"checklists/README.md":                "# index, not a workflow\n",
+	}))
+	if len(got) != 0 {
+		t.Fatalf("expected no findings, got %v", got)
+	}
+}
+
+func TestSkillWithoutSkillMdIsReported(t *testing.T) {
+	got, _ := LintSkillChecklistParity(mapfs(map[string]string{
+		"skills/agentarch-new-agent/references/x.md": "x\n",
+		"checklists/new-agent.md":                    "# c\n",
+	}))
+	if len(got) != 1 || !strings.Contains(got[0].Message, "SKILL.md") {
+		t.Fatalf("a skill directory with no SKILL.md must be reported, got %v", got)
+	}
+}
+
+// The shipped content must satisfy its own rule.
+func TestShippedSkillsAndChecklistsAreInParity(t *testing.T) {
+	d, _ := os.Getwd()
+	for range 5 {
+		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
+			break
+		}
+		d = filepath.Dir(d)
+	}
+	got, err := LintSkillChecklistParity(os.DirFS(filepath.Join(d, "content")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range got {
+		t.Errorf("%s", f)
 	}
 }

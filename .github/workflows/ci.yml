@@ -153,6 +153,27 @@ jobs:
           /tmp/agentarch sync --check --lang pt-BR
           echo "ok  pt-BR core renders clean"
 
+      # A skill with no checklist means the standard works better in assistants that load
+      # skills, which contradicts the promise on its own front page.
+      - name: skills and checklists stay in parity
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile standard >/dev/null
+          /tmp/agentarch sync --targets skills
+          test -f .claude/skills/agentarch-new-agent/SKILL.md
+          test -f agentarch/std/checklists/new-agent.md
+          for s in agentarch/std/skills/*/; do
+            short=$(basename "$s" | sed 's/^agentarch-//')
+            test -f "agentarch/std/checklists/$short.md" || {
+              echo "::error::skill $short has no checklist"; exit 1; }
+          done
+          # The scripts a skill drives must at least parse.
+          for f in $(find agentarch/std/skills -name '*.py'); do
+            python3 -c "import ast; ast.parse(open('$f').read())"
+          done
+          /tmp/agentarch sync --check --targets skills
+          echo "ok  skills and checklists in parity, scripts parse"
+
       - name: the shipped registry verifies
         run: /tmp/agentarch pack verify
 

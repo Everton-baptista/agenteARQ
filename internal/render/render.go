@@ -54,6 +54,10 @@ var Targets = []Target{
 	// reviewed document is the source and the runtime config is the derivative. Handled
 	// specially by sync; the budget is nominal.
 	{Name: "mcp_json", Path: ".mcp.json", Budget: 1 << 20, Covers: "any MCP client reading .mcp.json"},
+	// Copied from std/skills/ rather than rendered from the core. The same workflows exist as
+	// checklists for assistants that do not load skills — a standard that works better in one
+	// tool is not a standard.
+	{Name: "skills", Path: ".claude/skills", Budget: 1 << 20, Covers: "Claude Code skills"},
 	{
 		Name: "windsurf", Path: ".windsurf/rules/agentarch-core.md", Budget: 6144,
 		FrontMatter: "---\ntrigger: always_on\n---\n",

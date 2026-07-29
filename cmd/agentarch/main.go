@@ -298,8 +298,16 @@ func cmdSync(args []string) int {
 		drift += n
 	}
 
+	if wantsTarget(selected, "skills") {
+		n, code := syncSkills(*root, *check)
+		if code != exitOK {
+			return code
+		}
+		drift += n
+	}
+
 	for _, t := range selected {
-		if t.Name == "mcp_json" {
+		if t.Name == "mcp_json" || t.Name == "skills" {
 			continue
 		}
 		dst := filepath.Join(*root, t.Path)
@@ -445,6 +453,9 @@ func lintContent(root string) []validate.Finding {
 	if fs, err := validate.LintAdapterCoverage(src); err == nil {
 		out = append(out, fs...)
 	}
+	if fs, err := validate.LintSkillChecklistParity(src); err == nil {
+		out = append(out, fs...)
+	}
 	return out
 }
 
@@ -512,4 +523,72 @@ func syncMCPJSON(root string, check bool) (int, int) {
 // relative path an installed agentarch/std uses.
 func readEmbeddedContent(rel string) ([]byte, error) {
 	return fs.ReadFile(agentarch.Content, path.Join("content", filepath.ToSlash(rel)))
+}
+
+// syncSkills copies the skill directories into .claude/skills/.
+//
+// Copied rather than rendered: a skill is a document an assistant loads on demand, not part of
+// the always-loaded core, so it has no budget and no core digest. The same workflows exist as
+// checklists for assistants that do not load skills at all.
+func syncSkills(root string, check bool) (int, int) {
+	src, err := contentFS(root)
+	if err != nil {
+		return 0, exitOK
+	}
+	entries, err := fs.ReadDir(src, "skills")
+	if err != nil {
+		return 0, exitOK // no skills in this content tree
+	}
+
+	dest := filepath.Join(root, ".claude", "skills")
+	drift := 0
+	copied := 0
+
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		err := fs.WalkDir(src, path.Join("skills", e.Name()), func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			body, rerr := fs.ReadFile(src, p)
+			if rerr != nil {
+				return rerr
+			}
+			rel := strings.TrimPrefix(p, "skills/")
+			out := filepath.Join(dest, filepath.FromSlash(rel))
+
+			existing, _ := os.ReadFile(out)
+			if string(existing) == string(body) {
+				return nil
+			}
+			if check {
+				drift++
+				reason := "content differs from agentarch/std/skills/"
+				if len(existing) == 0 {
+					reason = "file is missing"
+				}
+				fmt.Fprintf(os.Stderr, "drift  %s\n    %s\n", filepath.Join(".claude", "skills", rel), reason)
+				return nil
+			}
+			if mkErr := os.MkdirAll(filepath.Dir(out), 0o755); mkErr != nil {
+				return mkErr
+			}
+			mode := os.FileMode(0o644)
+			if strings.HasSuffix(rel, ".py") || strings.HasSuffix(rel, ".sh") {
+				mode = 0o755
+			}
+			copied++
+			return os.WriteFile(out, body, mode)
+		})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sync:", err)
+			return drift, exitUsage
+		}
+	}
+	if copied > 0 {
+		fmt.Printf("wrote .claude/skills (%d file(s) from %d skill(s))\n", copied, len(entries))
+	}
+	return drift, exitOK
 }

@@ -129,3 +129,64 @@ func LintAdapterCoverage(fsys fs.FS) ([]Finding, error) {
 	}
 	return out, nil
 }
+
+// LintSkillChecklistParity reports a workflow that exists for one kind of assistant and not the
+// other.
+//
+// Skills are loaded automatically by assistants that support the format; checklists are the same
+// workflow for everyone else. A skill with no checklist means the standard works better in one
+// tool, which contradicts the promise it makes on its own front page.
+func LintSkillChecklistParity(fsys fs.FS) ([]Finding, error) {
+	skills, err := fs.ReadDir(fsys, "skills")
+	if err != nil {
+		return nil, nil
+	}
+
+	haveChecklist := map[string]bool{}
+	if lists, err := fs.ReadDir(fsys, "checklists"); err == nil {
+		for _, l := range lists {
+			if strings.HasSuffix(l.Name(), ".md") && l.Name() != "README.md" {
+				haveChecklist[strings.TrimSuffix(l.Name(), ".md")] = true
+			}
+		}
+	}
+
+	var out []Finding
+	seen := map[string]bool{}
+	for _, s := range skills {
+		if !s.IsDir() {
+			continue
+		}
+		// agentarch-new-agent ↔ new-agent.md
+		short := strings.TrimPrefix(s.Name(), "agentarch-")
+		seen[short] = true
+		if !haveChecklist[short] {
+			out = append(out, Finding{
+				ID:      "AA-SKL-018",
+				File:    path.Join("content", "skills", s.Name()),
+				Message: "has no matching checklist",
+				Fix: "add content/checklists/" + short + ".md with the same workflow. " +
+					"Without it the standard works better in assistants that load skills.",
+			})
+		}
+		if _, err := fs.Stat(fsys, path.Join("skills", s.Name(), "SKILL.md")); err != nil {
+			out = append(out, Finding{
+				ID:      "AA-SKL-018",
+				File:    path.Join("content", "skills", s.Name()),
+				Message: "has no SKILL.md",
+			})
+		}
+	}
+	for short := range haveChecklist {
+		if !seen[short] {
+			out = append(out, Finding{
+				ID:      "AA-SKL-018",
+				File:    path.Join("content", "checklists", short+".md"),
+				Message: "has no matching skill",
+				Fix:     "add content/skills/agentarch-" + short + "/SKILL.md, or remove the checklist",
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].File < out[j].File })
+	return out, nil
+}
