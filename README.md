@@ -40,93 +40,140 @@ It answers three questions that have no standard answer today:
 
 ### 1. Install
 
-The CLI is a single static binary, so nothing here pulls in a runtime you did not already have.
-Pick whichever fits your stack:
+One static binary. **No Go, Node or Python required** — that is the point of it being one binary:
+your project's language is its own business.
 
 ```bash
-# Go — works today
-go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh | sh
+```
 
-# Container — works today, needs nothing installed
-docker run --rm -v "$PWD:/work" ghcr.io/everton-baptista/agentarch:latest version
+It works out your platform, verifies the download against the signed `checksums.txt`, and puts
+`agentarch` on your PATH. It refuses to install anything whose checksum does not match, and it
+never uses `sudo` on your behalf — without write access to `/usr/local/bin` it installs to
+`~/.local/bin` and tells you how to add it.
+
+Piping a script into a shell is a decision, not a default. To read it first, which is the right
+instinct:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh -o install.sh
+less install.sh && sh install.sh
+```
+
+Other channels:
+
+```bash
+# Container — needs nothing on the host but Docker
+docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start
+
+# Go, if you have it
+go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
 
 # npm and PyPI — publish once their tokens are configured
 npx agentarch@latest --help
 pipx install agentarch
 ```
 
-Or download a signed binary from [Releases](https://github.com/Everton-baptista/agenteARQ/releases)
-and verify it before you run it:
+Or take a signed binary straight from
+[Releases](https://github.com/Everton-baptista/agenteARQ/releases) and verify it by hand:
 
 ```bash
-gh release download v0.1.1 --repo Everton-baptista/agenteARQ \
-  -p 'agentarch_0.1.1_darwin_arm64.tar.gz' -p 'checksums.txt'
+gh release download v0.1.2 --repo Everton-baptista/agenteARQ \
+  -p 'agentarch_0.1.2_darwin_arm64.tar.gz' -p 'checksums.txt'
 shasum -a 256 -c checksums.txt --ignore-missing
-tar -xzf agentarch_0.1.1_darwin_arm64.tar.gz
+tar -xzf agentarch_0.1.2_darwin_arm64.tar.gz
 ./agentarch version
 ```
 
-Every release is signed with cosign; the footer of each release page has the verification
-command.
+Every release is signed with cosign keyless; the footer of each release page carries the
+verification command, and the installer prints it too.
 
-### 2. Install the standard into your project
+### 2. Start
 
 ```bash
-cd my-project
-agentarch init --profile standard --jurisdictions BR
+mkdir my-agent && cd my-agent
+agentarch start
 ```
 
-This writes:
+That is the whole entry point — in an empty directory, plain `agentarch` does the same. It asks at
+most five questions in plain language, skips any it can answer for itself, and derives the rest:
+
+```
+agentarch — let's get you set up.
+
+A few questions in plain language; nothing is written until you say so.
+Press Enter to take the default, or q to quit.
+
+Is this a new agent, or does the code already exist?
+
+  1. New — start me off with a complete project that works, so I can edit it
+  2. Already built — describe what is here and tighten it up gradually
+
+(this directory looks empty)
+Choose 1–2 [1]:
+
+What are you building?
+
+  1. An agent that answers from my documents and cites its sources
+     rag-support — runs on none, langgraph
+
+  2. An agent that acts on my systems, with a human approving the dangerous part
+     tool-approval — runs on none
+  …
+
+Where are the people who will use it?
+
+  1. Brazil                     brings the LGPD rules in
+  2. Europe                     brings GDPR and the EU AI Act in
+  3. Both                       both sets apply
+  4. Somewhere else, or not decided yet
+
+Who is accountable for this agent?
+
+A person, not a team. This is who decides to switch it off when it
+misbehaves — a queue cannot make that call at 2am.
+
+Name [Ana Silva]:
+```
+
+Then it shows exactly what will happen, waits for a yes, and does all of it: installs the
+standard, writes a complete working project, generates the instruction files every assistant
+reads, writes your answers into the manifests, and runs `validate` and `check` so you can see
+it passes before you touch anything.
+
+You never type the words *profile*, *jurisdiction* or *blueprint*. It picks up your name from
+`git config`, notices whether the directory already has code, and only asks about a framework
+when the starting point you chose ships more than one.
+
+It never overwrites a file that already exists, and nothing is written before you confirm.
+
+What lands on disk:
 
 ```
 agentarch/
   agentarch.yaml        your settings — never overwritten by an upgrade
   std/                  the standard itself — replaced wholesale by `upgrade`
-  project/              your artifacts — never touched by an upgrade
+  project/              your manifests, tool specs, evals — never touched by an upgrade
+app/                    runnable code, with the placeholders marked
 AGENTS.md               generated, read by Codex, Cursor, Gemini CLI, Grok, Kimi, Zed, Aider
 CLAUDE.md               generated, read by Claude Code
 GEMINI.md               generated, read by Gemini CLI
+.github/workflows/      the gate, already wired
 ```
 
-`--jurisdictions` decides which regulatory packs apply — `BR` brings LGPD, `EU` brings GDPR and
-the AI Act. Leave it out if none apply.
+**Commit the generated instruction files.** They are outputs: edit `agentarch/std/core/` and
+re-run `sync`. CI checks they are current, so a hand-edited `CLAUDE.md` fails the pull request
+instead of drifting quietly for six months.
 
-**Commit the generated files.** They are outputs: edit `agentarch/std/core/` and re-run `sync`.
-CI checks they are current, so a hand-edited `CLAUDE.md` fails the pull request instead of
-drifting quietly for six months.
-
-### 3. Start from something that works
+Everything `start` does is also available one command at a time — see
+[the manual route](#the-manual-route) below. And in a script or CI, where there is nobody to ask:
 
 ```bash
-agentarch blueprint
+agentarch start --new --blueprint rag-support --framework none \
+  --owner "Ana Silva" --jurisdictions BR --yes
 ```
 
-With no arguments it asks what you are building:
-
-```
-What are you building?
-
-  1. An agent that acts on my systems, with a human approving the dangerous part
-  2. An agent that answers from my documents and cites its sources
-  3. An agent that uses MCP servers I did not write
-  4. Several agents working together without losing track of who may do what
-
-Choose 1–4 (or q to quit):
-```
-
-It shows every file it will write, asks before writing, and refuses to overwrite anything that
-already exists. You end up with a complete project — manifest, prompt, tool specs, evals, threat
-model, CI workflow, and code that runs.
-
-Non-interactively, for a script or CI:
-
-```bash
-agentarch blueprint list                                    # what exists
-agentarch blueprint show rag-support                        # what it demonstrates
-agentarch blueprint add rag-support --framework none --yes  # install it
-```
-
-### 4. Run the agent
+### 3. Run the agent
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -140,7 +187,7 @@ python app/agent.py "where is my order BR-77120?"
 `retrieve()` with your retriever, edit `out_of_scope` in the manifest, mirror it into the
 prompt's refusal section, and replace the tools with yours.
 
-### 5. Check it
+### 4. Check it
 
 ```bash
 agentarch validate      # structure and internal consistency
@@ -162,7 +209,7 @@ Exit codes are distinct so CI can route them:
 When something fails, `agentarch explain <control.id>` gives the reasoning, the fix, and which
 pack imposed it.
 
-### 6. Wire it into CI
+### 5. Wire it into CI
 
 ```yaml
 name: agentarch
@@ -184,9 +231,29 @@ The blueprints ship this file already, at `.github/workflows/agentarch.yml`.
 
 ---
 
+## The manual route
+
+`start` is a composition of commands that all exist on their own. Use them directly when you are
+scripting, adding a second agent, or want to see each step:
+
+```bash
+agentarch init --profile standard --jurisdictions BR   # install the standard
+agentarch blueprint list                              # what starting points exist
+agentarch blueprint show rag-support                   # what one demonstrates
+agentarch blueprint add rag-support --framework none --yes
+agentarch sync                                        # regenerate the instruction files
+```
+
+`agentarch blueprint` with no arguments is the same chooser `start` uses, without the rest of the
+interview. `--jurisdictions` decides which regulatory packs apply — `BR` brings LGPD, `EU` brings
+GDPR and the AI Act; leave it out if none apply.
+
+---
+
 ## Already have agents?
 
-Do not start over, and do not switch the gate off on day one.
+Do not start over, and do not switch the gate off on day one. `agentarch start` detects existing
+code and offers this path by default; the explicit form is:
 
 ```bash
 agentarch init --adopt --profile standard
@@ -217,6 +284,7 @@ agentarch check --update-baseline   # drops entries you have fixed
 
 | | |
 |---|---|
+| `agentarch start` | the guided entry point — asks, then does all of the below |
 | `agentarch new agent <id>` | scaffold an empty agent instead of using a blueprint |
 | `agentarch new tool <id> --effect irreversible` | scaffold a tool, with its approval block |
 | `agentarch mcp audit --probe` | has a server changed its tool descriptions since review? |

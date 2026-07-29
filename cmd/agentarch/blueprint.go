@@ -255,10 +255,17 @@ func cmdBlueprintAdd(args []string) int {
 
 func isTTY() bool {
 	fi, err := os.Stdin.Stat()
-	if err != nil {
+	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
 		return false
 	}
-	return fi.Mode()&os.ModeCharDevice != 0
+	// /dev/null is a character device too, and it is exactly what a CI runner hands a step for
+	// stdin. Counting it as a terminal means the interview asks its questions into a void, reads
+	// EOF, and takes the default answer to every one of them — so a run that should have stopped
+	// and said "there is nobody to ask" installs something nobody chose, and reports success.
+	if nul, nerr := os.Stat(os.DevNull); nerr == nil && os.SameFile(fi, nul) {
+		return false
+	}
+	return true
 }
 
 var stdin = bufio.NewReader(os.Stdin)

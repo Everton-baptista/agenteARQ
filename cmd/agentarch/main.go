@@ -56,10 +56,22 @@ func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
 	if len(args) == 0 {
+		// A bare `agentarch` in a project that has not installed the standard is almost always
+		// somebody who just created the directory and wants to begin. Printing a wall of
+		// subcommands answers a question they have not asked yet. Only on a terminal, and only
+		// when there is nothing here to describe — a script that invokes us with no arguments
+		// must still get usage and a non-zero exit rather than sitting on a prompt forever.
+		if isTTY() {
+			if s := detectState("."); !s.Installed {
+				return cmdStart(nil)
+			}
+		}
 		usage()
 		return exitUsage
 	}
 	switch args[0] {
+	case "start":
+		return cmdStart(args[1:])
 	case "init":
 		return cmdInit(args[1:])
 	case "sync":
@@ -109,6 +121,8 @@ func run(args []string) int {
 func usage() {
 	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
 
+  start       the one command to begin with: asks what you are building
+              and does the rest. Everything below is the manual route.
   init        install the standard into this project
               --adopt   scan for agents that already exist and describe them
   blueprint   start from a complete, working project — run it with no
@@ -224,12 +238,22 @@ gates:
 		}
 	}
 
-	fmt.Printf("installed agentarch/std (content %s) and agentarch/project\n", version)
+	// The content version, not the CLI's. They are separate version lines on purpose, and this
+	// line used to print the binary's — so a local build announced "content 0.1.2+dirty" for a
+	// content tree sitting at 1.0.0. The same confusion had already made `sync --check` fail
+	// once, by stamping the CLI version into shim headers.
+	fmt.Printf("installed agentarch/std (content %s, by agentarch %s) and agentarch/project\n",
+		render.ContentVersion(os.DirFS(stdDir)), version)
 	if code := cmdSync([]string{"--root", *root, "--lang", *lang}); code != exitOK {
 		return code
 	}
 	if *adopt {
 		return finishAdopt(*root, *adoptID)
+	}
+	// start composes init with the steps that follow it and prints one set of next steps at the
+	// end. Two lists of next steps in one flow is how a guided setup stops feeling guided.
+	if insideStart {
+		return exitOK
 	}
 
 	fmt.Printf("\nNext:\n")

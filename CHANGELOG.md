@@ -3,6 +3,45 @@
 Three version lines move independently — see `spec/normative/08-versioning.md`. Each entry says
 which one changed.
 
+## Unreleased
+
+`cli/0.1.3`. Spec and content unchanged.
+
+**`agentarch start` — one command to begin with.** The first thing anybody typed used to be
+`agentarch init --profile standard --jurisdictions BR`, which asks a newcomer to decide what a
+profile is and why a jurisdiction matters before anything has happened: three concepts, none of
+them the reason they came. `start` asks in ordinary language instead — is the code already
+written, what are you building, where are your users, who gets paged — and derives the flags. It
+never asks a question it can answer for itself: it reads your name from `git config`, notices
+whether the directory already has code, and only raises the framework question when the starting
+point ships more than one. Then it installs, syncs, writes the answers into the manifests, and
+runs `validate` and `check` so you see the project pass before touching it. In an empty directory,
+bare `agentarch` does the same.
+
+Every answer also has a flag, so the composition is scriptable and therefore testable:
+`start --new --blueprint rag-support --owner "…" --jurisdictions BR --yes`.
+
+**`install.sh` — installing without a toolchain.** Until now the only working channels were
+`go install`, which asks for Go, and the container, which asks for Docker. Both contradict the
+reason the CLI is a single static binary in the first place: your project's language is its own
+business. One line now does it:
+
+```
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh | sh
+```
+
+POSIX `sh`, no `jq`, no `sudo` on your behalf — without write access to `/usr/local/bin` it uses
+`~/.local/bin` and says how to add it. It verifies the archive against the signed `checksums.txt`
+and **refuses to install on a mismatch**, and it refuses just as firmly when neither `sha256sum`
+nor `shasum` exists rather than skipping the check: an installer for a governance tool that
+shrugs at an unverified download is arguing against itself. It also prints the `cosign` command,
+and is honest that a checksum over HTTPS is not the same proof as a signature.
+
+**`isTTY` counted `/dev/null` as a terminal.** It is a character device, and it is what a CI
+runner hands a step for stdin — so an interactive prompt in CI read EOF and silently took the
+default answer to every question instead of stopping to say there was nobody to ask. Found while
+writing the assertions for `start`, and it affected `blueprint` too.
+
 ## v0.1.2 — 2026-07-29
 
 `cli/0.1.2`. Spec and content unchanged.

@@ -50,6 +50,21 @@ jobs:
       - name: test
         run: go test ./... -v
 
+      # install.sh is the first thing a new user runs, and it is the one file here that nothing
+      # else exercises — a typo in it breaks adoption for everybody while every Go test stays
+      # green. shellcheck is preinstalled on the runner.
+      - name: the installer parses and lints
+        run: |
+          sh -n install.sh
+          shellcheck --shell=sh install.sh
+          # It must fail before touching the filesystem when the platform has no artifact.
+          out=$(AGENTARCH_VERSION=v0.0.0-nonexistent sh install.sh 2>&1) && {
+            echo "::error::the installer reported success for a release that does not exist"
+            echo "$out"; exit 1; }
+          echo "$out" | grep -qi "no such artifact\|could not" || {
+            echo "::error::unclear failure for a missing release:"; echo "$out"; exit 1; }
+          echo "ok  installer parses, lints, and fails cleanly"
+
   examples:
     name: examples behave as documented
     runs-on: ubuntu-latest
@@ -430,6 +445,57 @@ jobs:
           python3 -m venv .venv >/dev/null
           .venv/bin/pip install -q -r app/requirements.txt
           .venv/bin/python /tmp/rag_behaviour.py
+
+      # `start` is the first command anybody runs, so it is the one that must not be broken by
+      # a change somewhere else. Its interview cannot be driven from CI, but every answer has a
+      # flag — which is why they exist — so the composition it performs is testable.
+      - name: start takes a new project from an empty directory to a passing gate
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch start --new --blueprint rag-support --framework none \
+            --owner "Ana Silva" --contact ana@example.com --jurisdictions BR --yes >/dev/null
+
+          m=$(echo agentarch/project/agents/*/agent.yaml)
+          grep -q 'accountable: Ana Silva' "$m" || {
+            echo "::error::start did not write the accountable person into the manifest"
+            grep -n 'accountable' "$m"; exit 1; }
+          grep -q 'jurisdictions: \["BR"\]' "$m" || {
+            echo "::error::start did not write the jurisdictions into the manifest"
+            grep -n 'jurisdictions' "$m"; exit 1; }
+          # The interview is theatre if the blueprint's example owner survives it.
+          grep -q 'alex.moreau' "$m" && {
+            echo "::error::the blueprint's example owner is still in the manifest"; exit 1; }
+
+          /tmp/agentarch sync --check
+          /tmp/agentarch check --profile standard >/dev/null
+          out=$(/tmp/agentarch conformance)
+          echo "$out" | grep -q "conformance: L3" || {
+            echo "::error::start should leave a project at L3"; echo "$out"; exit 1; }
+          echo "ok  start -> working project at L3, personalised"
+
+      - name: start recognises a project that already has code
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          mkdir -p src
+          printf 'from anthropic import Anthropic\nSYSTEM = "You are a helper."\n' > src/bot.py
+
+          /tmp/agentarch start --adopt --owner "Ana Silva" --yes >/dev/null
+          m=$(echo agentarch/project/agents/*/agent.yaml)
+          grep -q 'accountable: Ana Silva' "$m" || {
+            echo "::error::start --adopt left the accountable person unknown"; exit 1; }
+          grep -q 'unknown' "$m" || {
+            echo "::error::adopt should leave what it cannot determine as unknown"; exit 1; }
+          echo "ok  start --adopt describes what is already there"
+
+      # Not a terminal and no flags: there is nobody to ask, so it must say so and write nothing
+      # rather than blocking forever on a prompt no human will ever see.
+      - name: start writes nothing when there is nobody to ask
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          set +e; /tmp/agentarch start </dev/null >/dev/null 2>&1; got=$?; set -e
+          [ "$got" -eq 1 ] || { echo "::error::expected exit 1, got $got"; exit 1; }
+          [ ! -d agentarch ] || { echo "::error::it wrote something anyway"; exit 1; }
+          echo "ok  refuses without a terminal, writes nothing"
 
       - name: a blueprint refuses to overwrite existing work
         run: |
