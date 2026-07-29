@@ -1,0 +1,19 @@
+{
+  "name": "agentarch",
+  "version": "0.0.0",
+  "description": "An open, versioned, verifiable standard for building AI agents",
+  "keywords": ["ai", "agents", "llm", "guardrails", "mcp", "governance", "agents-md"],
+  "homepage": "https://github.com/Everton-baptista/agenteARQ",
+  "repository": { "type": "git", "url": "git+https://github.com/Everton-baptista/agenteARQ.git" },
+  "license": "Apache-2.0",
+  "bin": { "agentarch": "bin/agentarch.js" },
+  "files": ["bin/"],
+  "engines": { "node": ">=18" },
+  "optionalDependencies": {
+    "@agentarch/cli-darwin-arm64": "0.0.0",
+    "@agentarch/cli-darwin-x64": "0.0.0",
+    "@agentarch/cli-linux-arm64": "0.0.0",
+    "@agentarch/cli-linux-x64": "0.0.0",
+    "@agentarch/cli-win32-x64": "0.0.0"
+  }
+}

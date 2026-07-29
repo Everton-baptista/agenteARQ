@@ -239,6 +239,14 @@ jobs:
           done
           echo "ok  every reference records when it was last checked"
 
+      - name: the distribution launchers are valid
+        run: |
+          node --check dist-npm/bin/agentarch.js
+          python3 -m py_compile dist-pypi/agentarch/__main__.py
+          bash -n scripts/publish-npm.sh
+          bash -n scripts/build-wheels.sh
+          echo "ok  launchers and publish scripts parse"
+
       - name: the shipped registry verifies
         run: /tmp/agentarch pack verify
 

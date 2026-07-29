@@ -38,12 +38,27 @@ It answers three questions that have no standard answer today:
 
 ## Getting started
 
-Install — Go 1.24+ is the only requirement today. Packaged installs (npm, PyPI, Homebrew) are
-planned but not published yet, so this is the honest instruction:
+Install. Pick whichever fits your stack — the CLI is a single static binary, so nothing here
+pulls in a runtime you did not already have:
 
 ```bash
+npx agentarch@latest init          # any project with Node
+pipx install agentarch             # any project with Python
+docker run --rm -v "$PWD:/work" ghcr.io/everton-baptista/agentarch check
 go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
 ```
+
+In CI, the composite action hides the language entirely:
+
+```yaml
+- uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v1
+  with:
+    command: check --profile standard
+```
+
+> The npm and PyPI packages publish on the first tagged release; until then use `go install` or
+> the container. Every artifact is signed with cosign and its checksum is verified before
+> anything is unpacked — including by the action itself.
 
 Then, in your project:
 

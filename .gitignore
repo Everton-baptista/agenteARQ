@@ -33,3 +33,6 @@ __pycache__/
 # scratch
 /tmp/
 *.local.*
+
+# built wheels
+/dist-pypi/dist/

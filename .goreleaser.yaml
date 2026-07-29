@@ -1,0 +1,88 @@
+# Cross-platform release. One static binary per platform, so a project in any language can run
+# the gate without acquiring a runtime to do it — the reason Go was chosen in the first place.
+version: 2
+
+project_name: agentarch
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: agentarch
+    main: ./cmd/agentarch
+    binary: agentarch
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    # Reproducible: the same source produces the same bytes, which is what makes a checksum
+    # worth publishing.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "agentarch_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - LICENSE-CONTENT
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# Keyless signing. The provenance is verifiable by anyone without a key to protect or rotate.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+      - --yes
+    artifacts: checksum
+    output: true
+
+sboms:
+  - artifacts: archive
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Verifying
+
+    ```bash
+    cosign verify-blob checksums.txt \
+      --signature checksums.txt.sig \
+      --certificate checksums.txt.pem \
+      --certificate-identity-regexp 'https://github.com/Everton-baptista/agenteARQ/.*' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    ```
+
+    Then check your download against `checksums.txt`.
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Spec
+      regexp: '(?i)spec'
+      order: 0
+    - title: Content — standards, controls, packs
+      regexp: '(?i)(standard|control|pack|blueprint)'
+      order: 1
+    - title: CLI
+      order: 2
+  filters:
+    exclude: ['^docs:', '^test:', '^chore:']
