@@ -50,14 +50,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # OCI repository names must be lowercase, and the owner here is not. Computing it rather
+      # than hardcoding keeps a fork working.
+      - name: lowercase the owner
+        id: owner
+        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ github.ref_name }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/agentarch:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/agentarch:latest
+            ghcr.io/${{ steps.owner.outputs.value }}/agentarch:${{ github.ref_name }}
+            ghcr.io/${{ steps.owner.outputs.value }}/agentarch:latest
 
   # npm and PyPI need tokens this repository does not have yet. The jobs are here, disabled by
   # a guard rather than commented out, so that adding the secret is the only step — and so the
