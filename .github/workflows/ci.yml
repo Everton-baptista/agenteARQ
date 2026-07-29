@@ -231,8 +231,8 @@ jobs:
       - name: external references are dated
         run: |
           for f in content/references/en/*.md; do
-            grep -q "Reviewed 20" "\$f" || {
-              echo "::error::\$f has no review date; a mapping nobody re-read may no longer be true"
+            grep -q "Reviewed 20" "$f" || {
+              echo "::error::$f has no review date; a mapping nobody re-read may no longer be true"
               exit 1; }
           done
           echo "ok  every reference records when it was last checked"
