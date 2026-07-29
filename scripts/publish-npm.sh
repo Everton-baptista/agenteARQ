@@ -64,7 +64,9 @@ for row in "${PLATFORMS[@]}"; do
   "files": ["bin/"]
 }
 JSON
-  npm publish "$dir" --access public
+  # --provenance signs the tarball with the workflow and commit that built it, so a consumer can
+  # verify the chain from npm back to this repository rather than trusting the registry alone.
+  npm publish "$dir" --access public --provenance
 done
 
 echo "── agentarch (launcher)"
@@ -78,6 +80,6 @@ node -e "
   for (const k of Object.keys(j.optionalDependencies)) j.optionalDependencies[k] = '$VERSION';
   fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
 "
-npm publish "$LAUNCHER" --access public
+npm publish "$LAUNCHER" --access public --provenance
 
 echo "published agentarch@$VERSION and ${#PLATFORMS[@]} platform packages"

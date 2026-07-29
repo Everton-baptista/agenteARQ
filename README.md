@@ -40,8 +40,19 @@ It answers three questions that have no standard answer today:
 
 ### 1. Install
 
-One static binary. **No Go, Node or Python required** — that is the point of it being one binary:
-your project's language is its own business.
+If you have Node, there is nothing to install:
+
+```bash
+npx agentarch@latest start
+```
+
+That is the recommended path — no install step, no PATH to fix, and the version is pinnable
+(`npx agentarch@0.1.3`). The npm package carries the platform binary as an
+`optionalDependency`, the pattern esbuild and swc use, so npm's own integrity check covers the
+executable you run. There is no `postinstall` fetching anything.
+
+The CLI is one static binary, though, and **nothing here requires Node** — a Java or .NET project
+should not acquire a JavaScript runtime to validate its agents. Without Node:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh | sh
@@ -69,8 +80,7 @@ docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:
 # Go, if you have it
 go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
 
-# npm and PyPI — publish once their tokens are configured
-npx agentarch@latest --help
+# Python
 pipx install agentarch
 ```
 

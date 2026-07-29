@@ -73,15 +73,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     if: ${{ vars.PUBLISH_NPM == 'true' }}
+    permissions:
+      contents: read
+      # Two things ride on this. It lets npm authenticate by trusted publishing, so there is no
+      # long-lived token sitting in a repository secret — the standing credential this project's
+      # own 09-security.md argues against. And it signs each tarball with provenance, so anyone
+      # can verify which workflow at which commit produced the binary they are running.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
+      # Trusted publishing needs a recent CLI; the one bundled with the Node image may predate it.
+      - run: npm install -g npm@latest
       - name: publish the launcher and the platform packages
         run: bash scripts/publish-npm.sh "${{ github.ref_name }}"
         env:
+          # Bootstrap only. Trusted publishing is configured per package on npmjs.com, which is
+          # awkward for names that do not exist yet — so the first release may need a granular
+          # token, scoped to these packages and given a short expiry. Configure the trusted
+          # publishers afterwards and delete it: an empty NODE_AUTH_TOKEN is the intended
+          # steady state, not a misconfiguration.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   pypi:
