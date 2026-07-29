@@ -231,6 +231,8 @@ jobs:
       - name: external references are dated
         run: |
           for f in content/references/en/*.md; do
+            # The README indexes the directory; it maps nothing, so it dates nothing.
+            [ "$(basename "$f")" = "README.md" ] && continue
             grep -q "Reviewed 20" "$f" || {
               echo "::error::$f has no review date; a mapping nobody re-read may no longer be true"
               exit 1; }
