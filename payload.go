@@ -12,7 +12,11 @@ package agentarch
 
 import "embed"
 
-//go:embed content
+// all: is required. Without it go:embed silently skips anything beginning with a dot, and the
+// blueprints ship a .github/workflows — so the CI gate never reached the project and a fresh
+// install could not reach conformance L2. Silently, because an absent file looks like a choice.
+//
+//go:embed all:content
 var Content embed.FS
 
 //go:embed spec/schemas spec/normative spec/conformance spec/VERSION

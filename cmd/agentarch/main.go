@@ -311,7 +311,9 @@ func cmdSync(args []string) int {
 	// .mcp.json is derived from the reviewed allowlist rather than rendered from the core.
 	// Keeping it generated is what makes the auditable document the source: two hand-kept
 	// files agree right up until one of them is edited.
-	if wantsTarget(selected, "mcp_json") || *targets == "" {
+	// Respect the configured targets. The old condition also fired whenever the --targets flag
+	// was absent, which meant a project that never asked for .mcp.json was told it had drifted.
+	if wantsTarget(selected, "mcp_json") {
 		n, code := syncMCPJSON(*root, *check)
 		if code != exitOK {
 			return code

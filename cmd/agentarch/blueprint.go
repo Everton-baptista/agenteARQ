@@ -234,6 +234,13 @@ func cmdBlueprintAdd(args []string) int {
 		return exitUsage
 	}
 
+	// A blueprint can bring artifacts that generated files derive from — an MCP allowlist, for
+	// one. Leaving the project one command short of being in sync means the first thing it does
+	// is fail its own CI.
+	if code := cmdSync([]string{"--root", *root}); code != exitOK {
+		fmt.Fprintln(os.Stderr, "blueprint: installed, but sync failed — run `agentarch sync`")
+	}
+
 	fmt.Printf("\ninstalled %s\n\n", b.Meta.ID)
 	fmt.Printf("It already passes the gate. Verify, then start editing:\n\n")
 	fmt.Printf("  agentarch validate\n")

@@ -352,6 +352,25 @@ jobs:
              echo "ok  $bp installs, validates, passes the gate, and parses")
           done
 
+      # The promise the blueprints make. A fresh project that installs one should be at L3
+      # immediately, not one command short of it.
+      - name: a project from nothing reaches L3
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch init --profile standard >/dev/null
+          /tmp/agentarch blueprint add rag-support --yes >/dev/null
+
+          # go:embed skips dotfiles unless the pattern says all:, and the blueprint ships a
+          # CI workflow. Without it the project cannot reach L2, silently.
+          test -f .github/workflows/agentarch.yml || {
+            echo "::error::the blueprint's CI workflow did not reach the project"; exit 1; }
+
+          /tmp/agentarch sync --check
+          out=$(/tmp/agentarch conformance)
+          echo "$out" | grep -q "conformance: L3" || {
+            echo "::error::a fresh blueprint install should be L3"; echo "$out"; exit 1; }
+          echo "ok  nothing -> L3"
+
       - name: a blueprint refuses to overwrite existing work
         run: |
           work=$(mktemp -d) && cd "$work"
