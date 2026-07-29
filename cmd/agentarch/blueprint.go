@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -43,6 +44,9 @@ func loadBlueprints(root string) ([]blueprint.Blueprint, error) {
 func cmdBlueprintList(args []string) int {
 	fs_ := flag.NewFlagSet("blueprint list", flag.ContinueOnError)
 	root := fs_.String("root", ".", "project root")
+	// Scripting against human-formatted output is a fragility that bites exactly once, in CI,
+	// on a footer line nobody thought of.
+	format := fs_.String("format", "text", "text, json, or ids")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
@@ -53,6 +57,23 @@ func cmdBlueprintList(args []string) int {
 	}
 	if len(bps) == 0 {
 		fmt.Println("no blueprints available")
+		return exitOK
+	}
+
+	switch *format {
+	case "ids":
+		for _, b := range bps {
+			fmt.Println(b.Meta.ID)
+		}
+		return exitOK
+	case "json":
+		metas := make([]blueprint.Meta, 0, len(bps))
+		for _, b := range bps {
+			metas = append(metas, b.Meta)
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(metas)
 		return exitOK
 	}
 

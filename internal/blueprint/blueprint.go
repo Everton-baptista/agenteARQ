@@ -22,19 +22,19 @@ import (
 
 // Meta is blueprint.yaml: what this starting point is for, and what it actually ships.
 type Meta struct {
-	ID    string `yaml:"id"`
-	Title string `yaml:"title"`
+	ID    string `yaml:"id" json:"id"`
+	Title string `yaml:"title" json:"title"`
 	// Need is the sentence someone recognises themselves in. The catalogue is browsed by
 	// need, not by id, because nobody arrives knowing the id.
-	Need         string   `yaml:"need"`
-	Description  string   `yaml:"description"`
-	SystemType   string   `yaml:"system_type"`
-	Demonstrates []string `yaml:"demonstrates"`
+	Need         string   `yaml:"need" json:"need"`
+	Description  string   `yaml:"description" json:"description"`
+	SystemType   string   `yaml:"system_type" json:"system_type"`
+	Demonstrates []string `yaml:"demonstrates" json:"demonstrates"`
 	// Frameworks lists what this blueprint genuinely ships runnable code for. Claiming more
 	// than that would be the same dishonesty the standard exists to prevent.
-	Frameworks  []string `yaml:"frameworks"`
-	Provider    string   `yaml:"provider"`
-	Conformance string   `yaml:"conformance"`
+	Frameworks  []string `yaml:"frameworks" json:"frameworks"`
+	Provider    string   `yaml:"provider" json:"provider"`
+	Conformance string   `yaml:"conformance" json:"conformance"`
 }
 
 // Blueprint is a loaded catalogue entry.

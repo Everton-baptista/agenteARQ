@@ -219,7 +219,7 @@ jobs:
       # starts you in a hole. This is the promise the whole feature rests on.
       - name: every blueprint installs clean and passes the gate
         run: |
-          for bp in $(/tmp/agentarch blueprint list | grep -oE '^  [a-z-]+' | tr -d ' '); do
+          for bp in $(/tmp/agentarch blueprint list --format ids); do
             work=$(mktemp -d)
             (cd "$work"
              /tmp/agentarch init --profile standard >/dev/null
