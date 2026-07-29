@@ -3,6 +3,26 @@
 Three version lines move independently — see `spec/normative/08-versioning.md`. Each entry says
 which one changed.
 
+## v0.1.2 — 2026-07-29
+
+`cli/0.1.2`. Spec and content unchanged.
+
+Two fixes found by walking the getting-started path as a new user would.
+
+**`go install` reported the wrong version.** The release build injects it with an ldflag, which
+`go install` does not run, so anyone installing v0.1.1 was told they had a dev build with no way
+to find out which. It now falls back to the module version Go records in the binary.
+
+**The rag blueprint's own example question retrieved nothing.** The placeholder retriever
+intersected exact words, so `order` did not match `Orders` and `shipping` did not match `ship`.
+Following the README produced `[ESCALATE] no citation` on the first run — the worst first
+impression for an agent whose whole argument is grounded answers. Prefix matching fixes it, and
+`"what is your refund policy"` still retrieves nothing, which is the escalation path working.
+
+CI now installs the dependencies and **imports** each blueprint rather than parsing it. A syntax
+check never runs a decorator, a top-level statement or a dataclass, and all three have broken
+here.
+
 ## v0.1.1 — 2026-07-29
 
 `cli/0.1.1`. Spec and content unchanged.

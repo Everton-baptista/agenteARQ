@@ -89,6 +89,20 @@ type Core struct {
 // standard — not to raise the number.
 const BudgetCore = 12288
 
+// ContentVersion reads content/VERSION, the version of the standard's content.
+//
+// This is what a generated file's header names — not the CLI version. A shim is rendered from
+// content, so a header carrying the binary's version would differ between two people running
+// the same standard, and `sync --check` would report drift that has nothing to do with the
+// rules having changed.
+func ContentVersion(fsys fs.FS) string {
+	raw, err := fs.ReadFile(fsys, "VERSION")
+	if err != nil {
+		return "unknown"
+	}
+	return strings.TrimSpace(string(raw))
+}
+
 // BuildCore reads core/<lang>/*.md in filename order and concatenates it.
 //
 // fsys is rooted at the content tree itself, so the embedded payload and a project's installed

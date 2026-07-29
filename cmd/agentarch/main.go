@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -35,7 +36,21 @@ const (
 	exitRevalid   = 6 // a revalidation trigger fired without revalidation
 )
 
-var version = "0.1.0-dev"
+// version is injected by the release build. A `go install` does not run those ldflags, so it
+// falls back to the module version Go records in the binary — otherwise someone who installed
+// v0.1.1 is told they are running a dev build, and has no way to know which.
+var version = "dev"
+
+func init() {
+	if version != "dev" {
+		return
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+		if v := info.Main.Version; v != "(devel)" {
+			version = strings.TrimPrefix(v, "v")
+		}
+	}
+}
 
 func main() { os.Exit(run(os.Args[1:])) }
 
@@ -277,6 +292,8 @@ func cmdSync(args []string) int {
 		source = os.DirFS(filepath.Join(*root, "agentarch", "std"))
 	}
 
+	contentVersion := render.ContentVersion(source)
+
 	core, err := render.BuildCore(source, *lang)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sync:", err)
@@ -336,7 +353,7 @@ func cmdSync(args []string) int {
 		dst := filepath.Join(*root, t.Path)
 		existing, _ := os.ReadFile(dst)
 
-		out, err := render.Render(t, core, version, string(existing))
+		out, err := render.Render(t, core, contentVersion, string(existing))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "AA-BUD-010  %s\n", err)
 			return exitStructure
