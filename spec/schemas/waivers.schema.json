@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/waivers.schema.json",
+  "title": "agentarch waivers",
+  "description": "Time-boxed, owned exceptions. Every field is required because an exception with no owner is nobody's problem to close, and one with no expiry is a quiet amendment to the standard.",
+  "type": "object",
+  "required": ["waivers"],
+  "additionalProperties": false,
+  "properties": {
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["control", "reason", "owner", "until"],
+        "additionalProperties": false,
+        "properties": {
+          "control": {
+            "type": "string",
+            "pattern": "^control\\.ai\\.[a-z]+\\.[a-z0-9_]+$"
+          },
+          "agent": {
+            "type": "string",
+            "description": "Omit to apply to every agent in the project. An implementation should say so when reporting it, because a project-wide waiver is easy to record and easy to forget."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 15,
+            "description": "Why this is being accepted. 'Temporary' is not a reason; what makes it acceptable until the expiry is."
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 2,
+            "description": "The person who will close it. Not a team — a team does not remember."
+          },
+          "until": {
+            "type": "string",
+            "format": "date",
+            "description": "YYYY-MM-DD, in the future, at most 90 days out. Expiry produces exit 5 rather than the failure quietly reappearing, so the decision reaches the person who took it."
+          }
+        }
+      }
+    }
+  }
+}

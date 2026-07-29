@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/agentarch.config.schema.json",
+  "title": "agentarch project configuration",
+  "description": "Written by init, never overwritten by upgrade. This is the project's decision about how the standard applies to it.",
+  "type": "object",
+  "required": ["schema_version", "project"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "installed_version": { "type": "string" },
+
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "default_profile": { "enum": ["minimal", "standard", "regulated", "experimental"] },
+        "lang": {
+          "type": "string",
+          "description": "Language for the generated instruction files. Control ids and field names stay in English in every language."
+        },
+        "jurisdictions": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z]{2}$|^EU$" },
+          "description": "Copied into each new manifest and used to resolve reg.* packs. An agent may declare more, never fewer."
+        }
+      }
+    },
+
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targets": {
+          "type": "array",
+          "items": {
+            "enum": ["agents_md", "claude", "gemini", "qwen", "cursor", "copilot",
+                     "windsurf", "mcp_json", "skills"]
+          }
+        },
+        "mode": {
+          "type": "object",
+          "additionalProperties": { "enum": ["inline", "import"] },
+          "description": "Per-target rendering mode, where the assistant supports more than one."
+        }
+      }
+    },
+
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "profile": { "type": "string" },
+            "fail_on": {
+              "type": "array",
+              "items": { "enum": ["blocker", "major", "minor"] },
+              "description": "Left empty by init on purpose. A gate that blocks on day one gets switched off on day two."
+            },
+            "warn_on": { "type": "array", "items": { "type": "string" } },
+            "baseline": {
+              "type": ["string", "null"],
+              "description": "Path to a ratchet baseline, for a project that adopted the standard with existing agents."
+            }
+          }
+        }
+      }
+    }
+  }
+}

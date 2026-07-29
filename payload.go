@@ -15,5 +15,5 @@ import "embed"
 //go:embed content
 var Content embed.FS
 
-//go:embed spec/schemas spec/VERSION
+//go:embed spec/schemas spec/normative spec/conformance spec/VERSION
 var Spec embed.FS

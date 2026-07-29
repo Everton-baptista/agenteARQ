@@ -146,6 +146,13 @@ func cmdInit(args []string) int {
 		fmt.Fprintln(os.Stderr, "init:", err)
 		return exitUsage
 	}
+	// The normative contracts travel with the project too. An adopter who cannot read the
+	// specification cannot check the tool against it, and "open standard" would mean "trust
+	// the binary".
+	if err := copyEmbedded(agentarch.Spec, "spec/normative", filepath.Join(stdDir, "spec")); err != nil {
+		fmt.Fprintln(os.Stderr, "init:", err)
+		return exitUsage
+	}
 
 	// Record what was installed. Without this, `upgrade` compares the installed tree against
 	// the payload a newer binary carries, and every file the standard changed upstream looks
