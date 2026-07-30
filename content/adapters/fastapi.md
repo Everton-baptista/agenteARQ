@@ -62,10 +62,10 @@ the way `.mcp.json` is generated from the allowlist. → `control.ai.api.contrac
 ## 3. The three guardrails, and the tool permission check
 
 They live in `app/agent/guardrails.py`, called from the loop — not from a route, and not from
-FastAPI middleware, which is lost when the framework changes and never sees the tool call. The
-route passes `question` and nothing else, and the loop puts it inside a delimited block:
-`f"Answer this: {body.question}"` in a system prompt is one line, looks harmless, and is the
-whole of invariant 2 broken.
+FastAPI middleware, which is lost with the framework and never sees the tool call. The route
+passes `question` and nothing else, and the loop puts it in a delimited block:
+`f"Answer this: {body.question}"` in a system prompt is one line and the whole of invariant 2
+broken.
 
 The permission check is `action_guardrail`, called from the dispatcher once per tool call —
 never in `Depends()`, which runs once per request while the model then makes four tool calls,
@@ -83,7 +83,7 @@ In-process, handoff is a function call across a typed boundary and the transport
 the caller talks to the orchestrator, so there is deliberately no `agent_id` or `authority`
 field in the request. Across services the payload is untrusted again at the receiving edge, the
 budget travels as headers, authority is a *narrower* credential the callee verifies, and
-`return_point`/`timeout_s` in the contract are what make a hang decidable.
+`return_point`/`timeout_s` make a hang decidable.
 
 An `input()` call blocks a worker until the request times out, so the run pauses and returns,
 and a second request carries the decision:
@@ -137,8 +137,7 @@ replica must stop taking traffic but must not be killed — a restart loses its 
 ## 8. Secrets
 
 One function turns a name into a value (`app/infra/secrets.py`), fetched at startup, never per
-request — so moving to a secret manager is one edit, not a search for every `os.getenv`. `.env`
-is gitignored; `.env.example` is committed with names and no values.
+request. `.env` is gitignored; `.env.example` is committed with names and no values.
 → `control.ai.api.secrets_not_committed`
 
 ## 9. Two things to switch off in production
