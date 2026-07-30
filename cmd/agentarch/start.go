@@ -258,7 +258,10 @@ func cmdStart(args []string) int {
 		} else {
 			*owner = gitName
 		}
-		if *contact == "" {
+		// Taken from git only when the person kept the name that came with it. Once they type a
+		// different name, the git address belongs to somebody else — and writing it as the way to
+		// reach the accountable person would be worse than leaving the field alone.
+		if *contact == "" && *owner == gitName {
 			*contact = gitMail
 		}
 	}
@@ -277,6 +280,12 @@ func cmdStart(args []string) int {
 	fmt.Printf("  installs into   %s\n", displayRoot(*root))
 	fmt.Printf("  strictness      %s   (change it later in agentarch/agentarch.yaml)\n", *profile)
 	fmt.Printf("  accountable     %s\n", *owner)
+	// Shown because it is written. It comes from `git config`, which on a shared or
+	// work-provisioned machine is often an address the person would not choose for this — and a
+	// value that lands in a manifest without ever being displayed is one nobody re-examines.
+	if *contact != "" {
+		fmt.Printf("  contact         %s\n", *contact)
+	}
 	fmt.Printf("  regulation      %s\n", describeJurisdictions(juris))
 	if state.Installed {
 		// init never overwrites an existing agentarch.yaml, which is the right behaviour and the
