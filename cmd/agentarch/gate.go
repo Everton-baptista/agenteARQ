@@ -169,6 +169,12 @@ func cmdCheck(args []string) int {
 		return exitOK
 	}
 
+	if *updateBaseline && baseline == nil {
+		fmt.Fprintln(os.Stderr, "check: no baseline recorded yet — nothing to update.\n"+
+			"Record one first with `agentarch check --adopt-baseline`.")
+		return exitUsage
+	}
+
 	if baseline != nil && *updateBaseline {
 		next := baseline.Update(all, now)
 		fixed := len(baseline.Accepted) - len(next.Accepted)

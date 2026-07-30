@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
+	agentarch "github.com/Everton-baptista/agenteARQ"
 	"github.com/Everton-baptista/agenteARQ/internal/lockfile"
 	"github.com/Everton-baptista/agenteARQ/internal/policy"
+	"github.com/Everton-baptista/agenteARQ/internal/render"
 	"gopkg.in/yaml.v3"
 )
 
@@ -165,8 +168,18 @@ func cmdUpgrade(args []string) int {
 		}
 	}
 
+	// The version to announce is the content this binary carries — what an upgrade installs —
+	// never the CLI's own version. The two are separate version lines on purpose, and this
+	// command used to print the binary's.
+	incoming, err := fs.Sub(agentarch.Content, "content")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "upgrade:", err)
+		return exitUsage
+	}
+	incomingVersion := render.ContentVersion(incoming)
+
 	if *dryRun {
-		fmt.Printf("upgrade --dry-run: would replace %s with content %s\n", stdDir, version)
+		fmt.Printf("upgrade --dry-run: would replace %s with content %s\n", stdDir, incomingVersion)
 		fmt.Printf("agentarch/project/ and agentarch.yaml are never touched.\n")
 		return exitOK
 	}
@@ -178,7 +191,7 @@ func cmdUpgrade(args []string) int {
 	if code := cmdInit([]string{"--root", *root}); code != exitOK {
 		return code
 	}
-	fmt.Printf("upgraded agentarch/std to content %s\n", version)
+	fmt.Printf("upgraded agentarch/std to content %s\n", incomingVersion)
 	fmt.Printf("Run `agentarch check` — new controls may have entered warn mode.\n")
 	return exitOK
 }

@@ -8,7 +8,8 @@ local models — follows the same architecture rules, from a single source of tr
 
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
 >
-> 16 standards · 39 controls · 9 packs · 11 framework adapters · `en` and `pt-BR`.
+> 16 standards · 46 controls · 10 packs · 12 framework adapters · 4 runnable blueprints ·
+> `en` and `pt-BR`.
 
 ---
 
@@ -40,28 +41,18 @@ It answers three questions that have no standard answer today:
 
 ### 1. Install
 
-If you have Node, there is nothing to install:
-
-```bash
-npx agentarch@latest start
-```
-
-That is the recommended path — no install step, no PATH to fix, and the version is pinnable
-(`npx agentarch@0.1.3`). The npm package carries the platform binary as an
-`optionalDependency`, the pattern esbuild and swc use, so npm's own integrity check covers the
-executable you run. There is no `postinstall` fetching anything.
-
-The CLI is one static binary, though, and **nothing here requires Node** — a Java or .NET project
-should not acquire a JavaScript runtime to validate its agents. Without Node:
+One command, nothing to install first:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh | sh
 ```
 
-It works out your platform, verifies the download against the signed `checksums.txt`, and puts
-`agentarch` on your PATH. It refuses to install anything whose checksum does not match, and it
-never uses `sudo` on your behalf — without write access to `/usr/local/bin` it installs to
-`~/.local/bin` and tells you how to add it.
+That is the recommended path today. It works out your platform, verifies the download against
+the signed `checksums.txt`, and puts `agentarch` on your PATH. It refuses to install anything
+whose checksum does not match, and it never uses `sudo` on your behalf — without write access
+to `/usr/local/bin` it installs to `~/.local/bin` and tells you how to add it. The CLI is one
+static binary, so a Java or .NET project does not acquire a JavaScript or Python runtime to
+validate its agents.
 
 Piping a script into a shell is a decision, not a default. To read it first, which is the right
 instinct:
@@ -79,10 +70,18 @@ docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:
 
 # Go, if you have it
 go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
-
-# Python
-pipx install agentarch
 ```
+
+Not on the registries yet — the packaging is done and publishes from the release workflow, but
+the first npm and PyPI uploads have not landed. Once they do:
+
+```bash
+npx agentarch@latest start   # Node — no install step, version pinnable
+pipx install agentarch       # Python
+```
+
+Until then those two commands fail with a 404 from the registry, not with anything wrong on
+your machine.
 
 Or take a signed binary straight from
 [Releases](https://github.com/Everton-baptista/agenteARQ/releases) and verify it by hand:
@@ -106,7 +105,7 @@ agentarch start
 ```
 
 That is the whole entry point — in an empty directory, plain `agentarch` does the same. It asks at
-most five questions in plain language, skips any it can answer for itself, and derives the rest:
+most three questions, all of them about the software, and derives the rest:
 
 ```
 agentarch — let's get you set up.
@@ -136,14 +135,8 @@ Where are the people who will use it?
   1. Brazil                     brings the LGPD rules in
   2. Europe                     brings GDPR and the EU AI Act in
   3. Both                       both sets apply
-  4. Somewhere else, or not decided yet
-
-Who is accountable for this agent?
-
-A person, not a team. This is who decides to switch it off when it
-misbehaves — a queue cannot make that call at 2am.
-
-Name [Ana Silva]:
+  4. Somewhere else             type the country code, e.g. US, IN, JP, NG
+  5. Not decided yet
 ```
 
 Then it shows exactly what will happen, waits for a yes, and does all of it: installs the
@@ -151,9 +144,15 @@ standard, writes a complete working project, generates the instruction files eve
 reads, writes your answers into the manifests, and runs `validate` and `check` so you can see
 it passes before you touch anything.
 
-You never type the words *profile*, *jurisdiction* or *blueprint*. It picks up your name from
-`git config`, notices whether the directory already has code, and only asks about a framework
-when the starting point you chose ships more than one.
+You never type the words *profile*, *jurisdiction* or *blueprint*. It notices whether the
+directory already has code, and only asks about a framework when the starting point you chose
+ships more than one.
+
+**It asks nothing about you, and reads nothing about you.** An earlier version asked who was
+accountable and offered a default from `git config` — which put a work-provisioned identity into
+two manifests in somebody's personal project, and then into a second tool's suggestion menu,
+because a wrong value written by one tool is read as fact by the next. `owner.accountable` is now
+an edit you make looking at the manifest, alongside `purpose` and `out_of_scope`.
 
 It never overwrites a file that already exists, and nothing is written before you confirm.
 
@@ -164,7 +163,15 @@ agentarch/
   agentarch.yaml        your settings — never overwritten by an upgrade
   std/                  the standard itself — replaced wholesale by `upgrade`
   project/              your manifests, tool specs, evals — never touched by an upgrade
-app/                    runnable code, with the placeholders marked
+app/
+  api/                  transport: routes, caller identity, redacted logging
+  agent/                the loop, prompts, tools, guardrails — never imports api/
+  domain/               your business rules. No LLM, no HTTP
+  infra/                provider, secrets, storage, telemetry, resilience
+  cli.py                the same agent with no server, which proves the layers hold
+contracts/openapi.json  generated from the manifest, like .mcp.json from the allowlist
+evals/run.py            the only thing that can write `status: measured`
+.env.example            committed: names, never values
 AGENTS.md               generated, read by Codex, Cursor, Gemini CLI, Grok, Kimi, Zed, Aider
 CLAUDE.md               generated, read by Claude Code
 GEMINI.md               generated, read by Gemini CLI
@@ -190,7 +197,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r app/requirements.txt
 export ANTHROPIC_API_KEY=...
 
-python app/agent.py "where is my order BR-77120?"
+python -m app.cli "where is my order BR-77120?"
 ```
 
 `app/README.md` explains what to read first and what to change. The short version: replace
@@ -214,7 +221,7 @@ Exit codes are distinct so CI can route them:
 | 3 | a generated file is out of date | run `agentarch sync` |
 | 4 | a blocker-severity control failed | `agentarch explain <control.id>` |
 | 5 | a waiver expired | it belongs to the person named on it |
-| 6 | a revalidation trigger fired | re-run evals, update `last_validated_at` |
+| 6 | `diff --strict`: a revalidation trigger fired | re-run evals, update `last_validated_at` |
 
 When something fails, `agentarch explain <control.id>` gives the reasoning, the fix, and which
 pack imposed it.
@@ -229,10 +236,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v1
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.1.3
         with:
           command: sync --check
-      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v1
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.1.3
         with:
           command: check --profile standard
 ```

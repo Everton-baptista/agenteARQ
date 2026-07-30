@@ -85,7 +85,7 @@ never the question, the answer, the token or a retrieved passage. That is
 ## Run the tests
 
 ```bash
-pytest app/tests -q      # 33 tests, no API key needed
+python -m pytest app/tests -q   # 33 tests, no API key needed
 ```
 
 None of them calls the provider. A suite that needs a credential is a suite that stops running in

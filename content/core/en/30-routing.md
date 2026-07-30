@@ -19,5 +19,6 @@ Read the file for the task at hand. Do not load these preemptively.
 | Timeouts, retries, circuit breakers, budgets, SLOs | `agentarch/std/standards/13-resilience-and-cost.md` |
 | Releasing a change; what forces revalidation | `agentarch/std/standards/14-lifecycle.md` |
 | Model, dataset and dependency provenance; AI-BOM | `agentarch/std/standards/15-supply-chain.md` |
+| Exposing an agent as an HTTP API; edge, auth, caller budgets | `agentarch/std/standards/16-service-and-edge.md` |
 | Applying this to a specific framework | `agentarch/std/adapters/<framework>.md` |
 | Why a check failed | `agentarch explain <control.id>` |

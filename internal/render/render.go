@@ -54,6 +54,10 @@ var Targets = []Target{
 	// reviewed document is the source and the runtime config is the derivative. Handled
 	// specially by sync; the budget is nominal.
 	{Name: "mcp_json", Path: ".mcp.json", Budget: 1 << 20, Covers: "any MCP client reading .mcp.json"},
+	// Derived from each manifest's interface block, for the same reason. The path is not fixed here
+	// because it is declared per project in layout.paths.contract — a repository that keeps its
+	// contracts somewhere else should not have to move them.
+	{Name: "openapi", Path: "contracts/openapi.json", Budget: 1 << 20, Covers: "any consumer of the HTTP API"},
 	// Copied from std/skills/ rather than rendered from the core. The same workflows exist as
 	// checklists for assistants that do not load skills — a standard that works better in one
 	// tool is not a standard.

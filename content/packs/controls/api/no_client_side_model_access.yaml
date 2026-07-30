@@ -8,8 +8,8 @@ control:
   status: experimental
   check:
     kind: static_manifest
-    expr: all(client_files[].imports_provider_sdk == false)
-    message: A file under the declared client path references a model provider directly.
+    expr: len(repository.client_provider_refs) == 0
+    message: A file under layout.paths.client references a model provider directly.
   evidence:
   - repository_scan
   - lint_result

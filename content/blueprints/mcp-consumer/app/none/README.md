@@ -70,7 +70,7 @@ never the request, the reply, the token or any tool result. That is
 ## Run the tests
 
 ```bash
-pytest app/tests -q      # no API key needed
+python -m pytest app/tests -q   # no API key needed
 ```
 
 None of them calls the provider. A suite that needs a credential is a suite that stops running in

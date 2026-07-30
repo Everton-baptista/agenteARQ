@@ -1,4 +1,4 @@
-<!-- agentarch:generated v=1.0.0 core_sha256=ecd80879eb7fff8736cabf96ae02941cc53c2fd3aa11774089ff257a9518cf99 target=claude lang=en
+<!-- agentarch:generated v=1.0.0 core_sha256=f803859f00b2e986cd1389b153d0f92afabe154884cf2cbd172d6f3a79b255e2 target=claude lang=en
      DO NOT EDIT. Edit agentarch/std/core/en/ and run `agentarch sync`.
      Read by: Claude Code -->
 
@@ -109,5 +109,6 @@ Read the file for the task at hand. Do not load these preemptively.
 | Timeouts, retries, circuit breakers, budgets, SLOs | `agentarch/std/standards/13-resilience-and-cost.md` |
 | Releasing a change; what forces revalidation | `agentarch/std/standards/14-lifecycle.md` |
 | Model, dataset and dependency provenance; AI-BOM | `agentarch/std/standards/15-supply-chain.md` |
+| Exposing an agent as an HTTP API; edge, auth, caller budgets | `agentarch/std/standards/16-service-and-edge.md` |
 | Applying this to a specific framework | `agentarch/std/adapters/<framework>.md` |
 | Why a check failed | `agentarch explain <control.id>` |

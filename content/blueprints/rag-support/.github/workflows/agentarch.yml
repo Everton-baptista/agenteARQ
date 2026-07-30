@@ -55,7 +55,7 @@ jobs:
         run: pip install -r app/requirements.txt
 
       - name: unit and service tests
-        run: pytest app/tests -q
+        run: python -m pytest app/tests -q
 
       # The eval harness, without calling the model. It verifies the datasets parse, the paths
       # resolve, the guardrails run and the metrics compute — and it refuses to write a result,

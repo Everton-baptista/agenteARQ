@@ -169,6 +169,20 @@ func cmdInit(args []string) int {
 		return exitUsage
 	}
 
+	// Same validation start applies: a bad code must be rejected where it was typed, not
+	// written into agentarch.yaml and reported later as a schema failure.
+	if *jurisdictions != "" {
+		codes, ok := parseJurisdictions(*jurisdictions)
+		if !ok {
+			fmt.Fprintf(os.Stderr,
+				"--jurisdictions %q is not a list of country codes.\n"+
+					"Use ISO 3166-1 alpha-2, or EU: --jurisdictions BR   --jurisdictions EU,BR\n",
+				*jurisdictions)
+			return exitUsage
+		}
+		*jurisdictions = codes
+	}
+
 	stdDir := filepath.Join(*root, "agentarch", "std")
 	if err := copyEmbedded(agentarch.Content, "content", stdDir); err != nil {
 		fmt.Fprintln(os.Stderr, "init:", err)
@@ -242,7 +256,7 @@ layout:
 # Which assistant instruction files to generate. These are outputs: never edit them by
 # hand — edit agentarch/std/core/ and run "agentarch sync".
 sync:
-  targets: [agents_md, claude, gemini]
+  targets: [agents_md, claude, gemini, openapi]
 
 # The release gate. Left empty until you have controls in place — a gate that blocks on
 # day one gets switched off on day two.
@@ -389,8 +403,20 @@ func cmdSync(args []string) int {
 		drift += n
 	}
 
+	// contracts/openapi.json, derived from each manifest's interface block for the same reason
+	// .mcp.json is derived from the allowlist: the reviewed document is the source. Two
+	// hand-maintained descriptions of one interface diverge, and the consumer reads whichever is
+	// wrong.
+	if wantsTarget(selected, "openapi") {
+		n, code := syncOpenAPI(*root, *check)
+		if code != exitOK {
+			return code
+		}
+		drift += n
+	}
+
 	for _, t := range selected {
-		if t.Name == "mcp_json" || t.Name == "skills" {
+		if t.Name == "mcp_json" || t.Name == "skills" || t.Name == "openapi" {
 			continue
 		}
 		dst := filepath.Join(*root, t.Path)
@@ -538,77 +564,6 @@ func lintContent(root string) []validate.Finding {
 	}
 	if fs, err := validate.LintSkillChecklistParity(src); err == nil {
 		out = append(out, fs...)
-	}
-	// AA-DEP-019 reads the project rather than the standard, so it only runs when a layout has been
-	// declared. The control reports the missing declaration; checking an undeclared layout would mean
-	// checking one the project never agreed to.
-	out = append(out, validate.LintLayers(root, readLayout(root))...)
-	return out
-}
-
-// readLayout pulls layout.paths out of agentarch.yaml.
-//
-// Deliberately the same small hand parser readConfigTargets uses. Pulling in a YAML dependency for
-// three lists would be the larger change, and this file is read before anything is known to be valid.
-func readLayout(root string) validate.Layout {
-	raw, err := os.ReadFile(filepath.Join(root, "agentarch", "agentarch.yaml"))
-	if err != nil {
-		return validate.Layout{}
-	}
-
-	var out validate.Layout
-	inLayout, inPaths := false, false
-	for _, line := range strings.Split(string(raw), "\n") {
-		trimmed := strings.TrimSpace(line)
-		indent := len(line) - len(strings.TrimLeft(line, " "))
-
-		if indent == 0 && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			// A new top-level key ends the block. Without this, a `paths:` under some later key
-			// would be read as if it were the layout's.
-			inLayout = strings.HasPrefix(trimmed, "layout:")
-			inPaths = false
-			continue
-		}
-		if !inLayout || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "paths:") {
-			inPaths = true
-			continue
-		}
-		if !inPaths {
-			continue
-		}
-		key, value, found := strings.Cut(trimmed, ":")
-		if !found {
-			continue
-		}
-		list := parseInlineList(value)
-		switch strings.TrimSpace(key) {
-		case "edge":
-			out.Edge = list
-		case "core":
-			out.Core = list
-		case "client":
-			out.Client = list
-		}
-	}
-	return out
-}
-
-// parseInlineList reads ["a", "b"] and a bare scalar alike.
-func parseInlineList(v string) []string {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return nil
-	}
-	v = strings.Trim(v, "[]")
-	var out []string
-	for _, part := range strings.Split(v, ",") {
-		part = strings.Trim(strings.TrimSpace(part), `"'`)
-		if part != "" {
-			out = append(out, part)
-		}
 	}
 	return out
 }

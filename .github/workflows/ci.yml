@@ -179,6 +179,44 @@ jobs:
           done
           exit $fail
 
+      # The new edge cases, each asserted against the specific command that should reject it. A case
+      # that fails everything proves nothing about the control it exists for, which is why these are
+      # checked individually rather than by the "fails something" loop above.
+      - name: the edge failures fail exactly where documented
+        run: |
+          set -e
+          expect() { # dir, command-word, wanted-code
+            set +e
+            case "$2" in
+              validate) /tmp/agentarch validate "examples/99-failing/$1" >/dev/null 2>&1 ;;
+              check)    /tmp/agentarch check --profile standard "examples/99-failing/$1" >/dev/null 2>&1 ;;
+              sync)     /tmp/agentarch sync --check --root "examples/99-failing/$1" >/dev/null 2>&1 ;;
+            esac
+            got=$?
+            set -e
+            [ "$got" -eq "$3" ] || { echo "::error::$1: $2 exited $got, expected $3"; exit 1; }
+            echo "ok  $1  $2=$got"
+          }
+
+          # A committed credential blocks the gate immediately, and nothing else about the project is
+          # wrong — validate must be clean, or the example proves nothing.
+          expect committed-env-file validate 0
+          expect committed-env-file check 4
+
+          # A provider key in the browser fails twice by design: structurally, and at the gate.
+          expect provider-key-in-client validate 2
+          expect provider-key-in-client check 4
+
+          # A layer violation is a structural finding, not a gate block — the two are different
+          # claims and CI routes them differently. It becomes a gate failure in content 1.2.
+          expect core-imports-transport validate 2
+          expect core-imports-transport check 0
+
+          # Drift is exit 3, and neither validate nor the gate should have an opinion about it.
+          expect contract-out-of-sync validate 0
+          expect contract-out-of-sync check 0
+          expect contract-out-of-sync sync 3
+
       - name: an expired waiver blocks with exit 5
         run: |
           work=$(mktemp -d)

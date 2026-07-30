@@ -3,7 +3,9 @@ control:
   id: control.ai.api.contract_generated
   type: api
   title: The interface contract is generated from the manifest
-  intent: Two hand-maintained descriptions of one interface diverge, and the consumer reads the one that is wrong.
+  intent: Two hand-maintained descriptions of one interface diverge, and the consumer reads whichever is wrong.
+    This control checks that a contract is declared and derived; whether the derived file is currently stale is
+    `sync --check`, which exits 3 — a different failure from a gate block, and CI needs to route them differently.
   status: experimental
   check:
     kind: file_exists
@@ -11,6 +13,7 @@ control:
     message: No generated interface contract is declared.
   evidence:
   - generated_artifact
-  remediation: Declare interface.routes in the manifest and layout.paths.contract in agentarch.yaml, then run `agentarch
-    sync`. Edit the manifest, never the generated file.
+  remediation: 'Declare interface.routes in the manifest and layout.paths.contract in agentarch.yaml, then run `agentarch
+    sync`. Never edit the generated file: `sync --check` will report it as drift, and a contract edited by hand
+    is one the manifest no longer describes.'
   standard_ref: standards/16-service-and-edge.md#controlaiapicontractgenerated

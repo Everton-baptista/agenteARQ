@@ -172,6 +172,12 @@ func (v *Validator) Project(root string) ([]Finding, error) {
 		return nil, err
 	}
 
+	// AA-DEP-019, here rather than only in the CLI. It lived in the command for a while, which meant
+	// `agentarch validate` reported a layer violation and the library did not — so the test that was
+	// supposed to prove the rule is enforced could not see it. A check the CLI has and the library
+	// lacks is a check nothing tests.
+	findings = append(findings, LintLayers(root, ReadLayout(root))...)
+
 	sort.Slice(findings, func(i, j int) bool {
 		if findings[i].File != findings[j].File {
 			return findings[i].File < findings[j].File
@@ -179,6 +185,68 @@ func (v *Validator) Project(root string) ([]Finding, error) {
 		return findings[i].ID < findings[j].ID
 	})
 	return findings, nil
+}
+
+// ReadLayout pulls layout.paths out of agentarch.yaml.
+//
+// Its own small parser rather than a YAML dependency, and in this package rather than the command, so
+// that whoever calls Project gets the same answer the CLI does.
+func ReadLayout(root string) Layout {
+	raw, err := os.ReadFile(filepath.Join(root, "agentarch", "agentarch.yaml"))
+	if err != nil {
+		return Layout{}
+	}
+
+	var out Layout
+	inLayout, inPaths := false, false
+	for _, line := range strings.Split(string(raw), "\n") {
+		trimmed := strings.TrimSpace(line)
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+
+		if indent == 0 && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			// A new top-level key ends the block. Without this, a `paths:` under some later key
+			// would be read as if it were the layout's.
+			inLayout = strings.HasPrefix(trimmed, "layout:")
+			inPaths = false
+			continue
+		}
+		if !inLayout || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "paths:") {
+			inPaths = true
+			continue
+		}
+		if !inPaths {
+			continue
+		}
+		key, value, found := strings.Cut(trimmed, ":")
+		if !found {
+			continue
+		}
+		list := parseInlineList(value)
+		switch strings.TrimSpace(key) {
+		case "edge":
+			out.Edge = list
+		case "core":
+			out.Core = list
+		case "client":
+			out.Client = list
+		}
+	}
+	return out
+}
+
+// parseInlineList reads ["a", "b"] and a bare scalar alike.
+func parseInlineList(v string) []string {
+	v = strings.Trim(strings.TrimSpace(v), "[]")
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.Trim(strings.TrimSpace(part), `"'`); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func (v *Validator) agentFile(p string, seen map[string]string) []Finding {

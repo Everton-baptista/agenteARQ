@@ -4,7 +4,7 @@ Every case here exercises a rule the manifest declares. None of them calls the p
 suite that needs a credential is a test suite that stops running in CI, and then the rules it
 covered stop being checked.
 
-    pytest app/tests -q
+    python -m pytest app/tests -q
 """
 
 from __future__ import annotations

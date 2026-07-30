@@ -1,8 +1,8 @@
 ---
 lang: pt-BR
 source: content/core/en/30-routing.md
-source_sha256: "cc8fb3a774a9b306a46ae8ef5eb761249c390bbbddb014d9fcee48c5c47b0b21"
-translated_at: "2026-07-28"
+source_sha256: "1a5eb4c05a47d05628088139b03be61f1be1b7f7af70df00214527438afe0acc"
+translated_at: "2026-07-29"
 translators: ["everton"]
 ---
 
@@ -27,5 +27,6 @@ Leia o arquivo da tarefa em questão. Não carregue estes preventivamente.
 | Timeouts, retries, circuit breakers, orçamentos, SLOs | `agentarch/std/standards/13-resilience-and-cost.md` |
 | Liberar uma mudança; o que força revalidação | `agentarch/std/standards/14-lifecycle.md` |
 | Procedência de modelo, dataset e dependências; AI-BOM | `agentarch/std/standards/15-supply-chain.md` |
+| Expor um agente como API HTTP; edge, autenticação, orçamento por caller | `agentarch/std/standards/16-service-and-edge.md` |
 | Aplicar isto a um framework específico | `agentarch/std/adapters/<framework>.md` |
 | Por que uma checagem falhou | `agentarch explain <control.id>` |

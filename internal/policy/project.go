@@ -59,6 +59,15 @@ func LoadAgents(root string, now time.Time) ([]Agent, error) {
 			"now":   now.Format("2006-01-02"),
 		}
 
+		// Facts about the repository itself, computed here rather than expressed in a pack.
+		//
+		// A pack is data and never code, so a control cannot walk a directory — but two of the rules
+		// worth enforcing are about the repository rather than any manifest: whether an environment
+		// file carrying secrets is tracked, and whether a web client references a model provider. The
+		// gate gathers those facts and the control reads them, which keeps the pack inert while still
+		// letting it judge something real.
+		ctx["repository"] = repositoryFacts(root)
+
 		// The project's own configuration, so a control can reason about something declared once for
 		// the whole project rather than repeated in every manifest. The layout is the case that
 		// forced it: where the layers live is a property of the repository, not of one agent, and

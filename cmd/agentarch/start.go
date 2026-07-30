@@ -373,7 +373,7 @@ func cmdStart(args []string) int {
 	if adoptPath {
 		return finishStartAdopt(*root, agentIDs)
 	}
-	return finishStartNew(*root, bp, *profile)
+	return finishStartNew(*root, bp, *profile, *owner != "")
 }
 
 const startBanner = `
@@ -617,7 +617,7 @@ func personalizeManifests(root, owner, contact, juris string) (int, error) {
 
 // ------------------------------------------------------- the two endings
 
-func finishStartNew(root string, bp blueprint.Blueprint, profile string) int {
+func finishStartNew(root string, bp blueprint.Blueprint, profile string, ownerSet bool) int {
 	fmt.Printf("\nChecking what you just installed.\n\n")
 
 	if code := cmdValidate([]string{"--root", root}); code != exitOK {
@@ -632,6 +632,17 @@ func finishStartNew(root string, bp blueprint.Blueprint, profile string) int {
 	}
 
 	fmt.Printf("\n%s\n", strings.Repeat("─", 60))
+
+	// owner.accountable is only named as pending when the blueprint's example person is
+	// actually still there. With --owner passed, that sentence would undo the answer.
+	ownerLine := `purpose, out_of_scope, and owner.accountable — which still names
+     the blueprint's example person. What it must refuse is the part
+     that decides everything else.`
+	if ownerSet {
+		ownerLine = `purpose and out_of_scope. What it must refuse is the part that
+     decides everything else.`
+	}
+
 	fmt.Printf(`
 Done. You have a project that runs and passes its own gate.
 
@@ -640,14 +651,12 @@ Run it:
   python -m venv .venv && source .venv/bin/activate
   pip install -r app/requirements.txt
   export ANTHROPIC_API_KEY=...
-  python app/agent.py "%s"
+  python -m app.cli "%s"
 
 Then make it yours, in this order:
 
   1. agentarch/project/agents/%s/agent.yaml
-     purpose, out_of_scope, and owner.accountable — which still names
-     the blueprint's example person. What it must refuse is the part
-     that decides everything else.
+     %s
   2. the system prompt beside it — mirror out_of_scope into the
      refusal section, then bump the version and run `+"`agentarch validate`"+`,
      which prints the hash to record.
@@ -659,7 +668,7 @@ Then make it yours, in this order:
 
 The manifest is the contract. Change it first, then make the code
 match: `+"`agentarch check`"+` is what tells you when the two disagree.
-`, sampleQuestion(bp), firstAgentID(root))
+`, sampleQuestion(bp), firstAgentID(root), ownerLine)
 	return exitOK
 }
 
