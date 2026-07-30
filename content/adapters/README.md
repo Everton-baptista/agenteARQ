@@ -19,5 +19,11 @@ Two rules keep this honest:
 - Community adapters live in the registry, not here. The core cannot be held hostage to any
   framework's release schedule, and an adapter that lags is better fixed by its own maintainer.
 
+In this directory: `agno`, `claude-agent-sdk`, `crewai`, `google-adk`, `langgraph`, `llamaindex`,
+`none-raw-sdk`, `openai-agents-sdk`, `pydantic-ai`, `semantic-kernel`, `vercel-ai-sdk` — agent
+frameworks, all answering the five questions above — and `fastapi`, the transport adapter: not
+how the loop is structured, but where it is reached from over HTTP, per
+`standards/16-service-and-edge.md`.
+
 Read the one for your stack. Nothing here changes what the standard requires — only where it
 attaches.

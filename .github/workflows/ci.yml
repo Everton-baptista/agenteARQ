@@ -29,6 +29,18 @@ jobs:
         run: go build -o /tmp/agentarch ./cmd/agentarch
       - name: sync --check
         run: /tmp/agentarch sync --check --targets agents_md,claude,gemini
+      # The core must render within budget for EVERY advertised target, in both languages —
+      # the small targets (copilot, windsurf at 6144) are the ones that catch a core that grew
+      # unchecked. Run in a scratch copy so the generated files do not dirty the checkout.
+      - name: every target renders within budget
+        run: |
+          set -e
+          cp -r . /tmp/agentarch-budget && cd /tmp/agentarch-budget
+          for lang in en pt-BR; do
+            /tmp/agentarch sync --lang "$lang" \
+              --targets agents_md,claude,gemini,qwen,cursor,copilot,windsurf
+            git checkout -- . && git clean -fdq
+          done
 
   test:
     name: build, vet and test
@@ -166,6 +178,13 @@ jobs:
           fail=0
           for d in examples/99-failing/*/; do
             name=$(basename "$d")
+            # The four edge cases are asserted against the specific command that should reject
+            # them in the next step — one of them passes validate and check on purpose, because
+            # drift is sync's exit 3, not a gate block.
+            case "$name" in
+              committed-env-file|provider-key-in-client|core-imports-transport|contract-out-of-sync)
+                continue ;;
+            esac
             set +e
             /tmp/agentarch validate "$d" >/dev/null 2>&1; v=$?
             /tmp/agentarch check --profile standard "$d" >/dev/null 2>&1; c=$?

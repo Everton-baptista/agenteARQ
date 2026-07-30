@@ -14,8 +14,7 @@ app/
   domain/    business logic. No LLM, no HTTP.
   infra/     provider client, secrets, storage, telemetry, resilience.
 contracts/openapi.json     generated
-.env.example               committed: names, never values
-.env                       gitignored
+.env.example               committed: names, never values — .env is gitignored
 ```
 
 **`agent/` must not import `api/`.** Declare the layers in `agentarch.yaml` — `layout.preset:
@@ -41,9 +40,8 @@ async def current_principal(authorization: str = Header(default="")) -> Principa
 ```
 
 `Principal` is defined in `app/agent/`, holds no reference to the request, and the memory
-`scope_key` is derived from it — so a CLI, a worker or a test can construct the same type. A
-scope key the caller can set is not a scope; it is a parameter.
-→ `control.ai.api.caller_identified`
+`scope_key` is derived from it — so a CLI, worker or test constructs the same type. A scope key
+the caller can set is a parameter, not a scope. → `control.ai.api.caller_identified`
 
 ## 2. The contract, and what must not be in it
 
@@ -58,6 +56,10 @@ that selects the customer cannot be overridden if it was never accepted — and 
 `temperature`, `system` or `max_steps`**, which are pinned in the manifest.
 `contracts/openapi.json` is generated from the manifest's `interface` block by `agentarch sync`,
 the way `.mcp.json` is generated from the allowlist. → `control.ai.api.contract_generated`
+
+Outside dev, `docs_url=None, redoc_url=None`: an interactive console issuing real requests
+against a real agent is a cost and a data-exposure surface, not documentation. Publish the
+generated contract instead.
 
 ## 3. The three guardrails, and the tool permission check
 
@@ -104,9 +106,9 @@ wrong for two.
 
 Log the request id, method, status, duration, tenant, and the **route template**
 (`/v1/approvals/{id}`, not the id — an identifier in a path is personal data in a great many
-services). Not logged: the body, the query values, the answer, the token, and the exception
-message, which routinely contains the value that caused it. Disable the framework's own access
-log (`logging.getLogger("uvicorn.access").disabled = True`). This is where
+services). Not logged: the body, query values, the answer, the token, and exception messages —
+which routinely contain the value that caused one. Disable the framework's own access log
+(`logging.getLogger("uvicorn.access").disabled = True`). This is where
 `capture_content: false` either holds or is a lie. → `control.ai.api.request_logging_redacted`
 
 Spans and metrics live in `app/infra/telemetry.py`, semconv pinned, content never an attribute.
@@ -140,13 +142,7 @@ One function turns a name into a value (`app/infra/secrets.py`), fetched at star
 request. `.env` is gitignored; `.env.example` is committed with names and no values.
 → `control.ai.api.secrets_not_committed`
 
-## 9. Two things to switch off in production
-
-`docs_url=None, redoc_url=None` outside dev. An interactive console issuing real requests
-against a real agent is a cost and a data-exposure surface, not documentation; publish the
-generated `contracts/openapi.json` instead.
-
-## 10. What this adapter deliberately does not cover
+## 9. What this adapter deliberately does not cover
 
 Router organisation, dependency-injection style, async versus sync, ORM choice, and anything
 about a frontend beyond the two rules in `16-service-and-edge.md` — never ship a provider

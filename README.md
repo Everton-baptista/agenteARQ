@@ -8,7 +8,7 @@ local models — follows the same architecture rules, from a single source of tr
 
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
 >
-> 16 standards · 46 controls · 10 packs · 12 framework adapters · 4 runnable blueprints ·
+> 16 standards · 46 controls · 10 packs · 12 framework adapters · 6 runnable blueprints ·
 > `en` and `pt-BR`.
 
 ---

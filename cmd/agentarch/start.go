@@ -713,6 +713,8 @@ func sampleQuestion(bp blueprint.Blueprint) string {
 		return "I was charged twice for order BR-77120"
 	case "mcp-consumer":
 		return "how do I rotate an API key?"
+	case "chatbot-web":
+		return "how much does the Pro plan cost?"
 	}
 	return "hello"
 }

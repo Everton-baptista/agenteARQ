@@ -59,6 +59,12 @@ failed a check finds a type that does not name what failed. Two are blockers wit
 which departs from "no control is ever born blocking" and is worth defending: both describe a
 credential that is already public. The other five warn until content 1.2.
 
+The seven ship as the `api.edge` pack, with `standards/16-service-and-edge.md` as the prose half
+of each rule — `validate` enforces the correspondence in both directions. The standard is
+framework-neutral; `adapters/fastapi.md` is the transport adapter that shows what the same rules
+look like in a running service: where the caller becomes an identity, what must not be in the
+request contract, and why the guardrails live in the agent core rather than in middleware.
+
 The layout is declared as globs in `agentarch.yaml`, not assumed from directory names — a Spring
 project and a FastAPI project are both right and neither should rename anything to be checkable.
 `AA-DEP-019` reads the direction of the arrows, and says in its own doc comment what it cannot
@@ -69,6 +75,32 @@ claiming to prove absence would be worse than one admitting its reach.
 from the allowlist. The digest covers the interface rather than the rendered bytes, so rewording a
 summary is not an interface change while adding a route — or removing auth from one — is.
 
+**Two blueprints answer the two questions the four did not.** `chatbot-web` is the first with a
+frontend: one static chat page served by the service itself — no Node toolchain, no CDN — where
+the browser calls only `/v1`. `no_client_side_model_access` holds there because there is no
+provider credential anywhere for it to hold, and the approval card renders in the chat, so the
+whole human-in-the-loop loop is visible in the browser. `mcp-server` is the serving side of MCP:
+tools advertised from the reviewed `.tool.yaml` specs rather than from decoration, the
+descriptions hashed so a consumer's rug-pull tripwire has something to pin, and the irreversible
+tool pausing for a human however it was reached — an MCP call is a transport, not an approver.
+
+**The core fits its smallest budget again.** It had grown past 6144 bytes, so the copilot and
+windsurf targets could not render at all: `sync` failed for anyone who enabled them, and CI never
+noticed because it only checked the three large targets. The fix is the one the budget exists to
+force — the full glossary demoted to `standards/00-index.md`, five load-bearing terms kept,
+routing paths shortened. Every target now renders in both languages, and CI renders all of them
+in a scratch copy, so the next overflow fails the build instead of the user.
+
+**Fixed:** `start` told you to run `python app/agent.py`, a file that does not exist — the first
+command a new user copy-pastes. The printed pytest command fails under pytest 9; it is
+`python -m pytest` everywhere now, including the generated workflows. The README recommended
+`npx` and `pipx` channels nothing is published to, and a CI action pinned to a `@v1` tag that
+does not exist. `upgrade` announced the CLI's own version as the content's — the confusion
+init's closing line already documents. `check --update-baseline` with no baseline recorded did
+nothing, silently. `init --jurisdictions` accepted what `start` rejects. The command layer grew
+its first tests. The three blueprints that shipped a `deploy/k8s.yaml` with no guide now have a
+`deploy/README.md`.
+
 **`start` stopped asking about you.** It asked who was accountable and offered a default from
 `git config`, which put a work-provisioned identity into two manifests in a personal project and
 then into a second tool's suggestion menu, because a wrong value written by one tool is read as fact
@@ -78,9 +110,9 @@ address: personal data leaving the machine for a file that gets committed, which
 
 **CI runs the blueprints.** Nothing executed them before — the Go tests check the payload's shape,
 and a Python module importing a name that does not exist is shaped perfectly. Every variant installs,
-runs its pytest suite (33, 35, 34 and 42 tests, none needing a credential) and runs its eval harness.
-The conformance assertion used to demand L3 and pass, agreeing with the lie; it now demands L2 and
-that the only thing missing is the evidence.
+runs its pytest suite (33 to 42 tests depending on the blueprint, none needing a credential) and runs
+its eval harness. The conformance assertion used to demand L3 and pass, agreeing with the lie; it now
+demands L2 and that the only thing missing is the evidence.
 
 **Fixed:** `pydantic` 2.10 has no wheel for CPython 3.14, so pip fell back to building
 pydantic-core from source and failed — a pin that does not install is not a pin, it is a trap.

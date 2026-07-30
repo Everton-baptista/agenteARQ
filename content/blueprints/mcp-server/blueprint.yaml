@@ -1,0 +1,28 @@
+id: mcp-server
+title: Governed tools exposed to other agents over MCP
+need: Expose my agent's tools so other agents and IDEs can call them safely
+system_type: agentic_task
+provider: anthropic
+conformance: L2
+
+description: >-
+  The mirror image of mcp-consumer: this agent is the one being called. Its tools are served
+  over the Model Context Protocol from app/mcp_server.py, and the governance that the consumer
+  side demands is honoured here on the serving side — every tool declared with its effect, the
+  advertised descriptions hashed so a consumer can detect a change, and the irreversible tool
+  still stopping for a human even when the caller is another agent. An MCP call is a transport,
+  not an approver: the refund pauses exactly as it does over HTTP, and the decision comes back
+  through the approval queue.
+
+  The parts worth reading first are app/mcp_server.py — where the advertised tool list is built
+  from the specs rather than from decoration — and the .tool.yaml files, where what the server
+  may serve is declared the way a consumer's allowlist declares what it permits.
+
+frameworks: [none]
+
+demonstrates:
+  - Tools served over MCP from the manifest, so an undeclared tool cannot leak onto the wire
+  - A content hash of the advertised tool descriptions, so consumers detect a rug-pull
+  - An irreversible tool that pauses for a human whoever the caller is — MCP included
+  - stdio transport and a local principal — no unauthenticated network surface by default
+  - Effect classification driving approval, guardrails and blast radius
