@@ -10,19 +10,20 @@ package main
 //
 // which asks a newcomer to decide what a profile is and why a jurisdiction matters before
 // anything at all has happened. Three concepts, none of them the reason they came. So start asks
-// in ordinary language — is the code already written, what are you building, where are your
-// users, who gets paged — and derives the flags from the answers.
+// in ordinary language — is the code already written, what are you building, where are your users
+// — and derives the flags from the answers.
 //
-// It asks at most four questions, and it never asks one whose answer it can find out for itself:
-// whether the directory already has code, whether the blueprint ships more than one framework,
-// what the person's own name is. A question with an obvious answer trains people to stop reading
-// the questions.
+// At most three questions, and it asks nothing it can find out for itself: whether the directory
+// already has code, whether the blueprint ships more than one framework. A question with an
+// obvious answer trains people to stop reading the questions.
+//
+// It asks nothing about the person running it, and reads nothing about them. Every question is
+// about the software being built.
 
 import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -248,26 +249,17 @@ func cmdStart(args []string) int {
 		}
 	}
 
-	// ---- Question 5: who is accountable? Asked because it is the one field nothing can infer
-	// and every control depends on, and offered with a default so that in the common case it is
-	// a single keypress.
-	if *owner == "" {
-		if interactive {
-			*owner = askOwner(gitName(*root))
-		} else {
-			*owner = gitName(*root)
-		}
-	}
-	// The contact address is never inferred. It used to be read from `git config` and written
-	// unseen, which is personal data leaving the machine for a file that gets committed, without
-	// anyone asking for it — the minimisation this project's own 10-privacy.md requires, applied
-	// to itself. The blueprint's obvious placeholder is left in place instead: a value that is
-	// visibly wrong gets replaced, and a plausible one that happens to be wrong does not.
+	// The interview ends here. It asks nothing about the person running it — not the accountable
+	// owner, not an address, and it does not read `git config` to guess either.
 	//
-	// The name is different. It is asked, displayed, and confirmed with a keypress.
-	if *owner == "" {
-		*owner = "unknown"
-	}
+	// The owner used to be question 5, on the reasoning that `owner.accountable` is the field the
+	// gate leans on hardest. That was governance paperwork wedged into a getting-started flow, and
+	// it did not even achieve the thing it was there for: a name typed in three seconds to get
+	// past a prompt is exactly as unexamined as the placeholder it replaced. It belongs with
+	// `purpose` and `out_of_scope` — the edits the closing text names, made while looking at the
+	// manifest, by someone who has decided.
+	//
+	// --owner and --contact still work when passed, for scripts that do know.
 
 	// ---- What will happen. Nothing has touched disk yet.
 	fmt.Printf("\n%s\n\n", strings.Repeat("─", 60))
@@ -279,10 +271,11 @@ func cmdStart(args []string) int {
 	}
 	fmt.Printf("  installs into   %s\n", displayRoot(*root))
 	fmt.Printf("  strictness      %s   (change it later in agentarch/agentarch.yaml)\n", *profile)
-	fmt.Printf("  accountable     %s\n", *owner)
-	// Shown because it is written. It comes from `git config`, which on a shared or
-	// work-provisioned machine is often an address the person would not choose for this — and a
-	// value that lands in a manifest without ever being displayed is one nobody re-examines.
+	// Shown only when passed, because only then is it written. Anything that lands in a manifest
+	// without being displayed is a value nobody re-examines.
+	if *owner != "" {
+		fmt.Printf("  accountable     %s\n", *owner)
+	}
 	if *contact != "" {
 		fmt.Printf("  contact         %s\n", *contact)
 	}
@@ -493,40 +486,6 @@ func parseJurisdictions(s string) (string, bool) {
 	return strings.Join(out, ","), true
 }
 
-func askOwner(def string) string {
-	fmt.Printf("\nWho is accountable for this agent?\n\n")
-	fmt.Printf("A person, not a team. This is who decides to switch it off when it\n")
-	fmt.Printf("misbehaves — a queue cannot make that call at 2am.\n\n")
-	prompt := "Name: "
-	if def != "" {
-		prompt = fmt.Sprintf("Name [%s]: ", def)
-	}
-	for attempt := 0; attempt < 3; attempt++ {
-		in := ask(prompt)
-		if in == "" && def != "" {
-			return def
-		}
-		if len(in) >= 3 {
-			return in
-		}
-		fmt.Fprintln(os.Stderr, "  a name, please — the manifest has to name somebody")
-	}
-	return def
-}
-
-// gitName suggests who is accountable: the person setting up a new project is, almost always, the
-// person who would be paged for it. Only the name — it is offered as a default the user sees and
-// can type over, which is what makes reading it acceptable. The address is not read at all.
-func gitName(root string) string {
-	cmd := exec.Command("git", "config", "--get", "user.name")
-	cmd.Dir = root
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
 // describeJurisdictions names the packs a set of codes resolves to, so the consequence of the
 // answer is visible before anything is written rather than discovered later in a gate failure.
 func describeJurisdictions(j string) string {
@@ -686,8 +645,9 @@ Run it:
 Then make it yours, in this order:
 
   1. agentarch/project/agents/%s/agent.yaml
-     purpose and out_of_scope. What it must refuse is the part that
-     decides everything else.
+     purpose, out_of_scope, and owner.accountable — which still names
+     the blueprint's example person. What it must refuse is the part
+     that decides everything else.
   2. the system prompt beside it — mirror out_of_scope into the
      refusal section, then bump the version and run `+"`agentarch validate`"+`,
      which prints the hash to record.
