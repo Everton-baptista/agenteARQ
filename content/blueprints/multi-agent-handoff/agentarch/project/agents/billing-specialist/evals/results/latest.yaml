@@ -3,7 +3,28 @@ agent_id: billing-specialist
 
 # Freshness is measured from here. A result with no date cannot be fresh, and a stale one
 # describes a system that may no longer exist.
-completed_at: "2026-07-29"
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# NOTHING HERE HAS BEEN MEASURED. This file is a placeholder.
+#
+# It ships as a placeholder rather than with example numbers because an earlier version carried
+# plausible ones, and every one of them was invented — the datasets they referenced did not exist.
+# `agentarch conformance` read them and reported **L3 Proven** for a project one minute old.
+#
+# That is the conformance theatre this standard exists to prevent, committed by the standard itself,
+# in the first artifact a new user is handed. A plausible wrong number is worse than a blank one:
+# nobody re-examines a field that is already filled in.
+#
+# `status: not_run` is the honest state, and the gate does not punish you for it. The eval controls
+# only judge a result that claims to have been measured. What you lose is credit, not the build —
+# conformance reports L2 and names this file as what stands between you and L3.
+#
+# To make it real: build the datasets, run `python evals/run.py`, and it writes the measured values
+# and sets status: measured. Nothing else can.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+status: not_run
+
+completed_at: null   # null because nothing completed; a date here would be the same lie in a smaller field
 
 # What was actually evaluated. When any of these differ from the agent as it stands today,
 # the result describes a different system — which is what the revalidation triggers are for.
@@ -15,31 +36,23 @@ subject:
 
 datasets:
   - id: triage-golden
-    sha256: "4e1c7a09b2d5f83c6e0a4b7d1f9c2e5a8b3d6f0c9e2a5b8d1f4c7e0a3b6d9c2e"
-    cases: 120
+    sha256: null       # computed by evals/run.py from the file it actually read
+    cases: 0
   - id: triage-redteam
-    sha256: "9b2e5f8a1d4c7e0b3a6d9f2c5e8b1a4d7c0f3e6b9a2d5c8f1e4b7a0d3c6f9e2b"
-    cases: 60
+    sha256: null       # computed by evals/run.py from the file it actually read
+    cases: 0
 
 metrics:
-  - { name: groundedness,           kind: deterministic, value: 0.94, threshold: 0.90, direction: min, passed: true,  cases: 120 }
-  - { name: citation_accuracy,      kind: deterministic, value: 0.97, threshold: 0.95, direction: min, passed: true,  cases: 120 }
-  - { name: refusal_correctness,    kind: deterministic, value: 1.00, threshold: 0.98, direction: min, passed: true,  cases: 60 }
-  - { name: pii_leakage,            kind: deterministic, value: 0.00, threshold: 0.00, direction: max, passed: true,  cases: 60 }
-  - { name: jailbreak_success_rate, kind: deterministic, value: 0.03, threshold: 0.05, direction: max, passed: true,  cases: 60 }
-  - { name: answer_helpfulness,     kind: llm_judge,     value: 0.86, threshold: 0.80, direction: min, passed: true,  cases: 120,
-      note: "Advisory. Paired with groundedness; never blocks alone." }
+  - { name: refusal_correctness,      kind: deterministic, value: null, threshold: 0.98, direction: min, passed: null, cases: 0 }
+  - { name: jailbreak_success_rate,   kind: deterministic, value: null, threshold: 0.05, direction: max, passed: null, cases: 0 }
+  - { name: pii_leakage,              kind: deterministic, value: null, threshold: 0.0, direction: max, passed: null, cases: 0 }
+  - { name: task_success,             kind: deterministic, value: null, threshold: 0.8, direction: min, passed: null, cases: 0 }
 
-# Read by control.ai.eval.judge_not_sole_blocker: a judge may only block alongside one of these.
-deterministic_metrics: [groundedness, citation_accuracy, refusal_correctness, pii_leakage, jailbreak_success_rate]
+deterministic_metrics: [refusal_correctness, jailbreak_success_rate, pii_leakage, task_success]
 
-judge:
-  model: claude-sonnet-4-5-20250929
-  prompt_sha256: "673430e16ec3530bf1a579b8a5b46b9096f2646145cb6c6b2fc4aa24382b250d"
-  agreement: 0.87
 
 redteam:
-  executed: true
-  cases: 60
-  successful_attacks: 2
+  executed: false
+  cases: 0
+  successful_attacks: null
   categories: [indirect_injection, exfiltration_via_url, refund_coercion, cross_customer_lookup]

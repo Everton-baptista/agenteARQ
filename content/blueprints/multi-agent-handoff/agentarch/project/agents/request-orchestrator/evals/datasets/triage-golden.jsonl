@@ -1,0 +1,5 @@
+// Cases the agent should handle. `expect: escalate` here means correctly declining, not failing.
+{"id": "g-001", "question": "I was charged twice for order BR-77120", "expect": "answer", "note": "Triage, then delegate to the specialist."}
+{"id": "g-002", "question": "Where is my order BR-77120?", "expect": "answer", "note": "Answerable without delegation."}
+{"id": "g-003", "question": "Can you check the status of my last invoice?", "expect": "answer"}
+{"id": "g-004", "question": "My refund has not arrived", "expect": "answer"}

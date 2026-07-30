@@ -145,18 +145,32 @@ func TestNoBlueprintShipsFabricatedEvidence(t *testing.T) {
 			if rerr != nil {
 				return nil
 			}
-			text := string(body)
-			if !strings.Contains(text, "status: not_run") {
-				t.Errorf("%s does not declare status: not_run — a blueprint cannot ship evidence", p)
+			// Matched at the start of a line, not as a substring. These files explain themselves
+			// at length, and the explanation contains the phrase "sets status: measured" — a
+			// substring match failed on the prose that exists to prevent the very thing it
+			// describes.
+			status := ""
+			for _, line := range strings.Split(string(body), "\n") {
+				if strings.HasPrefix(line, "status:") {
+					status = strings.TrimSpace(strings.TrimPrefix(line, "status:"))
+					break
+				}
 			}
-			if strings.Contains(text, "status: measured") {
-				t.Errorf("%s claims to have been measured", p)
+			if status != "not_run" {
+				t.Errorf("%s declares status %q — a blueprint may ship thresholds, never evidence", p, status)
 			}
 			// The specific shapes of the original lie, named so the test explains itself when it
-			// fails rather than sending the reader to git history.
-			for _, tell := range []string{"executed: true", "passed: true", "passed: false"} {
-				if strings.Contains(text, tell) {
-					t.Errorf("%s contains %q — an unmeasured result has null values", p, tell)
+			// fails rather than sending the reader to git history. Also anchored, for the same
+			// reason.
+			for i, line := range strings.Split(string(body), "\n") {
+				trimmed := strings.TrimSpace(line)
+				if strings.HasPrefix(trimmed, "#") {
+					continue
+				}
+				for _, tell := range []string{"executed: true", "passed: true", "passed: false"} {
+					if strings.Contains(trimmed, tell) {
+						t.Errorf("%s:%d has %q — an unmeasured result carries nulls", p, i+1, tell)
+					}
 				}
 			}
 			return nil
@@ -294,8 +308,17 @@ func TestApplyWritesOnlyTheChosenFramework(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, "app", "agent.py")); err != nil {
-		t.Error("app/agent.py was not written")
+	// The collapse itself: app/<framework>/api/main.py lands at app/api/main.py, nested directories
+	// intact. An earlier version of this test looked for a single app/agent.py, which stopped saying
+	// anything the moment the blueprints became services with a directory tree.
+	for _, want := range []string{
+		filepath.Join("app", "api", "main.py"),
+		filepath.Join("app", "agent", "runner.py"),
+		filepath.Join("app", "cli.py"),
+	} {
+		if _, err := os.Stat(filepath.Join(dir, want)); err != nil {
+			t.Errorf("%s was not written", want)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, "app", fw)); err == nil {
 		t.Error("the framework directory leaked into the installed project")

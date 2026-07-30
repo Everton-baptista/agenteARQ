@@ -1,11 +1,23 @@
-"""Agent consuming MCP servers, with the allowlist as the boundary.
+"""The MCP client that refuses to exceed its allowlist.
 
-An MCP server contributes text the model treats as authoritative: tool names, descriptions,
-parameter documentation. Connecting one is closer to importing a dependency that can write your
-prompt than to configuring a client — and the protocol attaches no version to a description, so
-nothing in it notices when one changes.
+An MCP server is a process somebody else wrote, so it lives in infra/ — it is a dependency, not part
+of the agent. Putting it here means `agentarch mcp audit` and the tests can exercise it with no model
+and no web server in the way.
 
-Run it with:  python app/agent.py "what does the deployment guide say about rollbacks?"
+Three defences, and the third is the one nothing else in the ecosystem standardises:
+
+  default deny        a tool absent from `tools_allow` is not callable, whatever the server offers.
+                      The allowlist is the contract; what the server advertises is a proposal.
+  pinned version      the server is pinned to an exact version. `latest` means the code you reviewed
+                      and the code you run are different artifacts with the same name.
+  description hashes  every allowlisted tool's description is hashed at review time and re-checked on
+                      connect. A server that changes a tool's description after approval has changed
+                      what the model will do with it — the rug pull — and this is the only thing that
+                      notices.
+
+The last one is why the digest normalises whitespace only. Normalising more would let a meaningful
+rewording pass; normalising less would fail on a reflowed line and train people to re-hash without
+reading.
 """
 
 from __future__ import annotations
@@ -15,13 +27,33 @@ import json
 import os
 import pathlib
 import subprocess
-import sys
+
+import logging
 
 import yaml
-from anthropic import Anthropic
 
-AGENT_DIR = pathlib.Path("agentarch/project/agents/docs-assistant")
+log = logging.getLogger("agent.mcp")
+
 ALLOWLIST = pathlib.Path("agentarch/project/mcp/allowlist.yaml")
+
+
+class AllowlistError(RuntimeError):
+    """The allowlist and the servers disagree. Fatal at startup, never a 500 at request time."""
+
+
+class RugPull(RuntimeError):
+    """A server changed a tool description since it was reviewed.
+
+    Its own exception type because it is the one failure here that is not a misconfiguration: the
+    artifact you approved and the artifact serving traffic have diverged, and the right response is a
+    human reading the new description rather than a retry.
+    """
+
+
+def load_allowlist() -> dict:
+    if not ALLOWLIST.exists():
+        raise AllowlistError(f"{ALLOWLIST} not found — run from the project root")
+    return yaml.safe_load(ALLOWLIST.read_text())
 
 
 def description_digest(text: str) -> str:
@@ -69,7 +101,7 @@ class AllowlistedMCPClient:
         while True:
             line = self.proc.stdout.readline()
             if not line:
-                raise RuntimeError(f"{self.server['name']} closed the connection")
+                raise AllowlistError(f"{self.server['name']} closed the connection")
             msg = json.loads(line)
             if msg.get("id") == self._id:
                 return msg.get("result", {})
@@ -96,20 +128,20 @@ class AllowlistedMCPClient:
             if name not in allowed:
                 # Not an incident on its own, but it is the shape silent capability growth
                 # takes. It is refused until someone reviews it.
-                print(f"  refused  {s['name']}/{name}: not in tools_allow")
+                log.info("refused %s/%s: not in tools_allow", s["name"], name)
                 continue
 
             recorded = digests.get(name)
             if recorded and description_digest(tool.get("description", "")) != recorded:
-                raise SystemExit(
-                    f"\nSTOP: {s['name']}/{name} changed its description since it was reviewed.\n"
+                raise RugPull(
+                    f" {s['name']}/{name} changed its description since it was reviewed.\n"
                     f"  approved {recorded[:12]}…\n"
                     f"  serving  {description_digest(tool.get('description', ''))[:12]}…\n\n"
                     "Read the new description before accepting it. Then run\n"
                     "`agentarch mcp audit --probe --record` to re-record the digest."
                 )
 
-            print(f"  allowed  {s['name']}/{name}")
+            log.info("allowed %s/%s", s["name"], name)
             out.append({"name": f"{s['name']}__{name}",
                         "description": tool.get("description", ""),
                         "input_schema": tool.get("inputSchema", {"type": "object"})})
@@ -120,50 +152,3 @@ class AllowlistedMCPClient:
         if bare not in set(self.server.get("tools_allow", [])):
             return {"error": f"{bare} is not allowlisted", "retryable": False}
         return self._rpc("tools/call", {"name": bare, "arguments": args})
-
-
-def main(question: str) -> str:
-    manifest = yaml.safe_load((AGENT_DIR / "agent.yaml").read_text())["agent"]
-    spec = manifest["prompts"]["system"]
-    raw = (AGENT_DIR / spec["path"]).read_bytes()
-    if hashlib.sha256(raw).hexdigest() != spec["sha256"]:
-        raise SystemExit("system prompt changed without a version bump")
-
-    allowlist = yaml.safe_load(ALLOWLIST.read_text())
-    if allowlist.get("default") != "deny":
-        raise SystemExit("allowlist does not default to deny; refusing to start")
-
-    used = set(manifest.get("mcp", {}).get("servers_used", []))
-    servers = [s for s in allowlist["servers"] if s["name"] in used]
-    if not servers:
-        raise SystemExit("no allowlisted MCP server is declared for this agent")
-
-    print("connecting to allowlisted servers:")
-    with AllowlistedMCPClient(servers[0]) as client:
-        tools = client.tools()
-
-        anthropic = Anthropic()
-        messages = [{"role": "user", "content": f"<question>\n{question}\n</question>"}]
-
-        for _ in range(manifest["autonomy"]["max_steps"]):
-            response = anthropic.messages.create(
-                model=manifest["model"]["id"],
-                max_tokens=manifest["model"]["params"]["max_output_tokens"],
-                system=raw.decode(), tools=tools, messages=messages)
-
-            uses = [b for b in response.content if b.type == "tool_use"]
-            if not uses:
-                return "".join(b.text for b in response.content if b.type == "text")
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": [
-                {"type": "tool_result", "tool_use_id": u.id,
-                 "content": json.dumps(client.call(u.name, u.input))} for u in uses]})
-
-    return "[ESCALATE] step budget exhausted"
-
-
-if __name__ == "__main__":
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise SystemExit("set ANTHROPIC_API_KEY")
-    print(main(" ".join(sys.argv[1:]) or "what does the documentation say about rollbacks?"))
