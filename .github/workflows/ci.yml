@@ -65,6 +65,77 @@ jobs:
             echo "::error::unclear failure for a missing release:"; echo "$out"; exit 1; }
           echo "ok  installer parses, lints, and fails cleanly"
 
+  # The blueprints ship a service and a test suite. Until this job existed, neither was executed by
+  # anything: the Go tests check the payload's shape, and a Python file that imports a name that does
+  # not exist is shaped perfectly. Every blueprint's own pytest suite runs here, and its eval harness
+  # is exercised without calling a model.
+  blueprint-tests:
+    name: every blueprint's own tests pass
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: build
+        run: go build -o /tmp/agentarch ./cmd/agentarch
+
+      - name: install each blueprint and run its suite
+        run: |
+          set -e
+          # Every framework variant, not just the default: a variant nobody installs is a variant
+          # that rots, and the whole claim is that swapping the framework changes only the loop.
+          for row in $(/tmp/agentarch blueprint list --format json | jq -r '.[] | .id as $i | .frameworks[] | "\($i):\(.)"'); do
+            bp=${row%%:*}; fw=${row##*:}
+            work=$(mktemp -d) && cd "$work"
+            /tmp/agentarch start --root . --new --blueprint "$bp" --framework "$fw" --yes >/dev/null
+
+            python -m venv .venv
+            .venv/bin/pip install -q -r app/requirements.txt
+
+            echo "── $bp/$fw"
+            .venv/bin/python -m pytest app/tests -q
+
+            # The harness, with no model call. It verifies the datasets parse, the paths resolve, the
+            # guardrails run and the metrics compute — and refuses to write a result, because a metric
+            # computed from a simulated answer measures the simulation.
+            .venv/bin/python evals/run.py --dry-run >/dev/null
+            echo "ok  $bp/$fw: tests and eval harness"
+          done
+
+      # The rule the whole layout rests on, checked against what lands in a project rather than
+      # against the payload. An agent that can only run inside a web server cannot be tested, reused
+      # from a worker, or moved.
+      - name: the agent core never imports the transport
+        run: |
+          work=$(mktemp -d) && cd "$work"
+          /tmp/agentarch start --root . --new --blueprint rag-support --yes >/dev/null
+          if grep -rnE "^(from|import).*(fastapi|starlette|app\.api|\.\.api)" app/agent/; then
+            echo "::error::app/agent imports the transport layer"; exit 1
+          fi
+          echo "ok  the layers hold"
+
+      # The credential must not be installable. .env has to be ignored, and the committed example
+      # must name variables without assigning values to them.
+      - name: no blueprint can commit a credential by accident
+        run: |
+          for bp in $(/tmp/agentarch blueprint list --format ids); do
+            work=$(mktemp -d) && cd "$work"
+            git init -q . && /tmp/agentarch start --root . --new --blueprint "$bp" --yes >/dev/null
+            grep -q "^\.env$" .gitignore || { echo "::error::$bp does not ignore .env"; exit 1; }
+            printf 'ANTHROPIC_API_KEY=sk-ant-not-a-real-key\n' > .env
+            git add -A
+            git diff --cached --name-only | grep -qx ".env" && {
+              echo "::error::$bp would commit .env"; exit 1; }
+            grep -E "(KEY|SECRET|TOKEN|PASSWORD)=.+" .env.example && {
+              echo "::error::$bp .env.example assigns a value"; exit 1; }
+            echo "ok  $bp"
+          done
+
   examples:
     name: examples behave as documented
     runs-on: ubuntu-latest
@@ -384,9 +455,16 @@ jobs:
              echo "ok  $bp installs, validates, passes the gate, and imports")
           done
 
-      # The promise the blueprints make. A fresh project that installs one should be at L3
-      # immediately, not one command short of it.
-      - name: a project from nothing reaches L3
+      # The promise the blueprints make, and it is deliberately L2 rather than L3.
+      #
+      # This assertion used to demand L3, and it passed — because the blueprint shipped an eval
+      # result full of numbers nobody had measured. L3 means "Proven: there is evidence", and a
+      # project one minute old has none. Asserting L3 here was the test agreeing with the lie.
+      #
+      # So: L2 immediately, and the reason it is not L3 has to be the missing evidence and nothing
+      # else. A regression that broke guardrails would also produce "not L3", which is why the
+      # gate and the specific L3 misses are both checked.
+      - name: a project from nothing reaches L2, and says what L3 needs
         run: |
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --profile standard >/dev/null
@@ -398,10 +476,35 @@ jobs:
             echo "::error::the blueprint's CI workflow did not reach the project"; exit 1; }
 
           /tmp/agentarch sync --check
+          /tmp/agentarch check --profile standard >/dev/null
+
           out=$(/tmp/agentarch conformance)
-          echo "$out" | grep -q "conformance: L3" || {
-            echo "::error::a fresh blueprint install should be L3"; echo "$out"; exit 1; }
-          echo "ok  nothing -> L3"
+          echo "$out" | grep -q "conformance: L2" || {
+            echo "::error::a fresh blueprint install should be L2"; echo "$out"; exit 1; }
+
+          # The only things standing between it and L3 are the evals. Everything L1 and L2 asks for
+          # must already hold, or the blueprint is broken in a way this level would hide.
+          echo "$out" | grep -q "MISS  every agent has a measured evaluation result" || {
+            echo "::error::L2 for some reason other than the missing eval result"; echo "$out"; exit 1; }
+          echo "$out" | sed -n '/^L1/,/^L2/p' | grep -q "MISS" && {
+            echo "::error::an L1 check is failing"; echo "$out"; exit 1; }
+          echo "ok  nothing -> L2, blocked on evidence and nothing else"
+
+      # A blueprint may never ship a result claiming to have been measured. The Go test asserts this
+      # against the payload; this asserts it against what actually lands in a project, which is the
+      # thing a user reads.
+      - name: no installed blueprint claims to have measured its evals
+        run: |
+          for bp in $(/tmp/agentarch blueprint list --format ids); do
+            work=$(mktemp -d) && cd "$work"
+            /tmp/agentarch init --profile standard >/dev/null
+            /tmp/agentarch blueprint add "$bp" --yes >/dev/null
+            for f in agentarch/project/agents/*/evals/results/*.yaml; do
+              grep -q "^status: not_run" "$f" || {
+                echo "::error::$bp: $f does not declare status: not_run"; exit 1; }
+            done
+            echo "ok  $bp ships no evidence"
+          done
 
       # The blueprint's own sample question must retrieve something. A grounded agent whose
       # first run escalates for lack of a citation teaches the reader it does not work.
