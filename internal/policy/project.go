@@ -59,6 +59,18 @@ func LoadAgents(root string, now time.Time) ([]Agent, error) {
 			"now":   now.Format("2006-01-02"),
 		}
 
+		// The project's own configuration, so a control can reason about something declared once for
+		// the whole project rather than repeated in every manifest. The layout is the case that
+		// forced it: where the layers live is a property of the repository, not of one agent, and
+		// copying it into each manifest would guarantee the copies diverge.
+		if cfgDoc, err := readYAML(filepath.Join(root, "agentarch", "agentarch.yaml")); err == nil {
+			ctx["config"] = cfgDoc
+		} else {
+			// An empty map rather than absent, so `exists(config.layout...)` is false instead of
+			// erroring on an unknown root. A missing config is already reported by validate.
+			ctx["config"] = map[string]any{}
+		}
+
 		// Tools: each entry is the tool document merged with the manifest's per-tool
 		// settings, so a control can reason about both in one expression.
 		var tools []any

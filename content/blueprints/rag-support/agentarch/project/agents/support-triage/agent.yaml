@@ -33,6 +33,9 @@ agent:
       - Step or cost budget exhausted
     budget:
       usd_per_run: 0.15
+      # The bound per-run limits cannot express. Enforced in the layer that resolved the caller's
+      # identity, because that is the only place that knows who the caller is.
+      runs_per_caller_per_day: 200
       tokens_per_run: 40000
       latency_p95_ms: 6000
 
@@ -106,6 +109,56 @@ agent:
       enabled: true
       profile: pii_default_v1
     retention_days: 30
+
+
+  # ── the edge ────────────────────────────────────────────────────────────────────────────────
+  # How callers reach this agent. contracts/openapi.json is generated from here by `agentarch sync`,
+  # so this block is the reviewed source and the JSON is the derivative — the same relationship
+  # .mcp.json has with the MCP allowlist.
+  interface:
+    transport: http
+    base_path: /v1
+
+    caller:
+      # The tenant is read from a verified token claim, server-side. Declaring it is what makes the
+      # memory scope_key below a scope rather than a parameter: a key the caller can set isolates
+      # nothing, and two tenants end up sharing one store while every control still passes.
+      identified_by: bearer_jwt
+      tenant_claim: tenant_id
+      verified_server_side: true
+
+    logging:
+      # Where privacy.capture_content either holds or is a lie. A web framework logs request paths by
+      # default and an unhandled error records whatever was in scope — which is how personal data
+      # reaches a log aggregator with a multi-year retention and no subject-access path, on the day
+      # the service ships, silently.
+      capture_request_body: false
+      capture_response_body: false
+      log_route_template_only: true
+      redact: [authorization, cookie, x-api-key, proxy-authorization]
+
+    routes:
+      - path: /health
+        method: GET
+        summary: Readiness. Verifies the credential resolves and the prompt still matches the manifest.
+        auth_required: false
+        idempotent: true
+      - path: /ask
+        method: POST
+        summary: Ask one question. Returns an answer with citations, an escalation, or a pending approval.
+        request_schema: app/api/schemas.py#AskRequest
+        response_schema: app/api/schemas.py#AskResponse
+        auth_required: true
+        idempotent: false
+      - path: /approvals/{approval_id}
+        method: POST
+        summary: Record a human decision on a paused irreversible action.
+        request_schema: app/api/schemas.py#ApprovalDecision
+        response_schema: app/api/schemas.py#AskResponse
+        auth_required: true
+        # Not idempotent, and deliberately so: a decision is consumed. Replaying an approval replays
+        # the irreversible action it authorised.
+        idempotent: false
 
   observability:
     otel:

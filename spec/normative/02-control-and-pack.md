@@ -9,7 +9,7 @@ hand an execution primitive to anyone who can get a pack adopted.
 ## 1. Control identity
 
 `control.ai.<type>.<name>`, where `<type>` is one of `agent`, `genai`, `rag`, `tool`, `mcp`,
-`privacy`, `eval`, `obs`, `supply`, `lifecycle`, and `<name>` is lowercase snake_case.
+`api`, `privacy`, `eval`, `obs`, `supply`, `lifecycle`, and `<name>` is lowercase snake_case.
 
 Identifiers MUST NOT be reused. A removed control's id stays removed, so a waiver or a baseline
 entry naming it can never silently attach to something else.

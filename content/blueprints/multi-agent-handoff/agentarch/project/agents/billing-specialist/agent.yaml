@@ -32,6 +32,9 @@ agent:
       - Step or cost budget exhausted
     budget:
       usd_per_run: 0.15
+      # The bound per-run limits cannot express. Enforced in the layer that resolved the caller's
+      # identity, because that is the only place that knows who the caller is.
+      runs_per_caller_per_day: 200
       tokens_per_run: 40000
       latency_p95_ms: 6000
 
@@ -98,6 +101,25 @@ agent:
       enabled: true
       profile: pii_default_v1
     retention_days: 30
+
+
+  # ── the edge ────────────────────────────────────────────────────────────────────────────────
+  # This agent has no edge. It is reachable only through a declared handoff from the orchestrator,
+  # never directly from the transport — which is what keeps the delegation graph reviewable in the
+  # manifest instead of implicit in a routing table.
+  interface:
+    transport: library
+    caller:
+      # Identity is not re-established here: it arrives with the handoff, already verified. Declaring
+      # `none` would say anonymous access is possible, and it is not.
+      identified_by: iam
+      tenant_claim: tenant_id
+      verified_server_side: true
+    logging:
+      capture_request_body: false
+      capture_response_body: false
+      log_route_template_only: true
+      redact: [authorization, cookie, x-api-key]
 
   observability:
     otel:

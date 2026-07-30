@@ -1,0 +1,20 @@
+schema_version: '1.0'
+control:
+  id: control.ai.api.budget_per_caller
+  type: api
+  title: At least one budget is declared per caller
+  intent: max_steps and usd_per_run bound one run. A caller who issues ten thousand runs is inside every one of
+    them, and the first symptom is an invoice.
+  status: experimental
+  check:
+    kind: static_manifest
+    expr: agent.autonomy.budget.runs_per_caller_per_day != null or agent.autonomy.budget.usd_per_caller_per_day
+      != null
+    message: No per-caller budget is declared; only per-run bounds exist.
+  evidence:
+  - agent_manifest
+  remediation: Declare runs_per_caller_per_day or usd_per_caller_per_day, and enforce it in the layer that resolved
+    the caller's identity.
+  standard_ref: standards/16-service-and-edge.md#controlaiapibudgetpercaller
+  references:
+  - OWASP LLM10

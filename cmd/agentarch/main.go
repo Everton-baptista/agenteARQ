@@ -220,6 +220,25 @@ project:
   # reg.* packs resolve against it. An agent may declare more, never fewer.
   jurisdictions: %s
 
+# Where the layers live, as globs rather than fixed directory names — a Spring project and a
+# FastAPI project are both right and neither should have to rename anything. What the check reads
+# is the dependency direction between these paths, not their spelling:
+#
+#   core may import domain and infra. It may NEVER import edge.
+#
+# That single rule is what keeps the agent runnable from a test, a queue worker or a CLI. The drift
+# it prevents is gradual and always locally reasonable: a handler needs one header, so the loop
+# imports the request, and a few weeks later the agent only runs inside a web server.
+layout:
+  preset: service
+  paths:
+    edge: ["app/api/**"]
+    core: ["app/agent/**"]
+    domain: ["app/domain/**"]
+    infra: ["app/infra/**"]
+    client: ["web/**"]
+    contract: contracts/openapi.json
+
 # Which assistant instruction files to generate. These are outputs: never edit them by
 # hand — edit agentarch/std/core/ and run "agentarch sync".
 sync:
@@ -519,6 +538,77 @@ func lintContent(root string) []validate.Finding {
 	}
 	if fs, err := validate.LintSkillChecklistParity(src); err == nil {
 		out = append(out, fs...)
+	}
+	// AA-DEP-019 reads the project rather than the standard, so it only runs when a layout has been
+	// declared. The control reports the missing declaration; checking an undeclared layout would mean
+	// checking one the project never agreed to.
+	out = append(out, validate.LintLayers(root, readLayout(root))...)
+	return out
+}
+
+// readLayout pulls layout.paths out of agentarch.yaml.
+//
+// Deliberately the same small hand parser readConfigTargets uses. Pulling in a YAML dependency for
+// three lists would be the larger change, and this file is read before anything is known to be valid.
+func readLayout(root string) validate.Layout {
+	raw, err := os.ReadFile(filepath.Join(root, "agentarch", "agentarch.yaml"))
+	if err != nil {
+		return validate.Layout{}
+	}
+
+	var out validate.Layout
+	inLayout, inPaths := false, false
+	for _, line := range strings.Split(string(raw), "\n") {
+		trimmed := strings.TrimSpace(line)
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+
+		if indent == 0 && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			// A new top-level key ends the block. Without this, a `paths:` under some later key
+			// would be read as if it were the layout's.
+			inLayout = strings.HasPrefix(trimmed, "layout:")
+			inPaths = false
+			continue
+		}
+		if !inLayout || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "paths:") {
+			inPaths = true
+			continue
+		}
+		if !inPaths {
+			continue
+		}
+		key, value, found := strings.Cut(trimmed, ":")
+		if !found {
+			continue
+		}
+		list := parseInlineList(value)
+		switch strings.TrimSpace(key) {
+		case "edge":
+			out.Edge = list
+		case "core":
+			out.Core = list
+		case "client":
+			out.Client = list
+		}
+	}
+	return out
+}
+
+// parseInlineList reads ["a", "b"] and a bare scalar alike.
+func parseInlineList(v string) []string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	v = strings.Trim(v, "[]")
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		part = strings.Trim(strings.TrimSpace(part), `"'`)
+		if part != "" {
+			out = append(out, part)
+		}
 	}
 	return out
 }

@@ -157,9 +157,14 @@ func LoadCatalog(fsys fs.FS) (*Catalog, error) {
 // Profiles are named pack selections. Kept in code rather than data because they are part of
 // the CLI's contract with the user, not something a third-party pack should be able to redefine.
 var Profiles = map[string][]string{
-	"minimal":   {"core.agent"},
-	"standard":  {"core.agent", "sec.owasp-llm"},
-	"regulated": {"core.agent", "sec.owasp-llm", "obs.otel", "eval.baseline"},
+	"minimal": {"core.agent"},
+	// api.edge is in standard rather than only in regulated because two of its controls describe a
+	// credential that is already public — a committed .env, a provider key in a browser bundle. A
+	// project on the standard profile that ships either of those has a problem the minimal profile
+	// would also have; it is only absent from minimal because minimal exists for a first day, and
+	// on a first day there is no service yet.
+	"standard":  {"core.agent", "sec.owasp-llm", "api.edge"},
+	"regulated": {"core.agent", "sec.owasp-llm", "api.edge", "obs.otel", "eval.baseline"},
 }
 
 // Waiver is a time-boxed, owned exception.

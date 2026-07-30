@@ -19,10 +19,10 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^control\\.ai\\.(agent|genai|rag|tool|mcp|privacy|eval|obs|supply|lifecycle)\\.[a-z0-9_]+$"
+          "pattern": "^control\\.ai\\.(agent|genai|rag|tool|mcp|api|privacy|eval|obs|supply|lifecycle)\\.[a-z0-9_]+$"
         },
         "type": {
-          "enum": ["agent", "genai", "rag", "tool", "mcp", "privacy", "eval", "obs", "supply", "lifecycle"]
+          "enum": ["agent", "genai", "rag", "tool", "mcp", "api", "privacy", "eval", "obs", "supply", "lifecycle"]
         },
         "title": { "type": "string", "minLength": 10, "maxLength": 120 },
         "intent": {

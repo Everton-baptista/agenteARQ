@@ -1,0 +1,16 @@
+schema_version: '1.0'
+control:
+  id: control.ai.api.contract_generated
+  type: api
+  title: The interface contract is generated from the manifest
+  intent: Two hand-maintained descriptions of one interface diverge, and the consumer reads the one that is wrong.
+  status: experimental
+  check:
+    kind: file_exists
+    expr: exists(config.layout.paths.contract)
+    message: No generated interface contract is declared.
+  evidence:
+  - generated_artifact
+  remediation: Declare interface.routes in the manifest and layout.paths.contract in agentarch.yaml, then run `agentarch
+    sync`. Edit the manifest, never the generated file.
+  standard_ref: standards/16-service-and-edge.md#controlaiapicontractgenerated

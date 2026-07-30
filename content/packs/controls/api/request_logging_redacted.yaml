@@ -1,0 +1,21 @@
+schema_version: '1.0'
+control:
+  id: control.ai.api.request_logging_redacted
+  type: api
+  title: Request and response content is not logged
+  intent: 'This is where capture_content: false either holds or is a lie, and it is the most common route by which
+    personal data reaches a log aggregator with a multi-year retention and no subject-access path.'
+  status: experimental
+  check:
+    kind: static_manifest
+    expr: agent.interface.logging.capture_request_body == false or agent.privacy.capture_content == true
+    message: Request body capture is not disabled, and content capture was not explicitly chosen.
+  evidence:
+  - agent_manifest
+  - log_sample
+  remediation: 'Set interface.logging.capture_request_body: false and enumerate interface.logging.redact. Log the
+    route template rather than the concrete path, and send tracebacks to an error tracker rather than the access
+    log.'
+  standard_ref: standards/16-service-and-edge.md#controlaiapirequestloggingredacted
+  references:
+  - OWASP LLM02
