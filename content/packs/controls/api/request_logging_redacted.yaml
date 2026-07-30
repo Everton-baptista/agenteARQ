@@ -6,6 +6,9 @@ control:
   intent: 'This is where capture_content: false either holds or is a lie, and it is the most common route by which
     personal data reaches a log aggregator with a multi-year retention and no subject-access path.'
   status: experimental
+  applies_to:
+    # The access log this control is about is the interface's.
+    declares: [interface]
   check:
     kind: static_manifest
     expr: agent.interface.logging.capture_request_body == false or agent.privacy.capture_content == true

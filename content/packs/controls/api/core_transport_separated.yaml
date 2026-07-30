@@ -6,6 +6,9 @@ control:
   intent: An agent that can only run inside a web server cannot be tested, reused from a worker, or moved — and
     the drift that gets it there is gradual and always locally reasonable.
   status: experimental
+  applies_to:
+    # No transport, no direction for the core to depend in.
+    declares: [interface]
   check:
     kind: static_manifest
     expr: exists(config.layout.paths.core) and exists(config.layout.paths.edge)

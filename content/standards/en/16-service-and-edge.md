@@ -7,6 +7,20 @@ controls in the other standards stop being true**.
 Every rule here is jurisdiction-neutral and framework-neutral. `adapters/fastapi.md` shows one
 concretely; nothing in this file names a framework.
 
+## 0. When these rules apply
+
+Five of the seven ask about a service, and are skipped on an agent whose manifest declares no
+`interface` — `core_transport_separated`, `caller_identified`, `request_logging_redacted`,
+`budget_per_caller` and `contract_generated`. A CLI tool or a batch job has no caller to identify
+and no access log to redact, and reporting otherwise is noise that teaches people to stop reading
+findings. A skipped control counts as neither a pass nor a failure.
+
+**Two are not skipped, ever**: `secrets_not_committed` and `no_client_side_model_access`. They read
+the repository rather than the interface, and a committed credential is public in a library, a batch
+job and a service alike. This is also why they are the only two here with no grace period — the key
+is already exposed, and a control that quietly stopped running on the projects that needed it would
+be the same defect as noise, with the sign reversed.
+
 ## 1. Rules
 
 ### control.ai.api.core_transport_separated

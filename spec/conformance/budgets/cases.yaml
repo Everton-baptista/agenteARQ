@@ -1,0 +1,100 @@
+# Conformance fixtures for the rendering budgets (spec/normative/05-shim-rendering.md §2).
+#
+# These are for OTHER implementations, not only for the reference one. The rule under test is one
+# sentence — "an implementation MUST fail rather than truncate" — and it is the single most
+# tempting MUST in the specification to get wrong, because truncating is what every other tool
+# does with an oversized buffer and it produces no visible error.
+#
+# It fails silently and late. An assistant handed half a rulebook follows half the rules, reports
+# nothing, and the omission surfaces as an agent that quietly ignored an invariant nobody can
+# find in the diff. That is why exceeding a budget is an error rather than a warning.
+#
+# What is NOT asserted here: the wording of the error, or which exit code carries it — an
+# oversized core is an internal condition and `06` already governs the mapping.
+
+schema_version: "1.0"
+
+# The concatenated core, before any target-specific rendering.
+core_budget: 12288
+
+# `core_bytes` is either a number, or one of these keywords. The keywords exist because the
+# budget applies to the RENDERED file, and the header is not a fixed cost an implementation can
+# be asked to hard-code — so the case says what the output must weigh, not the input.
+#
+#   renders_at_budget   a core sized so the rendered file is exactly the budget
+#   renders_one_over    one byte more than that
+#   core_equals_budget  the core alone is the budget; the header then pushes the file over
+core_bytes_keywords: [renders_at_budget, renders_one_over, core_equals_budget]
+
+# Per-target budgets, applied to the rendered file including its header and any front matter.
+targets:
+  agents_md: { path: AGENTS.md, budget: 12288 }
+  claude: { path: CLAUDE.md, budget: 12288 }
+  gemini: { path: GEMINI.md, budget: 12288 }
+  qwen: { path: QWEN.md, budget: 12288 }
+  cursor: { path: .cursor/rules/agentarch-core.mdc, budget: 8192 }
+  copilot: { path: .github/copilot-instructions.md, budget: 6144 }
+  windsurf: { path: .windsurf/rules/agentarch-core.md, budget: 6144 }
+
+cases:
+  # ---- the budget holds -------------------------------------------------
+
+  - id: within-budget-renders
+    target: claude
+    core_bytes: 1024
+    expect: ok
+
+  - id: exactly-at-budget-renders
+    about: >-
+      The budget is a maximum, not a limit to stay under. A rendered file of exactly the budget
+      is conforming, and an implementation that rejects it has an off-by-one that will be found
+      by whoever is one byte away.
+    target: copilot
+    core_bytes: renders_at_budget
+    expect: ok
+
+  # ---- the budget is exceeded -------------------------------------------
+
+  - id: over-budget-is-an-error-not-a-truncation
+    about: >-
+      The rule the whole layer rests on. An implementation that wrote a truncated file here
+      would pass every other fixture in this suite and still be unsafe.
+    target: claude
+    core_bytes: renders_one_over
+    expect: error
+
+  - id: over-budget-writes-nothing
+    about: >-
+      Failing and then leaving a partial file behind is the same defect with an error message
+      attached: the next run reads a file that is neither the old one nor the new one.
+    target: claude
+    core_bytes: renders_one_over
+    expect: error
+    writes_file: false
+
+  - id: a-smaller-target-fails-first
+    about: >-
+      The same core is within budget for claude (12288) and over it for copilot (6144). A single
+      global budget check would let the copilot file through.
+    target: copilot
+    core_bytes: 8000
+    expect: error
+
+  - id: the-same-core-is-fine-for-a-larger-target
+    target: claude
+    core_bytes: 8000
+    expect: ok
+
+  # ---- what counts toward the budget ------------------------------------
+
+  - id: the-header-counts-toward-the-budget
+    about: >-
+      §3 requires a generated header on every file, and §2 bounds what the assistant loads.
+      Measuring the core rather than the rendered output puts every file over by the size of its
+      own header, in the direction that matters.
+    target: windsurf
+    core_bytes: core_equals_budget
+    expect: error
+    note: >-
+      windsurf carries front matter as well as the header, so a core of exactly the target
+      budget cannot render within it. The same holds for every target: the header is never free.

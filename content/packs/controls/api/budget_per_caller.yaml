@@ -6,6 +6,10 @@ control:
   intent: max_steps and usd_per_run bound one run. A caller who issues ten thousand runs is inside every one of
     them, and the first symptom is an invoice.
   status: experimental
+  applies_to:
+    # A caller is a thing the interface defines. Without one there is only the per-run budget,
+    # which agent.budget_bounded already requires.
+    declares: [interface]
   check:
     kind: static_manifest
     expr: agent.autonomy.budget.runs_per_caller_per_day != null or agent.autonomy.budget.usd_per_caller_per_day

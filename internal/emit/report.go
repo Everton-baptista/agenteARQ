@@ -139,6 +139,12 @@ func Markdown(w io.Writer, r Report) error {
 			case x.Baselined:
 				state = "baselined " + x.BaselineSince
 			}
+			// A deprecated control is still evaluated and must still be reported as
+			// deprecated (spec/normative/08-versioning.md), so the reader can tell a rule
+			// that is going away from one that is not.
+			if x.Deprecated {
+				state += ", deprecated"
+			}
 			p("| %s | `%s` | %s | %s |\n",
 				x.Severity, x.ControlID, state, oneLine(x.Message))
 		}

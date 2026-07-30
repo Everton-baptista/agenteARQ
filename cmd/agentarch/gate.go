@@ -209,6 +209,7 @@ func cmdCheck(args []string) int {
 			"profile": *profile, "results": all,
 			"summary": map[string]int{
 				"total": sum.Total, "passed": sum.Passed, "waived": sum.Waived,
+				"skipped":  sum.Skipped,
 				"blockers": len(sum.Blockers), "majors": len(sum.Majors),
 				"minors": len(sum.Minors), "warns": len(sum.Warns), "errors": len(sum.Errors),
 			},
@@ -229,21 +230,42 @@ func cmdCheck(args []string) int {
 			return exitUsage
 		}
 	default:
-		printCheckText(all, sum, waiverProblems, *profile)
+		printCheckText(all, sum, waiverProblems, *profile, *explainRes)
 	}
 
 	// Exit codes are distinct so CI can route them differently: a lapsed exception should
-	// reach its owner, not alarm the whole team.
+	// reach its owner, not alarm the whole team. The precedence between them is normative, so
+	// it is applied from one place rather than restated as an if-chain per command.
+	var conds []policy.Condition
 	if len(waiverProblems) > 0 {
-		return exitWaiver
+		conds = append(conds, policy.CondWaiver)
 	}
+	// An unevaluable control counts alongside a blocker. A control that silently reported
+	// false because it was malformed is worse than one that is absent, because it is counted
+	// as coverage — see 06, "Errors inside checks".
 	if len(sum.Blockers) > 0 || len(sum.Errors) > 0 {
-		return exitGate
+		conds = append(conds, policy.CondBlocker)
 	}
-	return exitOK
+	return policy.ExitCode(conds...)
 }
 
-func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverProblem, profile string) {
+// deprecatedControls lists, once each, the deprecated controls that were evaluated — pass or
+// fail. A project relying on one deserves to be told before it is removed.
+func deprecatedControls(all []policy.Result) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, r := range all {
+		if !r.Deprecated || r.Skipped || seen[r.ControlID] {
+			continue
+		}
+		seen[r.ControlID] = true
+		out = append(out, r.ControlID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverProblem, profile string, explainSkips bool) {
 	byAgent := map[string][]policy.Result{}
 	var order []string
 	for _, r := range all {
@@ -270,7 +292,11 @@ func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverP
 			case r.Baselined:
 				fmt.Printf("  DEBT    %s  baselined since %s\n", r.ControlID, r.BaselineSince)
 			default:
-				fmt.Printf("  %-7s %s\n          %s\n", strings.ToUpper(string(r.Severity)), r.ControlID, r.Message)
+				label := r.ControlID
+				if r.Deprecated {
+					label += "  (deprecated)"
+				}
+				fmt.Printf("  %-7s %s\n          %s\n", strings.ToUpper(string(r.Severity)), label, r.Message)
 				if r.Remediation != "" {
 					fmt.Printf("          fix: %s\n", r.Remediation)
 				}
@@ -281,6 +307,37 @@ func printCheckText(all []policy.Result, sum policy.Summary, wp []policy.WaiverP
 
 	fmt.Printf("\nprofile %s · %d control(s) evaluated · %d passed · %d waived\n",
 		profile, sum.Total, sum.Passed, sum.Waived)
+	if sum.Skipped > 0 {
+		// Named rather than folded into the total. A reader who is not told a control was
+		// skipped cannot tell a rule that passed from one that never ran.
+		//
+		// The reasons are behind the flag rather than printed by default because 02 §4 says
+		// an implementation SHOULD NOT print skipped controls by default — but the count has
+		// to be visible, or the flag is one nobody knows to reach for.
+		fmt.Printf("%d skipped — not applicable to this agent.\n", sum.Skipped)
+		if explainSkips {
+			seen := map[string]bool{}
+			for _, r := range all {
+				if !r.Skipped || seen[r.ControlID] {
+					continue
+				}
+				seen[r.ControlID] = true
+				fmt.Printf("  %-52s %s\n", r.ControlID, r.SkipReason)
+			}
+		} else {
+			fmt.Printf("Run with `--explain-resolution` to see which, and why.\n")
+		}
+	}
+	// A deprecated control is still evaluated and must still be reported as deprecated — see
+	// spec/normative/08-versioning.md. Announcing it while it still runs is the whole point of
+	// the two-minor deprecation window: a control that vanished without notice looks to the
+	// reader like a failure somebody fixed.
+	if dep := deprecatedControls(all); len(dep) > 0 {
+		fmt.Printf("\n%d deprecated control(s) still evaluated: %s\n",
+			len(dep), strings.Join(dep, ", "))
+		fmt.Printf("They stay until at least two content minors have passed. If you rely on one,\n")
+		fmt.Printf("`agentarch explain <control.id>` says what replaces it.\n")
+	}
 	if sum.Baselined > 0 {
 		fmt.Printf("%d baselined — not blocking, still counted against the score.\n"+
 			"Run `agentarch check --update-baseline` as you close them.\n", sum.Baselined)

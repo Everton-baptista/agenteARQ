@@ -1,0 +1,141 @@
+# Conformance fixtures for exit codes (spec/normative/06-exit-codes.md).
+#
+# These are for OTHER implementations, not only for the reference one. Exit codes are the whole
+# machine-readable surface of the tool: continuous integration routes on them, and nothing else
+# it prints is versioned. An implementation that collapses two of them produces a pipeline that
+# cannot tell "you forgot to run sync" from "your agent is unsafe", and the second one gets a
+# blanket `|| true` along with the first.
+#
+# Each case lists the conditions that hold when a command finishes, and the single code that
+# must be reported. More than one condition may hold at once — that is the entire point of the
+# precedence rule, and the part an implementation is most likely to get wrong, because each
+# individual code looks obviously right on its own.
+#
+# What is NOT asserted here: which command produces which condition, and any message. `06` is a
+# table of meanings and one ordering rule; an implementation reports findings in its own words.
+
+schema_version: "1.0"
+
+# The codes themselves. An implementation MUST use these and MUST NOT reuse them.
+codes:
+  0: success
+  1: usage error, internal error, or version incompatibility
+  2: structural validation failed
+  3: generated files are out of date
+  4: a blocker-severity control failed
+  5: a waiver is invalid or has expired
+  6: a revalidation trigger fired without revalidation
+
+# The order in which conditions are evaluated: 1, 2, 3, 5, 4, 6. The lowest applicable code
+# above 0 wins.
+precedence: [usage, structure, drift, waiver, blocker, revalidation]
+
+cases:
+  # ---- one condition at a time ------------------------------------------
+
+  - id: nothing-wrong
+    conditions: []
+    exit_code: 0
+
+  - id: usage-error
+    conditions: [usage]
+    exit_code: 1
+
+  - id: structural-failure
+    conditions: [structure]
+    exit_code: 2
+
+  - id: generated-files-out-of-date
+    conditions: [drift]
+    exit_code: 3
+
+  - id: blocker-failed
+    conditions: [blocker]
+    exit_code: 4
+
+  - id: waiver-expired
+    conditions: [waiver]
+    exit_code: 5
+
+  - id: revalidation-trigger-fired
+    conditions: [revalidation]
+    exit_code: 6
+
+  # ---- precedence -------------------------------------------------------
+
+  - id: waiver-precedes-blocker
+    about: >-
+      The one inversion in the table, and the reason the rule is written down rather than left
+      to numeric order. A lapsed waiver usually explains the blocker; reporting the blocker
+      first sends the reader to fix something already tracked by somebody who agreed to a date.
+    conditions: [blocker, waiver]
+    exit_code: 5
+
+  - id: waiver-precedes-blocker-regardless-of-order
+    about: The conditions are a set. Which one was noticed first must not change the answer.
+    conditions: [waiver, blocker]
+    exit_code: 5
+
+  - id: structure-precedes-drift
+    about: >-
+      An artifact that does not validate makes the question of whether its generated files are
+      current meaningless.
+    conditions: [drift, structure]
+    exit_code: 2
+
+  - id: usage-precedes-everything
+    conditions: [revalidation, blocker, waiver, drift, structure, usage]
+    exit_code: 1
+
+  - id: drift-precedes-waiver-and-blocker
+    conditions: [blocker, waiver, drift]
+    exit_code: 3
+
+  - id: blocker-precedes-revalidation
+    about: >-
+      A fired revalidation trigger is not a defect — it is the standard saying prior evidence no
+      longer describes the system. A failing blocker is, so it is reported first.
+    conditions: [revalidation, blocker]
+    exit_code: 4
+
+  - id: revalidation-is-last
+    conditions: [revalidation]
+    exit_code: 6
+
+  # ---- what is not an error ---------------------------------------------
+  #
+  # These are conditions an implementation might reasonably think should fail a build, and
+  # `06` says they must not. A gate that fails on everything is a gate that gets switched off.
+
+  - id: a-major-finding-is-not-an-error
+    about: A major, minor or warn-mode finding is reported and exits 0.
+    conditions: []
+    exit_code: 0
+
+  - id: a-baselined-failure-is-not-an-error
+    about: Reported as debt, counted in the score, and exits 0.
+    conditions: []
+    exit_code: 0
+
+  - id: a-skipped-control-is-not-an-error
+    about: Neither a pass nor a failure. See 02 §4.
+    conditions: []
+    exit_code: 0
+
+  - id: a-stale-translation-is-not-an-error
+    about: >-
+      A warning unless the caller asked for strictness, because a project that installed the
+      standard did not write the translations and cannot fix them.
+    conditions: []
+    exit_code: 0
+
+  # ---- errors inside checks ---------------------------------------------
+
+  - id: an-unevaluable-control-counts-as-a-blocker
+    about: >-
+      `06`, "Errors inside checks" — a control whose expression cannot be evaluated MUST be
+      treated as an error and MUST NOT be treated as passed or failed. It contributes to exit 4.
+      A control that silently reports false because it was malformed is worse than one that is
+      absent, because it is counted as coverage.
+    conditions: [blocker]
+    exit_code: 4

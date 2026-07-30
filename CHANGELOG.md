@@ -3,6 +3,97 @@
 Three version lines move independently — see `spec/normative/08-versioning.md`. Each entry says
 which one changed.
 
+## Compatibility matrix
+
+`08-versioning.md` requires each release to publish which spec majors and content ranges it
+supports, and `agentarch version` prints all three lines so a reported result can be reproduced.
+
+| CLI | Spec majors implemented | Content shipped | Content it can read |
+|---|---|---|---|
+| 0.2.x | `spec/1` | `content/1.1.0` | `content/1.x` |
+| 0.1.x | `spec/1` | `content/1.0.0` | `content/1.x` |
+
+The CLI may be ahead of the content a project has installed, and uses the project's own
+`agentarch/std` whenever one is present — a project pinned to an older content release keeps
+being judged by that release. A `schema_version` major the CLI does not implement is refused with
+exit 1 rather than read on a best-effort basis.
+
+## Unreleased
+
+`cli/0.2.1` · `content/1.1.1` · `spec/1.0` gains one optional field.
+
+**CI had been red for two commits, and the second failure was hiding behind the first.** The
+`examples behave as documented` job failed on its SARIF assertion, which stopped the nineteen
+steps after it from ever running — including the one asserting the reference example reaches L3.
+It did not: `examples/01-rag-support-agent` had been left with shims generated from an older core
+when the repository's own were regenerated, so it failed L1 on "the generated instruction files
+are in sync" and `conformance` reported **none** while CI reported nothing at all.
+
+Both are fixed, and both now fail at the commit that causes them. `TestNoCommittedShimIsStale`
+walks every shipped tree and runs `sync --check` over the targets actually committed there, so a
+core edit that strands a shim fails on the machine that made it rather than in a CI step deep
+enough to be masked.
+
+**Four findings were being reported about a service that did not exist.** The SARIF assertion
+read `results[0].level == 'error'` and got a `note`, because findings were ordered by control ID
+and `examples/99-failing/unpinned-model` — a project with no HTTP interface and one floating model
+alias — collected four warn-mode `api.edge` findings that sorted ahead of the blocker.
+
+Two things were wrong. SARIF now orders most-severe-first, so a consumer reading one result sees
+what blocks. And the four findings should never have existed: `02-control-and-pack.md` §4 already
+says an inapplicable control must be skipped, but no `applies_to` condition could express "reached
+over HTTP" — `system_type` records what an agent **is**, not how it is reached, and any of its six
+values can sit behind an interface. RFC 0002 adds `applies_to.declares`, a closed list of optional
+manifest sections a control needs present before it has anything to ask.
+
+The five service controls take `declares: [interface]`. The two blockers do not, and that is the
+load-bearing half: they read the repository, not the interface, and a committed `.env` is a public
+credential in a library and a batch job exactly as in a service. Narrowing those would be noise
+with the sign reversed — a control quietly not running where it was needed.
+
+Folding the condition into `check.expr` would have needed no spec change and was rejected: it
+reports a **pass** rather than a skip, so every agent without an interface would have earned five
+free controls toward its maturity score. Manufacturing compliance out of absence is the thing this
+project exists to prevent, and it was the cheap option.
+
+**`Summarize` counted a skipped control as a pass**, which the same §4 forbids. `unpinned-model`
+reported "33 evaluated · 32 passed" while six of those were never evaluated at all. It now reports
+27 evaluated, 26 passed, and names the six.
+
+**Three contract inconsistencies, each one a promise the project was not keeping.** `api` joined
+the closed control vocabulary in content 1.1 and reached `control.schema.json` but not
+`agent.manifest.schema.json`, so a manifest declaring a guardrail against `control.ai.api.*` was
+rejected by the schema written to accept it; `waivers.schema.json` matched `[a-z]+` and would
+accept a waiver against a type that cannot exist. One vocabulary, now checked identical in all
+three. `TRADEMARK.md` was cited twice by the normative spec as the document governing the
+compliance claim and had never been written — the one question a second implementer has to answer
+before publishing. And `status: deprecated` was a MUST in `08-versioning.md`, parsed onto
+`Control`, and read by nothing but `explain`; it now reaches the gate, the report and the SARIF
+message.
+
+`version` prints all three lines, and reports the content a project has installed rather than what
+the binary shipped with — a project pinned to an older release is judged by that release, so which
+one was used is the line that changes the answer. The compatibility matrix `08-versioning.md` and
+`GOVERNANCE.md` both promise per release is published above.
+
+**The conformance suite covered one of the five requirements it exists for.**
+`07-conformance-levels.md` Part 2 lists five things a `spec/1.0` implementation must do;
+`spec/conformance/` held fixtures for the expression language and nothing else. That matters more
+than it looks: `GOVERNANCE.md` §5 states plainly that this project has one maintainer and offers
+the suite as the structural mitigation — *"the conformance suite makes a second implementation
+practical"* — which was true for a fifth of the contract.
+
+`exit-codes/`, `resolution/` and `budgets/` join it: 81 cases where there were 59. The precedence
+rule moved out of an if-chain inside `check` into `policy.ExitCode`, because it is normative and a
+rule restated per command drifts between commands without anyone deciding it should. Every
+resolution case carries its own catalogue, so no fixture depends on the content an implementation
+ships, and neither order nor message wording is asserted anywhere — `03` §5 says order must not
+affect results, and pinning one would make a parallel implementation non-conforming for no reason.
+
+`CODE_OF_CONDUCT.md`, issue templates and a pull-request template fill the gap where
+`CONTRIBUTING.md` and `GOVERNANCE.md` invite people into an RFC process the repository gave them
+no way to enter.
+
 ## v0.2.0 — 2026-07-29
 
 `cli/0.2.0` · `content/1.1.0`. Spec gains one control type; `spec/1.0` is unchanged otherwise.

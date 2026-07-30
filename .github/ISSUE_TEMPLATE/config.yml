@@ -1,0 +1,12 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Everton-baptista/agenteARQ/security/advisories/new
+    about: >-
+      Report privately, never in a public issue. Anything that lets a pack execute code comes
+      before everything else.
+  - name: Why a control failed
+    url: https://github.com/Everton-baptista/agenteARQ#the-rest-of-the-commands
+    about: >-
+      Run `agentarch explain <control.id>` first — it gives the reasoning and the remediation
+      without waiting for an answer here.

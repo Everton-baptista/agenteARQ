@@ -1,0 +1,53 @@
+name: Bug report
+description: The CLI, a control, or a blueprint behaves differently from what is documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the behaviour and the **specification** disagree, the specification is right and the
+        code has a bug — say which document you are comparing against and this gets fixed faster.
+
+        For a security issue, do not open an issue. See [SECURITY.md](../blob/main/SECURITY.md).
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: All three lines, so the result can be reproduced.
+      placeholder: |
+        $ agentarch version
+        agentarch 0.2.0
+        spec/1.0.0-draft.1
+        content/1.1.0
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: What you ran
+      description: The command, and the artifact it read if the artifact is the point.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Output and exit code. The exit code matters — they are distinct on purpose.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and why
+      description: >-
+        Point at the rule if there is one: a standard, a control id, or a section of
+        `spec/normative/`.
+    validations:
+      required: true

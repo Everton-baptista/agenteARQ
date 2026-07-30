@@ -38,8 +38,8 @@ stronger than it is. This happened once already; see the git history for
 
 ## Adding a sync target
 
-`internal/render/targets.go`, plus a conformance fixture. Every target is a promise the standard
-keeps working in that tool, so it needs an RFC.
+The `Targets` registry in `internal/render/render.go`, plus a conformance fixture. Every target is
+a promise the standard keeps working in that tool, so it needs an RFC.
 
 ## Translations
 
@@ -70,3 +70,9 @@ arrives eventually and would end the portability that makes this work in any lan
 
 Go, `gofmt`, no linter config beyond `go vet`. Dependencies are kept minimal and pinned —
 a governance tool with a large dependency tree is making an argument against itself.
+
+## Conduct
+
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). The review process here is adversarial on purpose —
+"can this control actually fail?" and "who starts failing when it ships?" are meant to be hard
+questions. They are asked of the proposal, never of the person who made it.

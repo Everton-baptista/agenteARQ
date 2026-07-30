@@ -16,7 +16,8 @@
         "properties": {
           "control": {
             "type": "string",
-            "pattern": "^control\\.ai\\.[a-z]+\\.[a-z0-9_]+$"
+            "description": "The same closed vocabulary as control.schema.json and agent.manifest.schema.json. A looser pattern here accepts a waiver against a control type that cannot exist, which reports as a waived exception and suppresses nothing.",
+            "pattern": "^control\\.ai\\.(agent|genai|rag|tool|mcp|api|privacy|eval|obs|supply|lifecycle)\\.[a-z0-9_]+$"
           },
           "agent": {
             "type": "string",

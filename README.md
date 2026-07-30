@@ -204,6 +204,13 @@ python -m app.cli "where is my order BR-77120?"
 `retrieve()` with your retriever, edit `out_of_scope` in the manifest, mirror it into the
 prompt's refusal section, and replace the tools with yours.
 
+Two blueprints go further. `chatbot-web` ships a chat page the service serves at
+`http://localhost:8000/` — token field, message list, and the approval card rendered in the
+browser when an action pauses for a human. `mcp-server` exposes the agent's tools over MCP
+(`python -m app.mcp_server`), so other agents and IDEs can call them — advertised from the
+reviewed specs, descriptions hashed against rug-pulls, and the irreversible tool still pausing
+whoever calls it. Both serve the API and its Swagger console at `/docs` in development.
+
 ### 4. Check it
 
 ```bash
@@ -363,9 +370,10 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
 
 | | |
 |---|---|
-| **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain |
-| **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
-| **Adapters** | LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Agno, Vercel AI SDK, and no framework at all |
+| **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain, service and edge |
+| **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `api.edge`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
+| **Blueprints** | `rag-support`, `tool-approval`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff`, `chatbot-web` — each a complete FastAPI service with tests, evals, Dockerfile and deploy guides; `chatbot-web` adds a browser chat UI, `mcp-server` exposes tools to other agents |
+| **Adapters** | LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Agno, Vercel AI SDK, FastAPI, and no framework at all |
 | **Generated for** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot, Windsurf, `.mcp.json` |
 
 ## Conformance
@@ -408,8 +416,8 @@ Shipping in v1: `en`, `pt-BR`.
 ## Contributing
 
 New controls, severity changes, new sync targets, schema changes and new official packs go
-through the RFC process in [`rfcs/`](rfcs/). See [CONTRIBUTING.md](CONTRIBUTING.md) and
-[GOVERNANCE.md](GOVERNANCE.md).
+through the RFC process in [`rfcs/`](rfcs/). See [CONTRIBUTING.md](CONTRIBUTING.md),
+[GOVERNANCE.md](GOVERNANCE.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 No control is ever born blocking. Controls enter with `enforced_from` one minor ahead and run
 in warn mode until then, and no release makes an existing control stricter without a content
@@ -419,3 +427,6 @@ major.
 
 Code is Apache-2.0 ([LICENSE](LICENSE)). Spec and content are CC BY 4.0
 ([LICENSE-CONTENT](LICENSE-CONTENT)) so they can be quoted, translated and reimplemented.
+
+The name is not covered by either — see [TRADEMARK.md](TRADEMARK.md). You may state a factual
+claim of compliance without asking; you may not imply endorsement or name a product after it.

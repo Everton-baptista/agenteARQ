@@ -105,9 +105,7 @@ func run(args []string) int {
 	case "report":
 		return cmdReport(args[1:])
 	case "version", "--version", "-v":
-		specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
-		fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
-		return exitOK
+		return cmdVersion(args[1:])
 	case "help", "--help", "-h":
 		usage()
 		return exitOK
@@ -116,6 +114,37 @@ func run(args []string) int {
 		usage()
 		return exitUsage
 	}
+}
+
+// cmdVersion prints all three version lines.
+//
+// spec/normative/08-versioning.md: "An implementation SHOULD print all three versions on request;
+// `version` output that names only the binary leaves the reader unable to reproduce a result."
+// Which content a run was judged by is the one of the three that actually changes the answer, and
+// it is the one that was missing.
+func cmdVersion(args []string) int {
+	fs_ := flag.NewFlagSet("version", flag.ContinueOnError)
+	root := fs_.String("root", ".", "project root, to report the content it has installed")
+	if err := fs_.Parse(hoistFlags(args)); err != nil {
+		return exitUsage
+	}
+
+	specVer, _ := fs.ReadFile(agentarch.Spec, "spec/VERSION")
+	fmt.Printf("agentarch %s\n%s\n", version, strings.TrimSpace(string(specVer)))
+
+	// A project pinned to an older content release keeps being judged by that release, so
+	// report what this run would actually use rather than what the binary shipped with.
+	source, err := contentFS(*root)
+	if err != nil {
+		return exitOK
+	}
+	cv := render.ContentVersion(source)
+	installed := ""
+	if _, err := os.Stat(filepath.Join(*root, "agentarch", "std", "packs")); err == nil {
+		installed = "  (installed in this project)"
+	}
+	fmt.Printf("content/%s%s\n", cv, installed)
+	return exitOK
 }
 
 func usage() {
@@ -441,8 +470,11 @@ func cmdSync(args []string) int {
 			case render.CoreSHAOf(string(existing)) == "":
 				reason = "file has no agentarch header — it was written by hand"
 			case render.CoreSHAOf(string(existing)) != core.SHA256:
+				// The file's own header says which core it came from; core.SHA256 is the
+				// one on disk now. Naming them the other way round sends the reader
+				// looking for a digest that is not in either place.
 				reason = fmt.Sprintf("generated from core %s…, current core is %s…",
-					core.SHA256[:8], render.CoreSHAOf(string(existing))[:8])
+					render.CoreSHAOf(string(existing))[:8], core.SHA256[:8])
 			}
 			fmt.Fprintf(os.Stderr, "drift  %s\n    %s\n", t.Path, reason)
 			continue

@@ -187,3 +187,28 @@ func TestRoundTripThroughDisk(t *testing.T) {
 		t.Fatal("a missing baseline is not an error; most projects do not need one")
 	}
 }
+
+// A skipped control was not evaluated, so it is neither a pass nor a failure — spec/normative/
+// 02-control-and-pack.md §4. Folding it into the pass count reports credit for a rule that never
+// ran, and inflates the "N of M passed" line every reader uses as the summary.
+func TestSkippedIsNeitherPassedNorCounted(t *testing.T) {
+	sum := policy.Summarize([]policy.Result{
+		{ControlID: "control.ai.api.caller_identified", Skipped: true, Passed: true,
+			SkipReason: "the manifest declares no interface"},
+		{ControlID: "control.ai.agent.owner_defined", Passed: true},
+		{ControlID: "control.ai.supply.model_pinned", Severity: policy.SevBlocker},
+	})
+
+	if sum.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1", sum.Skipped)
+	}
+	if sum.Passed != 1 {
+		t.Errorf("passed = %d, want 1 — a skipped control is not a pass", sum.Passed)
+	}
+	if sum.Total != 2 {
+		t.Errorf("total = %d, want 2 — a skipped control was not evaluated", sum.Total)
+	}
+	if len(sum.Blockers) != 1 {
+		t.Errorf("blockers = %d, want 1", len(sum.Blockers))
+	}
+}

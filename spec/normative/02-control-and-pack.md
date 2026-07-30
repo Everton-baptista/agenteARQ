@@ -44,12 +44,38 @@ checks, are both defects. This is the mechanism that stops the standard becoming
 
 ## 4. Applicability
 
-`applies_to` narrows where a control is evaluated at all — by `system_type`, `autonomy_min`,
-`stage_min`, or `processes_personal_data`.
+`applies_to` narrows where a control is evaluated at all.
+
+| Condition | Applies when |
+|---|---|
+| `system_type` | the manifest's `system_type` is in the list |
+| `autonomy_min` | `autonomy.level` is at or above the named level |
+| `stage_min` | `stage` is at or above the named stage |
+| `processes_personal_data` | `privacy.processes_personal_data` equals the declared boolean |
+| `declares` | **every** named manifest section is present, per `exists()` in `04` |
 
 A control that does not apply MUST be reported as skipped and MUST count as neither a pass nor a
 failure. An implementation SHOULD NOT print skipped controls by default; an inapplicable control
 is noise, and noise is what makes people stop reading output.
+
+`declares` names optional top-level sections of the manifest — the ones a control needs present
+before it has anything to say. A control reading `agent.interface.caller` has no question to ask
+of an agent that is not reached over HTTP, and `system_type` cannot answer this: it records what
+an agent **is**, not how it is **reached**, and any system type may be put behind an interface.
+
+The list of nameable sections is closed, and MUST NOT include a section the manifest requires: a
+condition on something always present can never skip, which makes a control look conditional
+while it is not.
+
+An implementation MUST NOT accept a path, an index or an expression here. Presence of a named
+section is the entire vocabulary. A free-form path would make `applies_to` a second place to
+write a check — evaluated before the real one, and outside every guarantee in `04` about what a
+pack cannot do.
+
+A control MUST NOT use `declares` to narrow a rule that holds regardless of the agent's shape. A
+committed credential is public in a library, a batch job and a service alike; scoping such a
+control to a section would silently stop it running on the projects that needed it, which is the
+same defect as noise with the sign reversed.
 
 ## 5. Pack requirements
 

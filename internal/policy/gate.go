@@ -55,6 +55,10 @@ type Applies struct {
 	AutonomyMin           string   `yaml:"autonomy_min"`
 	StageMin              string   `yaml:"stage_min"`
 	ProcessesPersonalData *bool    `yaml:"processes_personal_data"`
+	// Declares names optional manifest sections that must all be present before the control
+	// has anything to ask. It is a closed vocabulary, not a path language — see
+	// spec/normative/02-control-and-pack.md §4.
+	Declares []string `yaml:"declares"`
 }
 
 type Check struct {
@@ -210,17 +214,22 @@ type Result struct {
 	Waived     bool     `json:"waived,omitempty"`
 	// Baselined means the failure was present when the project adopted the standard. It does
 	// not pass — the score still counts it — but the gate does not block on it.
-	Baselined     bool     `json:"baselined,omitempty"`
-	BaselineSince string   `json:"baseline_since,omitempty"`
-	WaiverUntil   string   `json:"waiver_until,omitempty"`
-	WaiverOwner   string   `json:"waiver_owner,omitempty"`
-	Message       string   `json:"message,omitempty"`
-	Remediation   string   `json:"remediation,omitempty"`
-	FromPack      string   `json:"from_pack"`
-	PackVersion   string   `json:"pack_version"`
-	Evidence      []string `json:"evidence,omitempty"`
-	Error         string   `json:"error,omitempty"`
-	StandardRef   string   `json:"standard_ref,omitempty"`
+	Baselined     bool   `json:"baselined,omitempty"`
+	BaselineSince string `json:"baseline_since,omitempty"`
+	WaiverUntil   string `json:"waiver_until,omitempty"`
+	WaiverOwner   string `json:"waiver_owner,omitempty"`
+	Message       string `json:"message,omitempty"`
+	// Deprecated carries the control's lifecycle status through to the report. A deprecated
+	// control MUST still be evaluated and MUST be reported as deprecated — see
+	// spec/normative/08-versioning.md. Dropping it silently looks to the reader like a
+	// failure they fixed.
+	Deprecated  bool     `json:"deprecated,omitempty"`
+	Remediation string   `json:"remediation,omitempty"`
+	FromPack    string   `json:"from_pack"`
+	PackVersion string   `json:"pack_version"`
+	Evidence    []string `json:"evidence,omitempty"`
+	Error       string   `json:"error,omitempty"`
+	StandardRef string   `json:"standard_ref,omitempty"`
 }
 
 // Resolution records which pack imposed a control at which severity, so `--explain-resolution`
@@ -343,6 +352,14 @@ func controlApplies(c Control, agent map[string]any) (bool, string) {
 			return false, "personal-data condition not met"
 		}
 	}
+	// A section the manifest never declared leaves the control nothing to ask about. Reusing
+	// truthy() keeps this identical to exists() in the expression language, so `interface: {}`
+	// counts as undeclared here for the same reason it does in a check.
+	for _, section := range a.Declares {
+		if !truthy(agent[section]) {
+			return false, "the manifest declares no " + section
+		}
+	}
 	return true, ""
 }
 
@@ -386,6 +403,7 @@ func Evaluate(cat *Catalog, res []Resolution, ctx map[string]any, waivers []Waiv
 			AgentID: agentID, ControlID: c.ID, Title: c.Title, Severity: r.Severity,
 			FromPack: r.FromPack, PackVersion: r.Version, Evidence: c.Evidence,
 			Remediation: c.Remediation, StandardRef: c.StandardRef,
+			Deprecated: c.Status == "deprecated",
 		}
 
 		if ok, why := controlApplies(c, agent); !ok {

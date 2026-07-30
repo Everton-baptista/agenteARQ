@@ -1,8 +1,8 @@
 ---
 lang: pt-BR
 source: content/standards/en/16-service-and-edge.md
-source_sha256: "e400cf3b3b950d654716887c6f813fd84db58d5e3bc9595b6cdb451b979b332c"
-translated_at: "2026-07-29"
+source_sha256: "209246893cdba1cb67ffd0636455118ec73ee4efa60367bf01c6075d373537eb"
+translated_at: "2026-07-30"
 translators: ["everton"]
 ---
 
@@ -19,6 +19,21 @@ arquivo de ambiente e, às vezes, um cliente web. Este padrão cobre essa fronte
 
 Toda regra aqui é neutra de jurisdição e de framework. O `adapters/fastapi.md` mostra uma delas
 concretamente; nada neste arquivo cita framework.
+
+## 0. Quando estas regras se aplicam
+
+Cinco das sete perguntam sobre um serviço, e são puladas em um agente cujo manifesto não declara
+`interface` — `core_transport_separated`, `caller_identified`, `request_logging_redacted`,
+`budget_per_caller` e `contract_generated`. Uma ferramenta de linha de comando ou um job em lote não
+tem chamador para identificar nem log de acesso para redigir, e reportar o contrário é ruído que
+ensina as pessoas a pararem de ler achados. Um controle pulado não conta nem como aprovado nem como
+reprovado.
+
+**Dois nunca são pulados**: `secrets_not_committed` e `no_client_side_model_access`. Eles leem o
+repositório, não a interface, e uma credencial comitada é pública numa biblioteca, num job em lote e
+num serviço igualmente. É também por isso que são os dois únicos aqui sem período de carência — a
+chave já está exposta, e um controle que silenciosamente deixasse de rodar justamente nos projetos
+que precisavam dele seria o mesmo defeito do ruído, com o sinal invertido.
 
 ## 1. Regras
 

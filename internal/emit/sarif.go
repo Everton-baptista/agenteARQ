@@ -7,6 +7,7 @@ package emit
 import (
 	"encoding/json"
 	"io"
+	"sort"
 
 	"github.com/Everton-baptista/agenteARQ/internal/policy"
 )
@@ -80,6 +81,25 @@ func level(s policy.Severity) string {
 	return "none"
 }
 
+// levelRank orders the SARIF vocabulary by how much attention it demands.
+//
+// Findings are ordered most-severe-first rather than by rule ID, because a consumer that reads
+// only the first result — a CI assertion, a summary line, a truncated annotation list — should
+// see what blocks the release, not whichever control happens to sort earliest. Ranking on the
+// emitted level rather than on the severity is deliberate: a waived blocker reports as a note,
+// and it should sort where it reads.
+func levelRank(l string) int {
+	switch l {
+	case "error":
+		return 3
+	case "warning":
+		return 2
+	case "note":
+		return 1
+	}
+	return 0
+}
+
 // SARIF writes gate results in SARIF 2.1.0.
 func SARIF(w io.Writer, results []policy.Result, version string, fileFor func(policy.Result) string) error {
 	rulesSeen := map[string]bool{}
@@ -119,6 +139,11 @@ func SARIF(w io.Writer, results []policy.Result, version string, fileFor func(po
 			msg = r.Title
 		}
 		msg += "  [" + r.FromPack + "@" + r.PackVersion + "]"
+		if r.Deprecated {
+			// spec/normative/08-versioning.md: a deprecated control is still evaluated and
+			// must still be reported as deprecated.
+			msg += "  (deprecated — scheduled for removal)"
+		}
 		if r.Waived {
 			msg += "  (waived until " + r.WaiverUntil + " by " + r.WaiverOwner + ")"
 		}
@@ -137,6 +162,16 @@ func SARIF(w io.Writer, results []policy.Result, version string, fileFor func(po
 		res.Locations = []sarifLocation{loc}
 		out = append(out, res)
 	}
+
+	// The gate hands findings over sorted by control ID. Re-sort them so the blocker leads,
+	// keeping the ID as the tiebreak so the output stays deterministic.
+	sort.SliceStable(out, func(i, j int) bool {
+		li, lj := levelRank(out[i].Level), levelRank(out[j].Level)
+		if li != lj {
+			return li > lj
+		}
+		return out[i].RuleID < out[j].RuleID
+	})
 
 	if out == nil {
 		out = []sarifResult{}

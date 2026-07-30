@@ -1,0 +1,67 @@
+name: Control or standard proposal
+description: A rule you think the standard should carry.
+labels: [rfc, control]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New controls, severity changes, new sync targets, schema changes and new official packs
+        go through the RFC process in [`rfcs/`](../tree/main/rfcs). This issue is where the idea
+        is discussed **before** an RFC is written — most of them are resolved here.
+
+        Two rules shape every answer, so it is worth knowing them first:
+
+        - **Every rule exists twice**: as prose in `content/standards/`, and as an executable
+          control under one identifier. If you cannot write the check, `manual_attestation` with
+          a stated reason is honest. Prose with no consequence does not enter the standard.
+        - **No control is born blocking.** It enters with `enforced_from` one minor ahead.
+
+  - type: textarea
+    id: failure
+    attributes:
+      label: What goes wrong without it
+      description: >-
+        Concrete, with a mechanism. Not "we should have a control for X" — describe something
+        breaking. If you cannot, the control probably does not need to exist.
+    validations:
+      required: true
+
+  - type: textarea
+    id: rule
+    attributes:
+      label: The rule
+      description: One or two sentences, the way it would appear in a standard.
+    validations:
+      required: true
+
+  - type: textarea
+    id: check
+    attributes:
+      label: How an artifact proves it
+      description: >-
+        An expression in the restricted language, plus the artifact and fields it reads — or
+        `manual_attestation` and why it cannot be automated. agentarch reads artifacts; anything
+        needing the agent to run produces an artifact that is then read.
+    validations:
+      required: true
+
+  - type: textarea
+    id: can_it_fail
+    attributes:
+      label: Can it actually fail?
+      description: >-
+        Sketch a project that passes it and one that does not. A control that re-checks something
+        a schema already guarantees can never fire on a valid project, and makes the catalogue
+        look stronger than it is. This has happened once already.
+    validations:
+      required: true
+
+  - type: textarea
+    id: adopters
+    attributes:
+      label: Who starts failing
+      description: >-
+        The section skipped most often and mattering most. Every control ships onto systems
+        already in production.
+    validations:
+      required: true

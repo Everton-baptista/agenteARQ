@@ -215,13 +215,18 @@ type Summary struct {
 func Summarize(results []Result) Summary {
 	var s Summary
 	for _, r := range results {
+		// A skipped control is neither a pass nor a failure, and was not evaluated either —
+		// see spec/normative/02-control-and-pack.md §4. It stays out of Total and out of
+		// Passed: counting it as either reports credit for a control that never ran, which is
+		// the manufactured compliance this standard exists to prevent.
+		if r.Skipped {
+			s.Skipped++
+			continue
+		}
 		s.Total++
 		switch {
 		case r.Error != "":
 			s.Errors = append(s.Errors, r)
-		case r.Skipped:
-			s.Skipped++
-			s.Passed++
 		case r.Passed:
 			s.Passed++
 		case r.Waived:

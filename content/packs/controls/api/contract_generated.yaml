@@ -7,6 +7,10 @@ control:
     This control checks that a contract is declared and derived; whether the derived file is currently stale is
     `sync --check`, which exits 3 — a different failure from a gate block, and CI needs to route them differently.
   status: experimental
+  applies_to:
+    # The contract is generated from interface.routes; with no interface there is nothing to
+    # generate and nothing for a consumer to read.
+    declares: [interface]
   check:
     kind: file_exists
     expr: exists(config.layout.paths.contract)

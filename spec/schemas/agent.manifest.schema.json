@@ -30,7 +30,8 @@
 
     "controlId": {
       "type": "string",
-      "pattern": "^control\\.ai\\.(agent|genai|rag|tool|mcp|privacy|eval|obs|supply|lifecycle)\\.[a-z0-9_]+$"
+      "description": "The control type vocabulary is closed and identical in control.schema.json and waivers.schema.json. Adding a type means adding it in all three: a manifest rejected by the schema meant to accept it is worse than no schema.",
+      "pattern": "^control\\.ai\\.(agent|genai|rag|tool|mcp|api|privacy|eval|obs|supply|lifecycle)\\.[a-z0-9_]+$"
     },
 
     "failMode": {

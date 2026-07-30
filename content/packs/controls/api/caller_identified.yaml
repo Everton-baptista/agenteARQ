@@ -6,6 +6,9 @@ control:
   intent: A scope key the caller can set is not a scope; it is a parameter, and two tenants end up sharing one memory
     store while every declared control passes.
   status: experimental
+  applies_to:
+    # Nothing to identify where nothing calls in.
+    declares: [interface]
   check:
     kind: static_manifest
     expr: agent.interface.caller.identified_by != null
