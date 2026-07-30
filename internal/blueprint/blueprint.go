@@ -143,7 +143,7 @@ func Prepare(fsys fs.FS, b Blueprint, dest, framework string) (*Plan, error) {
 		}
 
 		p.Files = append(p.Files, rel)
-		if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(rel))); err == nil {
+		if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(rel))); err == nil && !isMergeable(rel) {
 			p.Conflicts = append(p.Conflicts, Conflict{rel})
 		}
 		return nil
@@ -154,6 +154,20 @@ func Prepare(fsys fs.FS, b Blueprint, dest, framework string) (*Plan, error) {
 	sort.Strings(p.Files)
 	return p, nil
 }
+
+// mergeable names the files that are a list rather than a document, and can therefore be added to
+// instead of replaced.
+//
+// There is exactly one, and the exception exists because the alternative is worse in both
+// directions: refusing to install because the project already has a .gitignore blocks nearly every
+// real project, and overwriting it deletes rules somebody depended on. A blueprint that must make
+// `.env` ignored — control.ai.api.secrets_not_committed depends on it — has to be able to do that
+// without owning the whole file.
+//
+// Code is never mergeable. Two halves of a Python module concatenated is not a Python module.
+func isMergeable(rel string) bool { return rel == ".gitignore" }
+
+const mergeMarker = "# ── added by agentarch ──"
 
 // Apply writes the blueprint. Callers pass a plan they have already shown to the user.
 func Apply(fsys fs.FS, b Blueprint, dest string, p *Plan) error {
@@ -170,6 +184,11 @@ func Apply(fsys fs.FS, b Blueprint, dest string, p *Plan) error {
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 			return err
 		}
+		if isMergeable(rel) {
+			if body, err = merged(out, body); err != nil {
+				return err
+			}
+		}
 		mode := os.FileMode(0o644)
 		if strings.HasSuffix(rel, ".sh") {
 			mode = 0o755
@@ -179,6 +198,44 @@ func Apply(fsys fs.FS, b Blueprint, dest string, p *Plan) error {
 		}
 	}
 	return nil
+}
+
+// merged appends the lines an existing file does not already have, under a marker.
+//
+// Idempotent: running the same blueprint twice adds nothing the second time. Without that, an
+// install re-run grows the file until somebody deletes the whole thing in frustration.
+func merged(existing string, incoming []byte) ([]byte, error) {
+	current, err := os.ReadFile(existing)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return incoming, nil
+		}
+		return nil, err
+	}
+
+	have := map[string]bool{}
+	for _, line := range strings.Split(string(current), "\n") {
+		have[strings.TrimSpace(line)] = true
+	}
+
+	var add []string
+	for _, line := range strings.Split(string(incoming), "\n") {
+		trimmed := strings.TrimSpace(line)
+		// Comments are skipped: they explain the rules, and repeating somebody else's explanation
+		// inside their file is noise. The rules themselves are what has to be there.
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || have[trimmed] {
+			continue
+		}
+		add = append(add, trimmed)
+		have[trimmed] = true
+	}
+	if len(add) == 0 {
+		return current, nil
+	}
+
+	out := strings.TrimRight(string(current), "\n")
+	out += "\n\n" + mergeMarker + "\n" + strings.Join(add, "\n") + "\n"
+	return []byte(out), nil
 }
 
 // ByNeed groups the catalogue for display. Someone arriving does not know the ids; they know

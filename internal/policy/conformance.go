@@ -166,7 +166,7 @@ func Assess(agents []AgentEvidence, gateInCI, shimsInSync bool, now time.Time) C
 		}
 	}
 
-	add(LevelL3, "L3-EVAL", "every agent has an evaluation result", len(noEval) == 0, list(noEval))
+	add(LevelL3, "L3-EVAL", "every agent has a measured evaluation result", len(noEval) == 0, list(noEval))
 	add(LevelL3, "L3-FRESH", "no evaluation result is past its freshness window",
 		len(staleEval) == 0, list(staleEval))
 	add(LevelL3, "L3-REDTEAM", "red team has been executed", len(noRedTeam) == 0, list(noRedTeam))

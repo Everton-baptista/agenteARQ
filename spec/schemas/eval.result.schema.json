@@ -2,27 +2,32 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentarch.dev/spec/1.0/eval.result.schema.json",
   "title": "agentarch evaluation result",
-  "description": "The output of one evaluation run. This is the artifact that turns a declaration into evidence, and the reason conformance level L3 exists.",
+  "description": "The output of one evaluation run. This is the artifact that turns a declaration into evidence, and the reason conformance level L3 exists. A result may also declare that it has not been run: `status: not_run` with null values is an honest placeholder, and the schema requires the nulls rather than tolerating invented numbers.",
   "type": "object",
-  "required": ["schema_version", "agent_id", "completed_at", "datasets", "metrics"],
+  "required": ["schema_version", "agent_id", "status", "completed_at", "datasets", "metrics"],
   "additionalProperties": false,
   "properties": {
     "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
     "agent_id": { "type": "string" },
 
+    "status": {
+      "enum": ["measured", "not_run"],
+      "description": "`measured` means every value here came from a run that happened. `not_run` is a placeholder: the eval controls do not judge it, and conformance withholds L3 rather than failing the build. Declaring `measured` with fabricated values is the one thing this field exists to make impossible to do quietly."
+    },
+
     "completed_at": {
-      "type": "string",
-      "description": "When the run finished, YYYY-MM-DD or RFC 3339. Freshness is checked against this, and a result with no date cannot be fresh."
+      "type": ["string", "null"],
+      "description": "When the run finished, YYYY-MM-DD or RFC 3339. Freshness is checked against this. Null is required when status is not_run — a date on an unmeasured result is the same false claim in a smaller field."
     },
 
     "subject": {
       "type": "object",
       "additionalProperties": false,
-      "description": "What was actually evaluated. A result whose subject differs from the agent as it stands today describes a system that no longer exists.",
+      "description": "What was evaluated. A result whose subject differs from the agent as it stands today describes a system that no longer exists.",
       "properties": {
         "model_id": { "type": "string" },
         "prompt_version": { "type": "string" },
-        "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "prompt_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
         "corpus_version": { "type": "string" },
         "git_sha": { "type": "string" }
       }
@@ -37,8 +42,14 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
-          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-          "cases": { "type": "integer", "minimum": 1 }
+          "path": { "type": "string" },
+          "sha256": {
+            "type": ["string", "null"],
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Null when the dataset does not exist yet. Never a made-up hash: a hash that matches nothing is indistinguishable from one that matches something until somebody tries to reproduce the run."
+          },
+          "cases": { "type": "integer", "minimum": 0 },
+          "todo": { "type": "string", "description": "What this dataset has to contain. Present on a placeholder, removed once it is real." }
         }
       }
     },
@@ -53,10 +64,13 @@
         "properties": {
           "name": { "type": "string" },
           "kind": { "enum": ["deterministic", "llm_judge", "human"] },
-          "value": { "type": "number" },
+          "value": {
+            "type": ["number", "null"],
+            "description": "Null when not measured. The threshold beside it is not null, because deciding what you are committing to before you measure is the point."
+          },
           "threshold": { "type": "number" },
           "direction": { "enum": ["min", "max"] },
-          "passed": { "type": "boolean" },
+          "passed": { "type": ["boolean", "null"] },
           "cases": { "type": "integer", "minimum": 0 },
           "note": { "type": "string" }
         }
@@ -69,8 +83,9 @@
       "properties": {
         "executed": { "type": "boolean" },
         "cases": { "type": "integer", "minimum": 0 },
-        "successful_attacks": { "type": "integer", "minimum": 0 },
-        "categories": { "type": "array", "items": { "type": "string" } }
+        "successful_attacks": { "type": ["integer", "null"], "minimum": 0 },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "todo": { "type": "string" }
       }
     },
 
@@ -84,9 +99,34 @@
       "additionalProperties": false,
       "properties": {
         "model": { "type": "string" },
-        "prompt_sha256": { "type": "string" },
-        "agreement": { "type": "number" }
+        "prompt_sha256": { "type": ["string", "null"] },
+        "agreement": { "type": ["number", "null"] },
+        "todo": { "type": "string" }
       }
     }
-  }
+  },
+
+  "allOf": [
+    {
+      "$comment": "A measured result cannot carry nulls. Without this, `status: measured` next to `value: null` would validate, and the honest placeholder would become a way to claim evidence while providing none.",
+      "if": { "properties": { "status": { "const": "measured" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "completed_at": { "type": "string" },
+          "datasets": { "items": { "properties": { "sha256": { "type": "string" }, "cases": { "minimum": 1 } } } },
+          "metrics": { "items": { "properties": { "value": { "type": "number" }, "passed": { "type": "boolean" } } } }
+        }
+      }
+    },
+    {
+      "$comment": "And the reverse: a placeholder must not carry numbers that look measured.",
+      "if": { "properties": { "status": { "const": "not_run" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "completed_at": { "type": "null" },
+          "metrics": { "items": { "properties": { "value": { "type": "null" }, "passed": { "type": "null" } } } }
+        }
+      }
+    }
+  ]
 }

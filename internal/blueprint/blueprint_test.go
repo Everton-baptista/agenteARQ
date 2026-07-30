@@ -67,15 +67,135 @@ func TestFrameworkClaimsAreBackedByFiles(t *testing.T) {
 }
 
 // A starting point that does not run is documentation with extra steps.
+//
+// Two entry points, and both are required. The service is what reaches production; the CLI is what
+// proves the agent core does not need a web server, which is the claim the whole layout rests on.
 func TestEveryBlueprintShipsAnEntryPointAndInstructions(t *testing.T) {
 	src := content(t)
 	for _, b := range load(t) {
 		for _, fw := range b.Meta.Frameworks {
-			for _, want := range []string{"agent.py", "README.md", "requirements.txt"} {
+			for _, want := range []string{
+				"api/main.py", "api/routes.py", "api/deps.py", "api/schemas.py",
+				"agent/runner.py", "agent/guardrails.py", "agent/principal.py",
+				"cli.py", "README.md", "requirements.txt",
+			} {
 				if _, err := fs.Stat(src, b.Root+"/app/"+fw+"/"+want); err != nil {
 					t.Errorf("%s/%s is missing %s", b.Meta.ID, fw, want)
 				}
 			}
+		}
+	}
+}
+
+// Every blueprint has to make `.env` ignored, because control.ai.api.secrets_not_committed depends
+// on it and a blueprint that ships a service without that is shipping the most common way a
+// provider credential reaches a public repository.
+func TestEveryBlueprintIgnoresTheEnvFileAndDocumentsIt(t *testing.T) {
+	src := content(t)
+	for _, b := range load(t) {
+		ignore, err := fs.ReadFile(src, b.Root+"/.gitignore")
+		if err != nil {
+			t.Errorf("%s ships no .gitignore", b.Meta.ID)
+			continue
+		}
+		if !strings.Contains(string(ignore), ".env") {
+			t.Errorf("%s does not ignore .env", b.Meta.ID)
+		}
+		example, err := fs.ReadFile(src, b.Root+"/.env.example")
+		if err != nil {
+			t.Errorf("%s ships no .env.example", b.Meta.ID)
+			continue
+		}
+		// Names, never values. A committed example with a value in it is a committed secret with
+		// a reassuring filename.
+		for _, line := range strings.Split(string(example), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			key, value, _ := strings.Cut(line, "=")
+			if strings.Contains(key, "KEY") || strings.Contains(key, "SECRET") ||
+				strings.Contains(key, "TOKEN") || strings.Contains(key, "PASSWORD") {
+				if strings.TrimSpace(value) != "" {
+					t.Errorf("%s/.env.example assigns a value to %s", b.Meta.ID, key)
+				}
+			}
+		}
+	}
+}
+
+// No blueprint may ship an evaluation result that claims to have been measured.
+//
+// This is the test that should have existed first. The rag-support blueprint shipped groundedness
+// 0.94, a jailbreak rate of 0.03 and sixty red team cases against datasets that did not exist —
+// all invented — and `agentarch conformance` read them and reported L3 Proven for a project one
+// minute old. The standard committed the conformance theatre it exists to prevent, in the first
+// artifact a new user is handed.
+//
+// A blueprint hands someone a starting point. It may hand them thresholds, because deciding what
+// you are committing to is real work it can do for you. It may never hand them evidence.
+func TestNoBlueprintShipsFabricatedEvidence(t *testing.T) {
+	src := content(t)
+	for _, b := range load(t) {
+		_ = fs.WalkDir(src, b.Root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.Contains(p, "/evals/results/") {
+				return nil
+			}
+			body, rerr := fs.ReadFile(src, p)
+			if rerr != nil {
+				return nil
+			}
+			text := string(body)
+			if !strings.Contains(text, "status: not_run") {
+				t.Errorf("%s does not declare status: not_run — a blueprint cannot ship evidence", p)
+			}
+			if strings.Contains(text, "status: measured") {
+				t.Errorf("%s claims to have been measured", p)
+			}
+			// The specific shapes of the original lie, named so the test explains itself when it
+			// fails rather than sending the reader to git history.
+			for _, tell := range []string{"executed: true", "passed: true", "passed: false"} {
+				if strings.Contains(text, tell) {
+					t.Errorf("%s contains %q — an unmeasured result has null values", p, tell)
+				}
+			}
+			return nil
+		})
+	}
+}
+
+// The rule the layout exists for, checked from Go so it runs in CI with no Python installed.
+//
+// It reads import lines textually and will not catch a violation smuggled through a string. It
+// catches the one people actually make — reaching into the transport layer from the agent to read
+// a header — which is the drift that ends with an agent that only runs inside a web server.
+func TestTheAgentCoreNeverImportsTheTransport(t *testing.T) {
+	src := content(t)
+	for _, b := range load(t) {
+		for _, fw := range b.Meta.Frameworks {
+			dir := b.Root + "/app/" + fw + "/agent"
+			_ = fs.WalkDir(src, dir, func(p string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() || !strings.HasSuffix(p, ".py") {
+					return nil
+				}
+				body, rerr := fs.ReadFile(src, p)
+				if rerr != nil {
+					return nil
+				}
+				for i, line := range strings.Split(string(body), "\n") {
+					s := strings.TrimSpace(line)
+					if !strings.HasPrefix(s, "import ") && !strings.HasPrefix(s, "from ") {
+						continue
+					}
+					for _, forbidden := range []string{"fastapi", "starlette", "..api", "app.api"} {
+						if strings.Contains(s, forbidden) {
+							t.Errorf("%s:%d imports %s — agent/ must not depend on the transport",
+								p, i+1, forbidden)
+						}
+					}
+				}
+				return nil
+			})
 		}
 	}
 }

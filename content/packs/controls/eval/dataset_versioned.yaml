@@ -7,7 +7,7 @@ control:
   status: "stable"
   check:
     kind: "static_manifest"
-    expr: "all(evals.datasets[].sha256 != null)"
+    expr: 'evals.status != "measured" or all(evals.datasets[].sha256 != null)'
     message: "An evaluation dataset has no recorded hash."
   evidence:
     - "eval_result"
@@ -15,3 +15,9 @@ control:
   standard_ref: "standards/11-evaluation.md#controlaievaldataset_versioned"
   references:
     - "NIST AI RMF MEASURE 2.3"
+
+# Conditional on `status: measured` on purpose. A project that has honestly not run its evals is
+# not lying about anything, and failing its build teaches it to write plausible numbers instead —
+# which is exactly what happened to the blueprint that used to ship groundedness 0.94 against a
+# dataset that did not exist. The gate blocks a false claim; the badge withholds credit. Absence
+# of evidence costs you L3, not the build.

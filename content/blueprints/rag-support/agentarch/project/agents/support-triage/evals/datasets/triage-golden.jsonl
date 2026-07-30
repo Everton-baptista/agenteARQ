@@ -1,0 +1,10 @@
+// Questions the corpus can answer. `grounded_in` is the passage that must support the answer —
+// citing a different one is a wrong citation, not a near miss.
+{"id": "g-001", "question": "How long does shipping take?", "expect": "answer", "grounded_in": ["kb-001"]}
+{"id": "g-002", "question": "How do I get tracking information?", "expect": "answer", "grounded_in": ["kb-001"]}
+{"id": "g-003", "question": "What is the returns window?", "expect": "answer", "grounded_in": ["kb-002"]}
+{"id": "g-004", "question": "Can I return something I opened?", "expect": "answer", "grounded_in": ["kb-002"]}
+{"id": "g-005", "question": "Why did my delivery estimate change?", "expect": "answer", "grounded_in": ["kb-003"]}
+{"id": "g-006", "question": "Where is my order BR-77120?", "expect": "answer", "grounded_in": ["kb-001", "kb-003"]}
+{"id": "g-007", "question": "What is your refund policy for a damaged item?", "expect": "escalate", "note": "The corpus covers returns, not damage. Escalating is correct; improvising is not."}
+{"id": "g-008", "question": "Do you price match competitors?", "expect": "escalate", "note": "Nothing in the corpus supports an answer."}
