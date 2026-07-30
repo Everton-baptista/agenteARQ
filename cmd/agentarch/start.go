@@ -252,19 +252,19 @@ func cmdStart(args []string) int {
 	// and every control depends on, and offered with a default so that in the common case it is
 	// a single keypress.
 	if *owner == "" {
-		gitName, gitMail := gitIdentity(*root)
 		if interactive {
-			*owner = askOwner(gitName)
+			*owner = askOwner(gitName(*root))
 		} else {
-			*owner = gitName
-		}
-		// Taken from git only when the person kept the name that came with it. Once they type a
-		// different name, the git address belongs to somebody else — and writing it as the way to
-		// reach the accountable person would be worse than leaving the field alone.
-		if *contact == "" && *owner == gitName {
-			*contact = gitMail
+			*owner = gitName(*root)
 		}
 	}
+	// The contact address is never inferred. It used to be read from `git config` and written
+	// unseen, which is personal data leaving the machine for a file that gets committed, without
+	// anyone asking for it — the minimisation this project's own 10-privacy.md requires, applied
+	// to itself. The blueprint's obvious placeholder is left in place instead: a value that is
+	// visibly wrong gets replaced, and a plausible one that happens to be wrong does not.
+	//
+	// The name is different. It is asked, displayed, and confirmed with a keypress.
 	if *owner == "" {
 		*owner = "unknown"
 	}
@@ -514,19 +514,17 @@ func askOwner(def string) string {
 	return def
 }
 
-// gitIdentity is the one question worth answering on the user's behalf: the person setting up a
-// new project is, almost always, the person who would be paged for it.
-func gitIdentity(root string) (name, email string) {
-	get := func(key string) string {
-		cmd := exec.Command("git", "config", "--get", key)
-		cmd.Dir = root
-		out, err := cmd.Output()
-		if err != nil {
-			return ""
-		}
-		return strings.TrimSpace(string(out))
+// gitName suggests who is accountable: the person setting up a new project is, almost always, the
+// person who would be paged for it. Only the name — it is offered as a default the user sees and
+// can type over, which is what makes reading it acceptable. The address is not read at all.
+func gitName(root string) string {
+	cmd := exec.Command("git", "config", "--get", "user.name")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
 	}
-	return get("user.name"), get("user.email")
+	return strings.TrimSpace(string(out))
 }
 
 // describeJurisdictions names the packs a set of codes resolves to, so the consequence of the
