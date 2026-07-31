@@ -640,10 +640,17 @@ jobs:
 
           /tmp/agentarch sync --check
           /tmp/agentarch check --profile standard >/dev/null
+
+          # L2, not L3 — and asserting L3 here was asking for the conformance theatre v0.2.0
+          # removed. A fresh install ships `status: not_run` rather than invented numbers, so the
+          # badge withholds credit until something measures the agent. The step below owns the
+          # detail of why; what `start` has to prove is that its composition lands a project in
+          # the same state the manual route does.
           out=$(/tmp/agentarch conformance)
-          echo "$out" | grep -q "conformance: L3" || {
-            echo "::error::start should leave a project at L3"; echo "$out"; exit 1; }
-          echo "ok  start -> working project at L3, personalised"
+          echo "$out" | grep -q "conformance: L2" || {
+            echo "::error::start should leave a project at L2, blocked only on evidence"
+            echo "$out"; exit 1; }
+          echo "ok  start -> working project at L2, personalised"
 
       - name: start recognises a project that already has code
         run: |
