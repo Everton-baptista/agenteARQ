@@ -7,8 +7,9 @@
 # exactly where they belong. The defect is the arrow between them, which is invisible to any check
 # that only looks at where files live.
 #
-# In content 1.2 this becomes a gate failure as well, when
-# control.ai.api.core_transport_separated leaves its grace period.
+# When control.ai.api.core_transport_separated leaves its grace period — at api.edge 1.2, which is
+# this pack's own version and not content/VERSION — the finding is reported at major severity. The
+# gate still exits 0: only blockers block, which is what keeps a severity rise from switching CI off.
 case: core-imports-transport
 artifact: app/agent/runner.py
 kind: code
@@ -25,5 +26,5 @@ expect:
     exit_code: 0
     reason: >-
       Not a gate failure yet. control.ai.api.core_transport_separated is in its grace period until
-      content 1.2, because a project that grew the agent inside its route handlers has to move code —
+      api.edge 1.2, because a project that grew the agent inside its route handlers has to move code —
       which is the point of the control and the reason it warns first.

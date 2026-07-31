@@ -216,10 +216,10 @@ less install.sh && sh install.sh
 Or take a signed binary straight from Releases and check it yourself:
 
 ```bash
-gh release download v0.2.0 --repo Everton-baptista/agenteARQ \
-  -p 'agentarch_0.2.0_darwin_arm64.tar.gz' -p 'checksums.txt'
+gh release download v0.3.0 --repo Everton-baptista/agenteARQ \
+  -p 'agentarch_0.3.0_darwin_arm64.tar.gz' -p 'checksums.txt'
 shasum -a 256 -c checksums.txt --ignore-missing
-tar -xzf agentarch_0.2.0_darwin_arm64.tar.gz
+tar -xzf agentarch_0.3.0_darwin_arm64.tar.gz
 ./agentarch version
 ```
 
@@ -281,10 +281,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.1.3
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.3.0
         with:
           command: sync --check
-      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.1.3
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.3.0
         with:
           command: check --profile standard
 ```

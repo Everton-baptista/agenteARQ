@@ -28,7 +28,7 @@ be the same defect as noise, with the sign reversed.
 **Intent.** Code that runs the agent — the loop, prompts, tools, guardrails — must not depend on the
 transport that delivered the request. No request object, no header, no web framework import.
 
-**Severity** major · **enforced_from** content 1.2 · **fail mode** fail_closed
+**Severity** major · **enforced_from** `api.edge` 1.2 · **fail mode** fail_closed
 
 **Why.** The drift is gradual and always locally reasonable: a handler needs one header, so the runner
 imports the request; a few weeks later the agent cannot be run from a test, a queue worker, or a
@@ -51,7 +51,7 @@ prove absence would be worse than one that admits its reach.
 **Intent.** The caller is identified from a verified credential, and every tenant or scope value is
 derived from that identity server-side.
 
-**Severity** major · **enforced_from** content 1.2 · **fail mode** fail_closed
+**Severity** major · **enforced_from** `api.edge` 1.2 · **fail mode** fail_closed
 
 **Why.** `05-memory-and-state.md` requires a `scope_key`. It does not say where the value comes from,
 and if it comes from the request body then two tenants share one memory store while every declared
@@ -68,7 +68,7 @@ cannot be overridden.
 
 **Intent.** Request and response content is not logged, and the redaction list is declared.
 
-**Severity** major · **enforced_from** content 1.2 · **fail mode** fail_closed
+**Severity** major · **enforced_from** `api.edge` 1.2 · **fail mode** fail_closed
 
 **Why.** This is where `capture_content: false` either holds or is a lie. A web framework logs request
 paths by default and an unhandled error handler records the exception with whatever was in scope. It is
@@ -88,7 +88,7 @@ owner and a retention policy; an access log is not.
 
 **Intent.** At least one bound is declared per caller, not only per run.
 
-**Severity** minor · **enforced_from** content 1.2 · **fail mode** fail_warn
+**Severity** minor · **enforced_from** `api.edge` 1.2 · **fail mode** fail_warn
 
 **Why.** `max_steps`, `max_tool_calls` and `usd_per_run` bound one run. A caller who issues ten
 thousand runs is inside every one of them, and the first symptom is an invoice.
@@ -103,7 +103,7 @@ the status code your protocol uses for rate limiting, with a retry hint.
 **Intent.** The machine-readable interface contract is generated from the manifest, not written
 alongside it.
 
-**Severity** minor · **enforced_from** content 1.2 · **fail mode** fail_warn
+**Severity** minor · **enforced_from** `api.edge` 1.2 · **fail mode** fail_warn
 
 **Why.** Two hand-maintained descriptions of one interface diverge, and the consumer reads the one that
 is wrong. The same reasoning as `.mcp.json` being derived from the allowlist: the reviewed document is

@@ -1,7 +1,7 @@
 ---
 lang: pt-BR
 source: content/standards/en/16-service-and-edge.md
-source_sha256: "209246893cdba1cb67ffd0636455118ec73ee4efa60367bf01c6075d373537eb"
+source_sha256: "a02a00e484e6170ae9ecdc32745d68ccea3b03c7518376a632505c0d25023872"
 translated_at: "2026-07-30"
 translators: ["everton"]
 ---
@@ -42,7 +42,7 @@ que precisavam dele seria o mesmo defeito do ruído, com o sinal invertido.
 **Intenção.** O código que roda o agente — o loop, os prompts, as tools, os guardrails — não pode depender do
 transporte que entregou a requisição. Sem objeto de requisição, sem header, sem import de framework web.
 
-**Severidade** `major` · **enforced_from** content 1.2 · **fail mode** fail_closed
+**Severidade** `major` · **enforced_from** `api.edge` 1.2 · **fail mode** fail_closed
 
 **Por quê.** A deriva é gradual e sempre localmente razoável: um handler precisa de um header, então o runner
 importa a requisição; poucas semanas depois o agente não roda mais a partir de um teste, de um worker
@@ -66,7 +66,7 @@ que uma que admite seu alcance.
 **Intenção.** O chamador é identificado a partir de uma credencial verificada, e todo valor de tenant ou escopo é
 derivado dessa identidade no servidor.
 
-**Severidade** `major` · **enforced_from** content 1.2 · **fail mode** fail_closed
+**Severidade** `major` · **enforced_from** `api.edge` 1.2 · **fail mode** fail_closed
 
 **Por quê.** O `05-memory-and-state.md` exige um `scope_key`. Ele não diz de onde vem o valor, e se vem do corpo da
 requisição então dois tenants compartilham um store de memória enquanto todo controle declarado passa.
@@ -82,7 +82,7 @@ sobrescrito.
 
 **Intenção.** Conteúdo de requisição e de resposta não é logado, e a lista de redação está declarada.
 
-**Severidade** `major` · **enforced_from** content 1.2 · **fail mode** fail_closed
+**Severidade** `major` · **enforced_from** `api.edge` 1.2 · **fail mode** fail_closed
 
 **Por quê.** É aqui que `capture_content: false` se sustenta ou é mentira. Um framework web loga o caminho da
 requisição por padrão, e um handler de erro não tratado registra a exceção com o que estivesse em
@@ -102,7 +102,7 @@ de retenção; um access log não é.
 
 **Intenção.** Ao menos um limite é declarado por chamador, não só por execução.
 
-**Severidade** `minor` · **enforced_from** content 1.2 · **fail mode** fail_warn
+**Severidade** `minor` · **enforced_from** `api.edge` 1.2 · **fail mode** fail_warn
 
 **Por quê.** `max_steps`, `max_tool_calls` e `usd_per_run` limitam uma execução. Um chamador que dispara dez mil
 execuções está dentro de todas elas, e o primeiro sintoma é uma fatura.
@@ -116,7 +116,7 @@ status que seu protocolo usa para rate limit, com uma dica de retry.
 
 **Intenção.** O contrato de interface machine-readable é gerado a partir do manifesto, não escrito ao lado dele.
 
-**Severidade** `minor` · **enforced_from** content 1.2 · **fail mode** fail_warn
+**Severidade** `minor` · **enforced_from** `api.edge` 1.2 · **fail mode** fail_warn
 
 **Por quê.** Duas descrições mantidas à mão da mesma interface divergem, e o consumidor lê a que está errada. O
 mesmo raciocínio do `.mcp.json` ser derivado da allowlist: o documento revisado é a fonte, o arquivo de

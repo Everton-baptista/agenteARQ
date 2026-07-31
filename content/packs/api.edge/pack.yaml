@@ -30,7 +30,8 @@ pack:
       severity: blocker
       required_evidence: [repository_scan]
 
-    # The rest warn until content 1.2. The expensive one is core_transport_separated: a project that
+    # The rest warn until api.edge 1.2 — enforced_from is compared against this pack's own version,
+    # per spec 02 §5, not against content/VERSION. The expensive one is core_transport_separated: a project that
     # grew the agent inside its route handlers has to move code, which is the whole point of the
     # control and the reason it gets two minors of warning rather than one.
     - control: control.ai.api.core_transport_separated

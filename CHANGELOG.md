@@ -10,17 +10,19 @@ supports, and `agentarch version` prints all three lines so a reported result ca
 
 | CLI | Spec majors implemented | Content shipped | Content it can read |
 |---|---|---|---|
-| 0.2.x | `spec/1` | `content/1.1.0` | `content/1.x` |
+| 0.3.x | `spec/1` | `content/1.2.0` | `content/1.x` |
 | 0.1.x | `spec/1` | `content/1.0.0` | `content/1.x` |
+
+`0.2.0` has an entry below and was never tagged; its work shipped inside `0.3.0`.
 
 The CLI may be ahead of the content a project has installed, and uses the project's own
 `agentarch/std` whenever one is present — a project pinned to an older content release keeps
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
-## Unreleased
+## v0.3.0 — 2026-07-31
 
-`cli/0.2.1` · `content/1.2.0` · `spec/1.0` gains one optional field.
+`cli/0.3.0` · `content/1.2.0` · `spec/1.0` gains one optional field.
 
 **The interview asks which language, and the answer reaches every assistant.** `--lang` existed,
 generated pt-BR instruction files, and was a flag nobody discovered — so everyone got the English
