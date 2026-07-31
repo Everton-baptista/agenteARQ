@@ -56,15 +56,21 @@ func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
 	if len(args) == 0 {
-		// A bare `agentarch` in a project that has not installed the standard is almost always
-		// somebody who just created the directory and wants to begin. Printing a wall of
-		// subcommands answers a question they have not asked yet. Only on a terminal, and only
-		// when there is nothing here to describe — a script that invokes us with no arguments
-		// must still get usage and a non-zero exit rather than sitting on a prompt forever.
+		// A bare `agentarch` is somebody asking "what now". Answering with twenty subcommands
+		// restates the question in more detail, so every answer here is at most four commands
+		// chosen from what this directory actually is.
+		//
+		// A script invoking us with no arguments still gets usage and a non-zero exit, rather
+		// than sitting on a prompt forever waiting for a person who is not there.
 		if isTTY() {
-			if s := detectState("."); !s.Installed {
+			s := detectState(".")
+			if !s.Installed {
 				return cmdStart(nil)
 			}
+			// Installed. Whether or not an agent exists yet, this is somebody mid-setup —
+			// which is not an error, and used to exit 1 with a wall of commands attached.
+			printNextSteps(s)
+			return exitOK
 		}
 		usage()
 		return exitUsage
@@ -107,13 +113,26 @@ func run(args []string) int {
 	case "version", "--version", "-v":
 		return cmdVersion(args[1:])
 	case "help", "--help", "-h":
-		usage()
+		usageFull(wantsAll(args[1:]))
 		return exitOK
 	default:
+		// A typo is not a request for the manual. Name what was not understood, show the short
+		// list, and say where the rest is — the full twenty were how somebody who mistyped
+		// `chekc` got a screenful and still had to find their own mistake in it.
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", args[0])
 		usage()
 		return exitUsage
 	}
+}
+
+// wantsAll reports whether --all was passed, so `--help --all` can reach the long list.
+func wantsAll(args []string) bool {
+	for _, a := range args {
+		if a == "--all" || a == "-a" || a == "all" {
+			return true
+		}
+	}
+	return false
 }
 
 // cmdVersion prints all three version lines.
@@ -147,36 +166,72 @@ func cmdVersion(args []string) int {
 	return exitOK
 }
 
-func usage() {
+// usage prints the short list: the commands somebody uses in the first week.
+//
+// The long list is still one flag away and is not the default, because twenty commands with
+// their flags is a reference manual, and a reference manual is not what somebody who just
+// mistyped a command needs. The other fifteen exist for people who already know they want them.
+func usage() { usageFull(false) }
+
+// firstWeekCommands are the six the short list shows; extraCommands are the rest. They are named
+// here rather than only in the printed text so the "N more" line cannot drift out of step with
+// the list it counts, and so a command added to run() without a home in either is a test failure
+// rather than a command nobody can discover.
+var (
+	firstWeekCommands = []string{"start", "blueprint", "new", "check", "conformance", "explain"}
+	extraCommands     = []string{
+		"init", "sync", "validate", "waive", "mcp", "score",
+		"pack", "diff", "upgrade", "aibom", "report", "version",
+	}
+)
+
+func usageFull(all bool) {
 	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
 
   start       the one command to begin with: asks what you are building
-              and does the rest. Everything below is the manual route.
-  init        install the standard into this project
-              --adopt   scan for agents that already exist and describe them
+              and does the rest
   blueprint   start from a complete, working project — run it with no
               arguments to choose from the catalogue
   new         scaffold an empty agent, tool or ADR from the templates
+  check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
+  conformance assess L1/L2/L3 and emit a badge that expires
+  explain     why a control exists and how to satisfy it
+`)
+
+	if !all {
+		// The count is asserted by TestHelpCountsTheRestCorrectly. A number that drifts out of
+		// step with the list teaches the reader that the output is approximate.
+		fmt.Fprintf(os.Stderr, `
+%d more, for when you need them:  agentarch --help --all
+
+Docs: https://github.com/Everton-baptista/agenteARQ
+`, len(extraCommands))
+		return
+	}
+
+	fmt.Fprint(os.Stderr, `
+  init        install the standard into this project
+              --adopt   scan for agents that already exist and describe them
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)
               --strict-i18n  fail on a stale translation instead of warning
-  check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
-              --profile minimal|standard|regulated  --format text|json|sarif
-              --explain-resolution  show which pack imposed each control
-              --adopt-baseline      ratchet: block only on what is new or worse
-              --update-baseline     drop entries you have since fixed
-  explain     why a control exists and how to satisfy it
   waive       record a time-boxed, owned exception (max 90 days)
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
-  conformance assess L1/L2/L3 and emit a badge that expires
   score       maturity by dimension, declared vs proven; never blocks
   pack        list|verify|add community packs (checksum verified, never executed)
   diff        which revalidation triggers fired since a git ref (--base)
   upgrade     replace agentarch/std, never touching agentarch/project
   aibom       what this agent is made of: models, prompts, corpora, tools, MCP
   report      everything the gate knows, as markdown and a self-contained page
-  version     print the CLI and spec versions
+  version     print the CLI, spec and content versions
+
+  check also takes:
+              --profile minimal|standard|regulated  --format text|json|sarif
+              --explain-resolution  which pack imposed each control, and what
+                                    was skipped and why
+              --adopt-baseline      ratchet: block only on what is new or worse
+              --update-baseline     drop entries you have since fixed
 
 Docs: https://github.com/Everton-baptista/agenteARQ
 `)

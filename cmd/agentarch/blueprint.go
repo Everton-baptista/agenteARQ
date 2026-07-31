@@ -80,7 +80,7 @@ func cmdBlueprintList(args []string) int {
 	fmt.Printf("\nStarting points, by what you are trying to build\n\n")
 	for _, b := range blueprint.ByNeed(bps) {
 		fmt.Printf("  %-22s %s\n", b.Meta.ID, b.Meta.Need)
-		fmt.Printf("  %-22s runs on: %s\n\n", "", strings.Join(b.Meta.Frameworks, ", "))
+		fmt.Printf("  %-22s runs on: %s\n\n", "", frameworkLabels(b.Meta.Frameworks))
 	}
 	fmt.Printf("  agentarch blueprint            choose interactively\n")
 	fmt.Printf("  agentarch blueprint show <id>  what it contains and why\n\n")
@@ -112,7 +112,7 @@ func cmdBlueprintShow(args []string) int {
 	fmt.Printf("%s\n\n", wrap(b.Meta.Description, 76, ""))
 	fmt.Printf("  need          %s\n", b.Meta.Need)
 	fmt.Printf("  system type   %s\n", b.Meta.SystemType)
-	fmt.Printf("  runs on       %s\n", strings.Join(b.Meta.Frameworks, ", "))
+	fmt.Printf("  runs on       %s\n", frameworkLabels(b.Meta.Frameworks))
 	if b.Meta.Conformance != "" {
 		fmt.Printf("  conformance   %s out of the box\n", b.Meta.Conformance)
 	}
@@ -183,7 +183,7 @@ func cmdBlueprintAdd(args []string) int {
 		fmt.Fprintf(os.Stderr,
 			"blueprint %s does not ship code for %q.\nIt ships: %s\n"+
 				"Porting it is documented in agentarch/std/adapters/%s.md\n",
-			b.Meta.ID, fw, strings.Join(b.Meta.Frameworks, ", "), fw)
+			b.Meta.ID, fw, frameworkValues(b.Meta.Frameworks), fw)
 		return exitUsage
 	case fw == "" && len(b.Meta.Frameworks) == 1:
 		fw = b.Meta.Frameworks[0]
@@ -203,7 +203,7 @@ func cmdBlueprintAdd(args []string) int {
 	}
 
 	fmt.Printf("\n%s — %s\n", b.Meta.ID, b.Meta.Title)
-	fmt.Printf("running on %s · %d file(s)\n\n", plan.Framework, len(plan.Files))
+	fmt.Printf("running on %s · %d file(s)\n\n", frameworkLabel(plan.Framework), len(plan.Files))
 	for _, f := range plan.Files {
 		fmt.Printf("  %s\n", f)
 	}
@@ -253,7 +253,15 @@ func cmdBlueprintAdd(args []string) int {
 
 // ---------------------------------------------------------------- prompting
 
-func isTTY() bool {
+// isTTY is a variable so a test can say which branch it is exercising.
+//
+// Whether somebody is there decides everything about how a command behaves — the interview runs
+// or refuses, a bare `agentarch` gets next steps or usage. Driving that from a real pty is not
+// reproducible: it depends on whether the test process has a controlling terminal, which varies
+// between a laptop, CI and a container, so the branch that matters most went untested.
+var isTTY = isTerminal
+
+func isTerminal() bool {
 	fi, err := os.Stdin.Stat()
 	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
 		return false
@@ -284,13 +292,51 @@ func confirm(prompt string) bool {
 	return answer == "y" || answer == "yes"
 }
 
+// frameworkLabel is how a framework id is shown to a person.
+//
+// The id `none` means "no framework — the provider SDK directly". Printed raw it produced "runs
+// on none", which reads as "runs on nothing", i.e. as if the blueprint did not work. The id stays
+// `none` everywhere it is a value — blueprint.yaml, --framework, the directory under app/ — and
+// changes only where it is read by somebody.
+func frameworkLabel(f string) string {
+	if f == "none" {
+		return "no framework"
+	}
+	return f
+}
+
+// frameworkLabels joins a list for display, so a catalogue row reads "no framework, langgraph".
+func frameworkLabels(fs []string) string {
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		out[i] = frameworkLabel(f)
+	}
+	return strings.Join(out, ", ")
+}
+
+// frameworkValues joins a list for a message telling somebody what to pass to --framework. It
+// carries the id, because that is what the flag takes, and the label beside it where the two
+// differ — a reader who saw "no framework" in the catalogue and is then told "it ships: none" has
+// been given two names for one thing and no way to know they are the same.
+func frameworkValues(fs []string) string {
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		if l := frameworkLabel(f); l != f {
+			out[i] = fmt.Sprintf("%s (%s)", f, l)
+			continue
+		}
+		out[i] = f
+	}
+	return strings.Join(out, ", ")
+}
+
 func chooseBlueprint(bps []blueprint.Blueprint) (blueprint.Blueprint, int) {
 	ordered := blueprint.ByNeed(bps)
 
 	fmt.Printf("\nWhat are you building?\n\n")
 	for i, b := range ordered {
 		fmt.Printf("  %d. %s\n", i+1, b.Meta.Need)
-		fmt.Printf("     %s — runs on %s\n\n", b.Meta.ID, strings.Join(b.Meta.Frameworks, ", "))
+		fmt.Printf("     %s — runs on %s\n\n", b.Meta.ID, frameworkLabels(b.Meta.Frameworks))
 	}
 
 	for attempt := 0; attempt < 3; attempt++ {
@@ -318,9 +364,9 @@ func chooseFramework(b blueprint.Blueprint) (string, int) {
 	for i, f := range b.Meta.Frameworks {
 		note := ""
 		if f == "none" {
-			note = "  (the provider SDK directly, no framework)"
+			note = "  (the provider SDK directly)"
 		}
-		fmt.Printf("  %d. %s%s\n", i+1, f, note)
+		fmt.Printf("  %d. %s%s\n", i+1, frameworkLabel(f), note)
 	}
 	fmt.Println()
 
@@ -331,6 +377,11 @@ func chooseFramework(b blueprint.Blueprint) (string, int) {
 		}
 		if n, err := strconv.Atoi(in); err == nil && n >= 1 && n <= len(b.Meta.Frameworks) {
 			return b.Meta.Frameworks[n-1], exitOK
+		}
+		// Accept what was printed as well as the id behind it. Showing "no framework" and then
+		// rejecting somebody who types it back would be the display fix creating its own trap.
+		if in == "no framework" {
+			in = "none"
 		}
 		if b.HasFramework(in) {
 			return in, exitOK

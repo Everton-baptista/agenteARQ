@@ -39,73 +39,20 @@ It answers three questions that have no standard answer today:
 
 ## Getting started
 
-### 1. Install
+### 1. Run it
 
-One command, nothing to install first:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh | sh
-```
-
-That is the recommended path today. It works out your platform, verifies the download against
-the signed `checksums.txt`, and puts `agentarch` on your PATH. It refuses to install anything
-whose checksum does not match, and it never uses `sudo` on your behalf — without write access
-to `/usr/local/bin` it installs to `~/.local/bin` and tells you how to add it. The CLI is one
-static binary, so a Java or .NET project does not acquire a JavaScript or Python runtime to
-validate its agents.
-
-Piping a script into a shell is a decision, not a default. To read it first, which is the right
-instinct:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh -o install.sh
-less install.sh && sh install.sh
-```
-
-Other channels:
-
-```bash
-# Container — needs nothing on the host but Docker
-docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start
-
-# Go, if you have it
-go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
-```
-
-Not on the registries yet — the packaging is done and publishes from the release workflow, but
-the first npm and PyPI uploads have not landed. Once they do:
-
-```bash
-npx agentarch@latest start   # Node — no install step, version pinnable
-pipx install agentarch       # Python
-```
-
-Until then those two commands fail with a 404 from the registry, not with anything wrong on
-your machine.
-
-Or take a signed binary straight from
-[Releases](https://github.com/Everton-baptista/agenteARQ/releases) and verify it by hand:
-
-```bash
-gh release download v0.1.2 --repo Everton-baptista/agenteARQ \
-  -p 'agentarch_0.1.2_darwin_arm64.tar.gz' -p 'checksums.txt'
-shasum -a 256 -c checksums.txt --ignore-missing
-tar -xzf agentarch_0.1.2_darwin_arm64.tar.gz
-./agentarch version
-```
-
-Every release is signed with cosign keyless; the footer of each release page carries the
-verification command, and the installer prints it too.
-
-### 2. Start
+One command. Nothing to install first:
 
 ```bash
 mkdir my-agent && cd my-agent
-agentarch start
+go run github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
 ```
 
-That is the whole entry point — in an empty directory, plain `agentarch` does the same. It asks at
-most three questions, all of them about the software, and derives the rest:
+The first run compiles and takes half a minute; after that it is cached and instant. You need Go
+1.22 or newer — the floor is deliberately low, so this does not quietly download a whole toolchain
+before it starts.
+
+It then asks at most three questions, all of them about the software, and derives the rest:
 
 ```
 agentarch — let's get you set up.
@@ -123,18 +70,31 @@ Choose 1–2 [1]:
 
 What are you building?
 
-  1. An agent that answers from my documents and cites its sources
-     rag-support — runs on none, langgraph
+  1. A chat on my website that answers customers, with a human approving the risky actions
+     chatbot-web — runs on no framework
 
   2. An agent that acts on my systems, with a human approving the dangerous part
-     tool-approval — runs on none
-  …
+     tool-approval — runs on no framework
+
+  3. An agent that answers from my documents and cites its sources
+     rag-support — runs on no framework, langgraph
+
+  4. An agent that uses MCP servers I did not write
+     mcp-consumer — runs on no framework
+
+  5. Expose my agent's tools so other agents and IDEs can call them safely
+     mcp-server — runs on no framework
+
+  6. Several agents working together without losing track of who may do what
+     multi-agent-handoff — runs on no framework
+
+Choose 1–6 (or q to quit):
 
 Where are the people who will use it?
 
   1. Brazil                     brings the LGPD rules in
   2. Europe                     brings GDPR and the EU AI Act in
-  3. Both                       both sets apply
+  3. Both
   4. Somewhere else             type the country code, e.g. US, IN, JP, NG
   5. Not decided yet
 ```
@@ -189,6 +149,49 @@ Everything `start` does is also available one command at a time — see
 agentarch start --new --blueprint rag-support --framework none \
   --owner "Ana Silva" --jurisdictions BR --yes
 ```
+
+### 2. Install it, once you want it around
+
+`go run …@latest` is for trying it. For daily use, pick one — every channel delivers the same
+single static binary, so a Java or .NET project does not acquire a JavaScript or Python runtime
+to validate its agents.
+
+| | |
+|---|---|
+| `go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest` | if you have Go |
+| `curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh \| sh` | if you do not |
+| `docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start` | needs nothing but Docker |
+| [Releases](https://github.com/Everton-baptista/agenteARQ/releases) | signed binaries, verified by hand |
+
+The installer works out your platform, verifies the download against the signed `checksums.txt`,
+and refuses to install anything whose checksum does not match. It never uses `sudo` on your
+behalf — without write access to `/usr/local/bin` it installs to `~/.local/bin` and tells you how
+to add it.
+
+<details>
+<summary>Reading the installer first, and verifying a release by hand</summary>
+
+Piping a script into a shell is a decision, not a default:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/main/install.sh -o install.sh
+less install.sh && sh install.sh
+```
+
+Or take a signed binary straight from Releases and check it yourself:
+
+```bash
+gh release download v0.2.0 --repo Everton-baptista/agenteARQ \
+  -p 'agentarch_0.2.0_darwin_arm64.tar.gz' -p 'checksums.txt'
+shasum -a 256 -c checksums.txt --ignore-missing
+tar -xzf agentarch_0.2.0_darwin_arm64.tar.gz
+./agentarch version
+```
+
+Every release is signed with cosign keyless; the footer of each release page carries the
+verification command, and the installer prints it too.
+
+</details>
 
 ### 3. Run the agent
 
@@ -319,7 +322,9 @@ agentarch check --update-baseline   # drops entries you have fixed
 | `agentarch upgrade --dry-run` | what a newer standard would change here |
 | `agentarch pack list --installed` | which packs are judging this project |
 
-Every command takes `--root` to work on a directory other than the current one.
+Every command takes `--root` to work on a directory other than the current one, and
+`agentarch --help --all` lists all of them with their flags. Plain `agentarch --help` shows only
+the six you need in the first week.
 
 ## What it is not
 

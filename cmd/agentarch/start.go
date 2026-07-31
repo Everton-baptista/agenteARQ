@@ -152,11 +152,7 @@ func cmdStart(args []string) int {
 	// Already installed and already describing something. Re-running init here would be a no-op
 	// that looks like progress, so say what is here and name the command that actually helps.
 	if state.Installed && state.Agents > 0 {
-		fmt.Printf("\nagentarch is already installed here, describing %d agent(s).\n\n", state.Agents)
-		fmt.Printf("  agentarch check         the release gate\n")
-		fmt.Printf("  agentarch conformance   L1 / L2 / L3, with an expiry\n")
-		fmt.Printf("  agentarch blueprint     add another starting point\n")
-		fmt.Printf("  agentarch new agent     scaffold an empty one\n\n")
+		printNextSteps(state)
 		return exitOK
 	}
 
@@ -224,7 +220,7 @@ func cmdStart(args []string) int {
 		case fw != "" && !bp.HasFramework(fw):
 			fmt.Fprintf(os.Stderr,
 				"blueprint %s does not ship code for %q.\nIt ships: %s\n",
-				bp.Meta.ID, fw, strings.Join(bp.Meta.Frameworks, ", "))
+				bp.Meta.ID, fw, frameworkValues(bp.Meta.Frameworks))
 			return exitUsage
 		case fw == "" && len(bp.Meta.Frameworks) == 1:
 			fw = bp.Meta.Frameworks[0]
@@ -267,7 +263,7 @@ func cmdStart(args []string) int {
 		fmt.Printf("Adopting the agents that are already here.\n\n")
 	} else {
 		fmt.Printf("%s — %s\n", bp.Meta.ID, bp.Meta.Title)
-		fmt.Printf("running on %s\n\n", fw)
+		fmt.Printf("running on %s\n\n", frameworkLabel(fw))
 	}
 	fmt.Printf("  installs into   %s\n", displayRoot(*root))
 	fmt.Printf("  strictness      %s   (change it later in agentarch/agentarch.yaml)\n", *profile)
@@ -374,6 +370,33 @@ func cmdStart(args []string) int {
 		return finishStartAdopt(*root, agentIDs)
 	}
 	return finishStartNew(*root, bp, *profile, *owner != "")
+}
+
+// printNextSteps says where this directory stands and names at most four commands that move it
+// forward from here.
+//
+// It exists because the alternative was `usage()`: twenty commands and an exit 1, printed to
+// somebody who had just run `init` and had not yet made an agent. Being midway through a setup is
+// not an error, and a list of everything the tool can do is not an answer to "what now" — it is
+// the question restated in more detail.
+func printNextSteps(state projectState) {
+	switch {
+	case state.Agents > 0:
+		fmt.Printf("\nagentarch is installed here, describing %d agent(s).\n\n", state.Agents)
+		fmt.Printf("  agentarch check         the release gate\n")
+		fmt.Printf("  agentarch conformance   L1 / L2 / L3, with an expiry\n")
+		fmt.Printf("  agentarch blueprint     add another starting point\n")
+		fmt.Printf("  agentarch new agent     scaffold an empty one\n\n")
+
+	default:
+		// Installed, and describing nothing. The standard is here; there is no agent yet, and
+		// every other command has nothing to read. Only two of them help.
+		fmt.Printf("\nagentarch is installed here, and no agent is described yet.\n")
+		fmt.Printf("Every check reads a manifest, so the next step is to have one.\n\n")
+		fmt.Printf("  agentarch blueprint     start from a complete, working project\n")
+		fmt.Printf("  agentarch new agent     scaffold an empty one from the templates\n\n")
+		fmt.Printf("Then `agentarch check`. Full command list: agentarch --help --all\n\n")
+	}
 }
 
 const startBanner = `
