@@ -17,6 +17,7 @@ Paste the relevant one into the conversation, or work through it by hand.
 | `threat-model.md` | `agentarch-threat-model` |
 | `eval-bootstrap.md` | `agentarch-eval-bootstrap` |
 | `upgrade-review.md` | `agentarch-upgrade-review` |
+| `refactor.md` | `agentarch-refactor` |
 
 If a checklist and its skill ever disagree, that is a bug — `agentarch validate` reports it as
 `AA-SKL-018`.

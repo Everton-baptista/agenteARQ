@@ -1,9 +1,18 @@
 id: mcp-consumer
+order: 5
 title: Agent consuming MCP servers safely
 need: An agent that uses MCP servers I did not write
 system_type: agentic_task
 provider: anthropic
 conformance: L2
+
+# Menu text per language. Only title and need: they are what the catalogue
+# shows before somebody has chosen. description and demonstrates are read after,
+# and translating them would put an obligation on every edit to either.
+i18n:
+  pt-BR:
+    title: Cliente MCP
+    need: Usa servidores MCP que não fui eu que escrevi
 
 description: >-
   An MCP server contributes text the model treats as authoritative — tool names, descriptions, parameter documentation. Connecting one is closer to importing a dependency that can write your prompt than to configuring a client, and the protocol attaches no version to a description. This blueprint ships the allowlist that closes that gap: exact version pins, an enumerated tool list, and the SHA-256 of each description as it read at review time.

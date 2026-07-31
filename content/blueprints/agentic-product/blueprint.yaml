@@ -1,0 +1,36 @@
+id: agentic-product
+order: 1
+title: Complete agentic product
+need: A full agentic product — goal, tools, memory, approvals and observability
+system_type: agentic_task
+provider: anthropic
+conformance: L2
+
+# Menu text per language. Only title and need: they are what the catalogue
+# shows before somebody has chosen. description and demonstrates are read after,
+# and translating them would put an obligation on every edit to either.
+i18n:
+  pt-BR:
+    title: Produto agêntico completo
+    need: Agente com objetivo, ferramentas, memória, aprovações e observabilidade
+
+description: >-
+  Everything the other blueprints show one at a time, in one service — because the parts interact,
+  and the interactions are where projects come apart. Memory is the reason it exists: an agent that
+  remembers is an agent whose isolation boundary has to hold across turns, and the two failures that
+  follow are tenant leakage and a retention window nobody set.
+
+  The parts worth reading first are `app/agent/memory.py`, where every read and write is scoped by a
+  tenant the caller cannot choose and old entries expire on their own, and `app/infra/telemetry.py`,
+  where the same cost figure that enforces the budget is the one the dashboard reads. A second
+  number computed separately is a number that disagrees.
+
+frameworks: [none]
+
+demonstrates:
+  - Memory scoped to a tenant the caller cannot set, with a declared retention window
+  - The same cost figure enforcing the budget and feeding the dashboard, never computed twice
+  - An SLO declared in the manifest and measured by the code that serves the request
+  - L2 autonomy where reversible actions run alone and irreversible ones stop for a person
+  - "on_timeout: deny — an unanswered approval is not consent"
+  - "A bounded loop: max_steps, max_tool_calls and stop_conditions that the runner enforces"

@@ -1,9 +1,18 @@
 id: tool-approval
+order: 3
 title: Task agent with an irreversible action behind approval
 need: An agent that acts on my systems, with a human approving the dangerous part
 system_type: agentic_task
 provider: anthropic
 conformance: L2
+
+# Menu text per language. Only title and need: they are what the catalogue
+# shows before somebody has chosen. description and demonstrates are read after,
+# and translating them would put an obligation on every edit to either.
+i18n:
+  pt-BR:
+    title: Agente para sistemas internos
+    need: Executa ações nos meus sistemas, com aprovação humana
 
 description: >-
   Runs at L2 — it acts alone on anything reversible — while every irreversible action stops for a named approver. That combination is the whole point of the level, and the manifest is where it is declared rather than being an accident of how the code was written. The approval request shows the arguments, the effect and what happens on timeout: a dialog that says only "approve?" produces a click, not a decision.

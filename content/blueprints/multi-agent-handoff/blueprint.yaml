@@ -1,9 +1,18 @@
 id: multi-agent-handoff
+order: 7
 title: Orchestrator with specialists and a typed handoff
 need: Several agents working together without losing track of who may do what
 system_type: multi_agent
 provider: anthropic
 conformance: L2
+
+# Menu text per language. Only title and need: they are what the catalogue
+# shows before somebody has chosen. description and demonstrates are read after,
+# and translating them would put an obligation on every edit to either.
+i18n:
+  pt-BR:
+    title: Sistema multiagente
+    need: Vários agentes com papéis diferentes, sem perder de vista quem pode o quê
 
 description: >-
   An orchestrator that delegates to specialists with a typed payload, a declared authority, a return point and a timeout. Authority does not travel with the message: the receiving agent gets the tools its own manifest declares, which is what stops an orchestrator that can issue refunds from making everything it delegates to able to. The budget is shared across the system — three agents with ten steps each is a system with thirty.

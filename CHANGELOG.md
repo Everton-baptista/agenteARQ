@@ -20,7 +20,62 @@ exit 1 rather than read on a best-effort basis.
 
 ## Unreleased
 
-`cli/0.2.1` · `content/1.1.1` · `spec/1.0` gains one optional field.
+`cli/0.2.1` · `content/1.2.0` · `spec/1.0` gains one optional field.
+
+**The interview asks which language, and the answer reaches every assistant.** `--lang` existed,
+generated pt-BR instruction files, and was a flag nobody discovered — so everyone got the English
+interview and English rules without learning there was a choice. It is now the first question,
+asked in both languages because there is no chosen language yet in which to ask it, and the answer
+feeds `--lang` through to `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot and
+Windsurf. A Portuguese team's assistant reads the rules in Portuguese, whichever assistant it is.
+
+Scope stops at the interview. Gate findings, `explain` and `report` stay in English: translating
+those puts a translation obligation on every new control, and a stale translation of a rule answers
+the reader with authority using a rule that has since changed — `AA-I18N-016` in the tool rather
+than in the standards.
+
+The catalogue gained `order` and `i18n`. Sorting by the English `need` put the menu in alphabetical
+order of a sentence, which is an accident rather than a decision, and once translated the same
+catalogue reordered itself per language — so "pick the third one" meant different things to two
+people looking at the same screen.
+
+**The checklists were unreachable by the tools they were written for.** Skills install to
+`.claude/skills/`; the checklists exist so the standard does not work better in one tool than
+another, and `content/checklists/README.md` says so, naming Gemini CLI, Copilot, Codex, Grok, Kimi
+and Qwen Code. But the routing table in the core had eighteen rows and none of them pointed at
+`checklists/`, so the file every other assistant reads never mentioned they existed. The mechanism
+was built and unreachable by its own audience.
+
+Fixing it cost bytes the core did not have: eleven free on Windsurf in pt-BR, and a routing row
+costs about seventy. The remedy is the one `05-shim-rendering.md` prescribes — shrink rather than
+raise the budget. Declaring the `standards/` prefix once instead of repeating it in sixteen rows
+paid for the new row nine times over: Windsurf went from 11 bytes of headroom to 98, Copilot from
+33 to 120.
+
+**A third way in, for code that already exists.** `--adopt` describes what is there; `--refactor`
+installs the procedure for changing it. agentarch does not rewrite anybody's code — it is not a
+runtime and it stays out of the execution path — so what ships is `agentarch-refactor` as a skill
+and `checklists/refactor.md` for everything that does not load skills, and the assistant already
+reading the project carries it out.
+
+The procedure is four gates per slice: the tests pass, the gate is no worse than the baseline
+recorded before anything moved, `validate` is clean, and no secret is in the diff. It says plainly
+what it does not do — four gates catch a regression the tests cover, and catch neither a behaviour
+nobody tested nor a design that satisfies every control and still serves the user badly. A green
+gate on a broken refactor is the most expensive artifact in this standard.
+
+**A seventh blueprint, and memory is why it exists.** `agentic-product` puts the goal, the tools,
+the approvals and the observability in one service — but the part no other blueprint shows is an
+agent that remembers, because remembering is what turns isolation into a problem that spans turns.
+
+`app/agent/memory.py` prevents both failures structurally rather than carefully: every key is built
+from a frozen `Principal.tenant_id` resolved server-side, and `recall()` has no parameter for a
+tenant, so there is no argument an injected instruction could supply to read somebody else's
+conversation. Every write carries the retention from the manifest — there is no `put()` without a
+TTL — and `forget()` exists because "it expires in thirty days" is not an answer to somebody
+exercising a right to erasure. Recalled facts go into a delimited untrusted block: a fact written
+on turn 3 and recalled on turn 9 is a delayed-action injection, and memory is where invariant 2 is
+easiest to forget because memory feels like ours in a way a retrieved page does not.
 
 **CI had been red for two commits, and the second failure was hiding behind the first.** The
 `examples behave as documented` job failed on its SARIF assertion, which stopped the nineteen

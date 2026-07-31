@@ -8,8 +8,8 @@ local models — follows the same architecture rules, from a single source of tr
 
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
 >
-> 16 standards · 46 controls · 10 packs · 12 framework adapters · 6 runnable blueprints ·
-> `en` and `pt-BR`.
+> 16 standards · 46 controls · 10 packs · 12 framework adapters · 7 runnable blueprints ·
+> `en` and `pt-BR`, from the interview through to every generated instruction file.
 
 ---
 
@@ -55,6 +55,13 @@ before it starts.
 It then asks at most three questions, all of them about the software, and derives the rest:
 
 ```
+Language / Idioma
+
+  1. English
+  2. Português (Brasil)
+
+Choose / Escolha 1–2 [1]:
+
 agentarch — let's get you set up.
 
 A few questions in plain language; nothing is written until you say so.
@@ -63,32 +70,36 @@ Press Enter to take the default, or q to quit.
 Is this a new agent, or does the code already exist?
 
   1. New — start me off with a complete project that works, so I can edit it
-  2. Already built — describe what is here and tighten it up gradually
+  2. Already built — describe what is here and continue from it
+  3. Already built — refactor it to the standard, with tests and review
 
 (this directory looks empty)
-Choose 1–2 [1]:
+Choose 1–3 [1]:
 
 What are you building?
 
-  1. A chat on my website that answers customers, with a human approving the risky actions
+  1. A full agentic product — goal, tools, memory, approvals and observability
+     agentic-product — runs on no framework
+
+  2. A chat on my website that answers customers, with a human approving the risky actions
      chatbot-web — runs on no framework
 
-  2. An agent that acts on my systems, with a human approving the dangerous part
+  3. An agent that acts on my systems, with a human approving the dangerous part
      tool-approval — runs on no framework
 
-  3. An agent that answers from my documents and cites its sources
+  4. An agent that answers from my documents and cites its sources
      rag-support — runs on no framework, langgraph
 
-  4. An agent that uses MCP servers I did not write
+  5. An agent that uses MCP servers I did not write
      mcp-consumer — runs on no framework
 
-  5. Expose my agent's tools so other agents and IDEs can call them safely
+  6. Expose my agent's tools so other agents and IDEs can call them safely
      mcp-server — runs on no framework
 
-  6. Several agents working together without losing track of who may do what
+  7. Several agents working together without losing track of who may do what
      multi-agent-handoff — runs on no framework
 
-Choose 1–6 (or q to quit):
+Choose 1–7 (or q to quit):
 
 Where are the people who will use it?
 
@@ -98,6 +109,13 @@ Where are the people who will use it?
   4. Somewhere else             type the country code, e.g. US, IN, JP, NG
   5. Not decided yet
 ```
+
+**The language question comes first, and it is the only one asked in both.** The answer reaches
+every generated instruction file — `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor,
+Copilot and Windsurf — so an assistant working on a Portuguese team reads the rules in Portuguese.
+Findings from the gate stay in English: translating those would put a translation obligation on
+every new control, and a stale translation of a rule answers your question with authority using a
+rule that has since changed.
 
 Then it shows exactly what will happen, waits for a yes, and does all of it: installs the
 standard, writes a complete working project, generates the instruction files every assistant
@@ -149,6 +167,23 @@ Everything `start` does is also available one command at a time — see
 agentarch start --new --blueprint rag-support --framework none \
   --owner "Ana Silva" --jurisdictions BR --yes
 ```
+
+**If the code already exists**, the third answer installs a refactoring workflow rather than a
+project:
+
+```bash
+agentarch start --refactor --yes
+```
+
+agentarch does not rewrite your code — it installs the procedure and then checks the result. The
+refactoring is done by you, or by whichever assistant reads the project: as a skill for Claude
+Code, and as `agentarch/std/checklists/refactor.md` for Gemini CLI, Copilot, Cursor, Codex, Kimi,
+Qwen Code, a local model, or by hand.
+
+The procedure works in verifiable slices — a test for the current behaviour first, then the
+change, then the gate — and the rule it exists to enforce is that behaviour and structure never
+move in the same commit. `--adopt-baseline` records where you started and `--update-baseline`
+closes what you fixed, so the debt disappears because it was paid rather than forgiven.
 
 ### 2. Install it, once you want it around
 
@@ -377,7 +412,7 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
 |---|---|
 | **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain, service and edge |
 | **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `api.edge`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
-| **Blueprints** | `rag-support`, `tool-approval`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff`, `chatbot-web` — each a complete FastAPI service with tests, evals, Dockerfile and deploy guides; `chatbot-web` adds a browser chat UI, `mcp-server` exposes tools to other agents |
+| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
 | **Adapters** | LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Agno, Vercel AI SDK, FastAPI, and no framework at all |
 | **Generated for** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot, Windsurf, `.mcp.json` |
 

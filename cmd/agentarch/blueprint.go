@@ -300,7 +300,7 @@ func confirm(prompt string) bool {
 // changes only where it is read by somebody.
 func frameworkLabel(f string) string {
 	if f == "none" {
-		return "no framework"
+		return t("framework.label.none")
 	}
 	return f
 }
@@ -333,16 +333,16 @@ func frameworkValues(fs []string) string {
 func chooseBlueprint(bps []blueprint.Blueprint) (blueprint.Blueprint, int) {
 	ordered := blueprint.ByNeed(bps)
 
-	fmt.Printf("\nWhat are you building?\n\n")
+	fmt.Printf("\n%s\n\n", t("blueprint.question"))
 	for i, b := range ordered {
-		fmt.Printf("  %d. %s\n", i+1, b.Meta.Need)
-		fmt.Printf("     %s — runs on %s\n\n", b.Meta.ID, frameworkLabels(b.Meta.Frameworks))
+		fmt.Printf("  %d. %s\n", i+1, blueprintNeed(b))
+		fmt.Printf("     %s — %s\n\n", b.Meta.ID, tf("blueprint.runson", frameworkLabels(b.Meta.Frameworks)))
 	}
 
 	for attempt := 0; attempt < 3; attempt++ {
-		in := ask(fmt.Sprintf("Choose 1–%d (or q to quit): ", len(ordered)))
-		if in == "q" || in == "" {
-			fmt.Println("nothing written")
+		in := ask(tf("blueprint.prompt", len(ordered)))
+		if in == "q" || in == "" || in == "sair" {
+			fmt.Println(t("plan.nothing"))
 			return blueprint.Blueprint{}, exitOK
 		}
 		n, err := strconv.Atoi(in)
@@ -353,25 +353,25 @@ func chooseBlueprint(bps []blueprint.Blueprint) (blueprint.Blueprint, int) {
 		if b, ok := blueprint.Find(bps, in); ok {
 			return b, exitOK
 		}
-		fmt.Fprintf(os.Stderr, "  not a choice on the list\n")
+		fmt.Fprintln(os.Stderr, t("common.notanoption"))
 	}
-	fmt.Fprintln(os.Stderr, "giving up after three tries; nothing written")
+	fmt.Fprintln(os.Stderr, t("common.givingup"))
 	return blueprint.Blueprint{}, exitUsage
 }
 
 func chooseFramework(b blueprint.Blueprint) (string, int) {
-	fmt.Printf("\nThis blueprint ships runnable code for:\n\n")
+	fmt.Printf("\n%s\n\n", t("framework.question"))
 	for i, f := range b.Meta.Frameworks {
 		note := ""
 		if f == "none" {
-			note = "  (the provider SDK directly)"
+			note = "  " + t("framework.none")
 		}
 		fmt.Printf("  %d. %s%s\n", i+1, frameworkLabel(f), note)
 	}
 	fmt.Println()
 
 	for attempt := 0; attempt < 3; attempt++ {
-		in := ask(fmt.Sprintf("Choose 1–%d [1]: ", len(b.Meta.Frameworks)))
+		in := ask(tf("framework.prompt", len(b.Meta.Frameworks)))
 		if in == "" {
 			return b.Meta.Frameworks[0], exitOK
 		}
@@ -386,7 +386,7 @@ func chooseFramework(b blueprint.Blueprint) (string, int) {
 		if b.HasFramework(in) {
 			return in, exitOK
 		}
-		fmt.Fprintln(os.Stderr, "  not one of the options")
+		fmt.Fprintln(os.Stderr, t("common.notanoption"))
 	}
 	return "", exitUsage
 }

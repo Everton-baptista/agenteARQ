@@ -1,9 +1,18 @@
 id: chatbot-web
+order: 2
 title: Customer-facing web chat with human approval in the browser
 need: A chat on my website that answers customers, with a human approving the risky actions
 system_type: generative_rag
 provider: anthropic
 conformance: L2
+
+# Menu text per language. Only title and need: they are what the catalogue
+# shows before somebody has chosen. description and demonstrates are read after,
+# and translating them would put an obligation on every edit to either.
+i18n:
+  pt-BR:
+    title: Chat no site
+    need: Responde clientes no site e encaminha os casos complexos
 
 description: >-
   A governed chat agent with its own web page. The browser talks only to the service — never to

@@ -118,13 +118,17 @@ func cmdStart(args []string) int {
 	// script — a setup path that only exists interactively cannot be tested or automated.
 	newProject := fs_.Bool("new", false, "skip the first question: this is a new agent")
 	adopt := fs_.Bool("adopt", false, "skip the first question: the code already exists")
+	refactorFlag := fs_.Bool("refactor", false, "adopt, and install the refactoring workflow")
 	bpID := fs_.String("blueprint", "", "which starting point to install")
 	framework := fs_.String("framework", "", "which runnable code to write")
 	jurisdictions := fs_.String("jurisdictions", "", "comma-separated, e.g. EU,BR")
 	owner := fs_.String("owner", "", "the person accountable for the agent")
 	contact := fs_.String("contact", "", "how to reach them")
 	profile := fs_.String("profile", "standard", "minimal, standard or regulated")
-	lang := fs_.String("lang", "en", "language of the generated instruction files")
+	// Named langFlag, not lang: `lang` is the package variable the catalogue reads, and a local
+	// shadowing it would leave the interview speaking English while the files came out
+	// translated — the two would silently disagree about what was chosen.
+	langFlag := fs_.String("lang", SourceLang, "language of the interview and the generated files")
 	yes := fs_.Bool("yes", false, "do not ask before writing")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
@@ -156,25 +160,50 @@ func cmdStart(args []string) int {
 		return exitOK
 	}
 
+	// ---- Question 0: which language.
+	//
+	// It comes before the greeting, because a greeting has to be written in some language and
+	// picking one before asking is how a tool tells somebody it was not built for them. The
+	// answer is the same value --lang takes, so it reaches the generated instruction files —
+	// every one of them, for every assistant, not just the one that happens to be running.
+	switch {
+	case !knownLanguage(*langFlag):
+		fmt.Fprintf(os.Stderr, "--lang %q is not a language the interview speaks (%s)\n",
+			*langFlag, strings.Join(languageCodes(), ", "))
+		return exitUsage
+	case langSet(fs_):
+		// Passed explicitly: honour it and do not ask.
+		lang = *langFlag
+	case interactive:
+		chosen, quit := askLanguage()
+		if quit {
+			return exitOK
+		}
+		lang = chosen
+		*langFlag = chosen
+	}
+
 	// Only greet somebody who is there. A script driving this by flags gets the plan and the
 	// result; an invitation to press Enter is noise in a CI log.
 	if interactive {
-		fmt.Print(startBanner)
+		fmt.Printf("\n%s\n\n%s\n", t("banner.title"), t("banner.body"))
 	}
 
 	// ---- Question 1: is the code already written?
-	adoptPath := *adopt
-	if !*adopt && !*newProject {
+	adoptPath := *adopt || *refactorFlag
+	refactorPath := *refactorFlag
+	if !adoptPath && !*newProject {
 		if !interactive {
 			fmt.Fprintln(os.Stderr,
 				"not a terminal, so there is nobody to ask.\n"+
-					"Pass --new --blueprint <id>, or --adopt for a project that already has agents.\n"+
+					"Pass --new --blueprint <id>, --adopt for a project that already has agents,\n"+
+					"or --refactor to adopt and install the refactoring workflow.\n"+
 					"Run `agentarch blueprint list` to see the ids.")
 			return exitUsage
 		}
 		var quit bool
 		var code int
-		if adoptPath, quit, code = askExisting(state); quit || code != exitOK {
+		if adoptPath, refactorPath, quit, code = askExisting(state); quit || code != exitOK {
 			return code
 		}
 	}
@@ -259,23 +288,26 @@ func cmdStart(args []string) int {
 
 	// ---- What will happen. Nothing has touched disk yet.
 	fmt.Printf("\n%s\n\n", strings.Repeat("─", 60))
-	if adoptPath {
-		fmt.Printf("Adopting the agents that are already here.\n\n")
-	} else {
-		fmt.Printf("%s — %s\n", bp.Meta.ID, bp.Meta.Title)
-		fmt.Printf("running on %s\n\n", frameworkLabel(fw))
+	switch {
+	case refactorPath:
+		fmt.Printf("%s\n\n", t("plan.refactoring"))
+	case adoptPath:
+		fmt.Printf("%s\n\n", t("plan.adopting"))
+	default:
+		fmt.Printf("%s — %s\n", bp.Meta.ID, blueprintTitle(bp))
+		fmt.Printf("%s\n\n", tf("plan.runningon", frameworkLabel(fw)))
 	}
-	fmt.Printf("  installs into   %s\n", displayRoot(*root))
-	fmt.Printf("  strictness      %s   (change it later in agentarch/agentarch.yaml)\n", *profile)
+	fmt.Printf("  %-15s %s\n", t("plan.installsinto"), displayRoot(*root))
+	fmt.Printf("  %-15s %s   %s\n", t("plan.strictness"), *profile, t("plan.strictness.note"))
 	// Shown only when passed, because only then is it written. Anything that lands in a manifest
 	// without being displayed is a value nobody re-examines.
 	if *owner != "" {
-		fmt.Printf("  accountable     %s\n", *owner)
+		fmt.Printf("  %-15s %s\n", t("plan.accountable"), *owner)
 	}
 	if *contact != "" {
-		fmt.Printf("  contact         %s\n", *contact)
+		fmt.Printf("  %-15s %s\n", t("plan.contact"), *contact)
 	}
-	fmt.Printf("  regulation      %s\n", describeJurisdictions(juris))
+	fmt.Printf("  %-15s %s\n", t("plan.regulation"), describeJurisdictions(juris))
 	if state.Installed {
 		// init never overwrites an existing agentarch.yaml, which is the right behaviour and the
 		// wrong surprise: the answers still reach the manifests, where the reg.* packs resolve
@@ -292,7 +324,7 @@ func cmdStart(args []string) int {
 			fmt.Fprintln(os.Stderr, "start:", err)
 			return exitUsage
 		}
-		fmt.Printf("  writes          %d file(s), including runnable code under app/\n", len(plan.Files))
+		fmt.Printf("  %-15s %s\n", t("plan.writes"), tf("plan.writes.files", len(plan.Files)))
 
 		if len(plan.Conflicts) > 0 {
 			fmt.Fprintf(os.Stderr, "\n%d file(s) already exist here and would be overwritten:\n\n", len(plan.Conflicts))
@@ -310,8 +342,8 @@ func cmdStart(args []string) int {
 			fmt.Fprintln(os.Stderr, "\nNothing written. Re-run with --yes.")
 			return exitUsage
 		}
-		if !confirm("\nGo ahead?") {
-			fmt.Println("nothing written")
+		if !confirm(t("plan.confirm")) {
+			fmt.Println(t("plan.nothing"))
 			return exitOK
 		}
 	}
@@ -321,7 +353,7 @@ func cmdStart(args []string) int {
 	defer func() { insideStart = false }()
 
 	fmt.Println()
-	initArgs := []string{"--root", *root, "--profile", *profile, "--lang", *lang}
+	initArgs := []string{"--root", *root, "--profile", *profile, "--lang", *langFlag}
 	if juris != "" {
 		initArgs = append(initArgs, "--jurisdictions", juris)
 	}
@@ -349,7 +381,7 @@ func cmdStart(args []string) int {
 			return exitUsage
 		}
 		fmt.Printf("wrote %d file(s) from %s\n", len(plan.Files), bp.Meta.ID)
-		if code := cmdSync([]string{"--root", *root, "--lang", *lang}); code != exitOK {
+		if code := cmdSync([]string{"--root", *root, "--lang", *langFlag}); code != exitOK {
 			fmt.Fprintln(os.Stderr, "start: installed, but sync failed — run `agentarch sync`")
 		}
 	}
@@ -367,7 +399,7 @@ func cmdStart(args []string) int {
 	// ---- Show where it stands, from the tool itself rather than from a promise in this output.
 	fmt.Printf("\n%s\n", strings.Repeat("─", 60))
 	if adoptPath {
-		return finishStartAdopt(*root, agentIDs)
+		return finishStartAdopt(*root, agentIDs, refactorPath)
 	}
 	return finishStartNew(*root, bp, *profile, *owner != "")
 }
@@ -399,6 +431,8 @@ func printNextSteps(state projectState) {
 	}
 }
 
+// startBanner is kept only for the tests that assert the old wording; the interview reads the
+// catalogue now.
 const startBanner = `
 agentarch — let's get you set up.
 
@@ -410,36 +444,41 @@ Press Enter to take the default, or q to quit.
 // exit code. The middle value is not decoration: without it, quitting at the first question fell
 // through into the rest of the interview, because "not adopting" and "not continuing" are the
 // same bool.
-func askExisting(state projectState) (adopt, quit bool, code int) {
+func askExisting(state projectState) (adopt, refactor, quit bool, code int) {
 	def := 1
-	hint := "this directory looks empty"
+	hint := t("existing.hint.empty")
 	if state.HasCode {
 		def = 2
-		hint = "there is already code here"
+		hint = t("existing.hint.hascode")
 	}
 
-	fmt.Printf("\nIs this a new agent, or does the code already exist?\n\n")
-	fmt.Printf("  1. New — start me off with a complete project that works, so I can edit it\n")
-	fmt.Printf("  2. Already built — describe what is here and tighten it up gradually\n\n")
+	fmt.Printf("\n%s\n\n", t("existing.question"))
+	fmt.Printf("  1. %s\n", t("existing.new"))
+	fmt.Printf("  2. %s\n", t("existing.adopt"))
+	fmt.Printf("  3. %s\n\n", t("existing.refactor"))
 	fmt.Printf("(%s)\n", hint)
 
 	for attempt := 0; attempt < 3; attempt++ {
-		in := ask(fmt.Sprintf("Choose 1–2 [%d]: ", def))
+		in := ask(tf("existing.prompt", def))
 		switch strings.ToLower(in) {
 		case "":
-			return def == 2, false, exitOK
-		case "1", "new":
-			return false, false, exitOK
-		case "2", "existing", "adopt":
-			return true, false, exitOK
-		case "q", "quit":
-			fmt.Println("nothing written")
-			return false, true, exitOK
+			return def == 2, false, false, exitOK
+		case "1", "new", "novo":
+			return false, false, false, exitOK
+		case "2", "existing", "adopt", "existe", "continuar":
+			return true, false, false, exitOK
+		case "3", "refactor", "refatorar":
+			// Adoption and refactoring share a path: both describe what is already here.
+			// They differ in what is installed afterwards, so both bools are set.
+			return true, true, false, exitOK
+		case "q", "quit", "sair":
+			fmt.Println(t("plan.nothing"))
+			return false, false, true, exitOK
 		}
-		fmt.Fprintln(os.Stderr, "  not one of the options")
+		fmt.Fprintln(os.Stderr, t("common.notanoption"))
 	}
-	fmt.Fprintln(os.Stderr, "giving up after three tries; nothing written")
-	return false, true, exitUsage
+	fmt.Fprintln(os.Stderr, t("common.givingup"))
+	return false, false, true, exitUsage
 }
 
 // askJurisdictions asks where the users are and returns what --jurisdictions wants.
@@ -455,38 +494,36 @@ func askJurisdictions() (juris string, quit bool) {
 	// A menu that offers a person in Austin, Lagos or Tokyo nothing but "somewhere else" tells
 	// them the tool is not for them, which is the regional-bias failure the design set out to
 	// avoid.
-	fmt.Printf("\nWhere are the people who will use it?\n\n")
-	fmt.Printf("  1. Brazil                     brings the LGPD rules in\n")
-	fmt.Printf("  2. Europe                     brings GDPR and the EU AI Act in\n")
-	fmt.Printf("  3. Both\n")
-	fmt.Printf("  4. Somewhere else             type the country code, e.g. US, IN, JP, NG\n")
-	fmt.Printf("  5. Not decided yet\n\n")
-	fmt.Printf("Only Brazil and Europe have legal packs written so far. Declaring any other\n")
-	fmt.Printf("country costs nothing today and starts applying the day its pack exists —\n")
-	fmt.Printf("the standards themselves are the same everywhere.\n\n")
+	fmt.Printf("\n%s\n\n", t("juris.question"))
+	fmt.Printf("  1. %-26s %s\n", t("juris.brazil"), t("juris.brazil.note"))
+	fmt.Printf("  2. %-26s %s\n", t("juris.europe"), t("juris.europe.note"))
+	fmt.Printf("  3. %s\n", t("juris.both"))
+	fmt.Printf("  4. %-26s %s\n", t("juris.other"), t("juris.other.note"))
+	fmt.Printf("  5. %s\n\n", t("juris.undecided"))
+	fmt.Printf("%s\n\n", t("juris.explain"))
 
 	for attempt := 0; attempt < 3; attempt++ {
-		in := ask("Choose, or type country codes [5]: ")
+		in := ask(t("juris.prompt"))
 		switch strings.ToLower(in) {
 		case "1", "brazil", "brasil":
 			return "BR", false
 		case "2", "europe", "europa":
 			return "EU", false
-		case "3", "both":
+		case "3", "both", "ambos":
 			return "EU,BR", false
 		case "", "5":
 			return "", false
-		case "q", "quit":
-			fmt.Println("nothing written")
+		case "q", "quit", "sair":
+			fmt.Println(t("plan.nothing"))
 			return "", true
 		case "4":
-			fmt.Fprintln(os.Stderr, "  type the code itself, e.g. US — or US,CA for more than one")
+			fmt.Fprintln(os.Stderr, t("juris.typecode"))
 			continue
 		}
 		if codes, ok := parseJurisdictions(in); ok {
 			return codes, false
 		}
-		fmt.Fprintln(os.Stderr, "  not an option, and not a two-letter country code")
+		fmt.Fprintln(os.Stderr, t("juris.notacode"))
 	}
 	return "", false
 }
@@ -695,11 +732,45 @@ match: `+"`agentarch check`"+` is what tells you when the two disagree.
 	return exitOK
 }
 
-func finishStartAdopt(root string, ids []string) int {
+func finishStartAdopt(root string, ids []string, refactor bool) int {
 	id := "your-agent"
 	if len(ids) > 0 {
 		id = ids[0]
 	}
+
+	if refactor {
+		// The tool does not rewrite the code. It installs the procedure, and the assistant
+		// already reading this project's instruction files carries it out — which is why the
+		// checklist matters as much as the skill: the skill reaches Claude, and the checklist
+		// reaches everything else.
+		fmt.Printf(`
+Done. agentarch is installed, there is a manifest describing what is here,
+and the refactoring workflow is in place.
+
+agentarch does not rewrite your code. It installs the procedure and then
+checks the result — the refactoring itself is done by you, or by whichever
+assistant reads this project:
+
+  agentarch/std/checklists/refactor.md      any assistant, any IDE, or by hand
+  .claude/skills/agentarch-refactor/        loaded automatically by Claude Code
+
+Start here, in this order:
+
+  1. agentarch check --profile standard --adopt-baseline
+     Records today's failures. Without a number to start from there is no
+     way to prove later that anything improved.
+  2. Open the checklist, or ask your assistant to refactor to the standard.
+     It works in verifiable slices: a test for the current behaviour first,
+     then the change, then the gate.
+  3. agentarch check --profile standard --update-baseline
+     Closes what you fixed. The ratchet only turns one way.
+
+The rule the whole procedure enforces: never change behaviour and structure
+in the same commit.
+`)
+		return exitOK
+	}
+
 	fmt.Printf(`
 Done. agentarch is installed and there is a manifest describing what is
 here — with everything the scan could not determine left as "unknown".

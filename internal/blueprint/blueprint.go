@@ -35,6 +35,41 @@ type Meta struct {
 	Frameworks  []string `yaml:"frameworks" json:"frameworks"`
 	Provider    string   `yaml:"provider" json:"provider"`
 	Conformance string   `yaml:"conformance" json:"conformance"`
+	// Order is where this sits in the catalogue a person reads.
+	//
+	// Sorting by `need` put the menu in alphabetical order of an English sentence, which is an
+	// accident rather than a decision — and once `need` is translated, the same catalogue
+	// reorders itself per language, so the third option in Portuguese is not the third option
+	// in English. An explicit number makes the order something somebody chose.
+	Order int `yaml:"order" json:"order"`
+	// I18n carries `title` and `need` in every other language the catalogue speaks. Only those
+	// two: they are what the menu shows. `description` and `demonstrates` are read after
+	// somebody has already chosen, and translating them would put a translation obligation on
+	// every edit to either.
+	I18n map[string]Translation `yaml:"i18n" json:"i18n,omitempty"`
+}
+
+// Translation is the menu text for one language.
+type Translation struct {
+	Title string `yaml:"title" json:"title"`
+	Need  string `yaml:"need" json:"need"`
+}
+
+// TitleIn returns the title in a language, falling back to the source text. A blueprint with no
+// translation shows its English name rather than a blank line.
+func (m Meta) TitleIn(lang string) string {
+	if tr, ok := m.I18n[lang]; ok && tr.Title != "" {
+		return tr.Title
+	}
+	return m.Title
+}
+
+// NeedIn returns the sentence someone recognises themselves in, in a language.
+func (m Meta) NeedIn(lang string) string {
+	if tr, ok := m.I18n[lang]; ok && tr.Need != "" {
+		return tr.Need
+	}
+	return m.Need
 }
 
 // Blueprint is a loaded catalogue entry.
@@ -242,6 +277,21 @@ func merged(existing string, incoming []byte) ([]byte, error) {
 // what they are trying to build.
 func ByNeed(bps []Blueprint) []Blueprint {
 	out := append([]Blueprint(nil), bps...)
-	sort.Slice(out, func(i, j int) bool { return out[i].Meta.Need < out[j].Meta.Need })
+	sort.Slice(out, func(i, j int) bool {
+		// Declared order first. A blueprint with no `order` sorts last rather than first, so
+		// forgetting the field is visible at the bottom of the menu instead of silently
+		// promoting the newest entry to the top.
+		oi, oj := out[i].Meta.Order, out[j].Meta.Order
+		if oi == 0 {
+			oi = 1 << 30
+		}
+		if oj == 0 {
+			oj = 1 << 30
+		}
+		if oi != oj {
+			return oi < oj
+		}
+		return out[i].Meta.Need < out[j].Meta.Need
+	})
 	return out
 }

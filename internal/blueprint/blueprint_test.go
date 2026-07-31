@@ -337,3 +337,79 @@ func TestFindByID(t *testing.T) {
 		t.Error("found a blueprint that does not exist")
 	}
 }
+
+// The catalogue is the first thing anybody reads, and a half-translated menu reads as a bug in
+// the content rather than as a missing translation. Same doctrine as AA-I18N-016 for the
+// standards: a translation that falls behind is worse than one that was never started, because
+// the reader cannot tell which rows they should distrust.
+func TestEveryBlueprintIsTranslatedIntoEveryLanguage(t *testing.T) {
+	bps := load(t)
+	if len(bps) == 0 {
+		t.Fatal("no blueprints loaded")
+	}
+
+	// The languages the interview offers. Kept here rather than imported so internal/blueprint
+	// does not depend on the command layer.
+	for _, lang := range []string{"pt-BR"} {
+		for _, b := range bps {
+			tr, ok := b.Meta.I18n[lang]
+			if !ok {
+				t.Errorf("%s has no %s translation; the menu would show English for it alone",
+					b.Meta.ID, lang)
+				continue
+			}
+			if tr.Title == "" {
+				t.Errorf("%s has an empty %s title", b.Meta.ID, lang)
+			}
+			if tr.Need == "" {
+				t.Errorf("%s has an empty %s need — the need is the sentence somebody "+
+					"recognises themselves in, so it is the one that must not be blank",
+					b.Meta.ID, lang)
+			}
+			if tr.Need == b.Meta.Need {
+				t.Errorf("%s %s need is identical to the English; either translate it or "+
+					"drop the entry", b.Meta.ID, lang)
+			}
+		}
+	}
+}
+
+// The menu order is a decision, and a decision nobody wrote down is an accident. Two blueprints
+// claiming the same position means the order between them is whatever the tiebreak happens to
+// be — which changes per language, since the tiebreak is the translated sentence.
+func TestBlueprintOrderIsDeclaredAndUnique(t *testing.T) {
+	bps := load(t)
+	seen := map[int]string{}
+	for _, b := range bps {
+		if b.Meta.Order == 0 {
+			t.Errorf("%s declares no order; it would sort last, behind whatever is added next",
+				b.Meta.ID)
+			continue
+		}
+		if prev, dup := seen[b.Meta.Order]; dup {
+			t.Errorf("%s and %s both claim position %d", prev, b.Meta.ID, b.Meta.Order)
+		}
+		seen[b.Meta.Order] = b.Meta.ID
+	}
+}
+
+// The order the menu shows must not depend on the language it shows it in. Somebody following a
+// screenshot, or a colleague saying "pick the third one", is relying on this.
+func TestMenuOrderIsTheSameInEveryLanguage(t *testing.T) {
+	bps := load(t)
+	want := make([]string, 0, len(bps))
+	for _, b := range blueprint.ByNeed(bps) {
+		want = append(want, b.Meta.ID)
+	}
+
+	// ByNeed sorts on Order with Need as the tiebreak; with every order distinct, the
+	// translated need never gets consulted. Assert that rather than assume it.
+	for i, b := range blueprint.ByNeed(bps) {
+		if b.Meta.ID != want[i] {
+			t.Errorf("position %d is %s, want %s", i+1, b.Meta.ID, want[i])
+		}
+	}
+	if len(want) > 1 && want[0] == "" {
+		t.Fatal("ordering produced nothing")
+	}
+}

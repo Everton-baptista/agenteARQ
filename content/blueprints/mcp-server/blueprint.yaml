@@ -1,9 +1,18 @@
 id: mcp-server
+order: 6
 title: Governed tools exposed to other agents over MCP
 need: Expose my agent's tools so other agents and IDEs can call them safely
 system_type: agentic_task
 provider: anthropic
 conformance: L2
+
+# Menu text per language. Only title and need: they are what the catalogue
+# shows before somebody has chosen. description and demonstrates are read after,
+# and translating them would put an obligation on every edit to either.
+i18n:
+  pt-BR:
+    title: Servidor MCP
+    need: Expõe minhas ferramentas para outros agentes e IDEs com segurança
 
 description: >-
   The mirror image of mcp-consumer: this agent is the one being called. Its tools are served
