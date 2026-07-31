@@ -9,6 +9,7 @@ local models — follows the same architecture rules, from a single source of tr
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
 >
 > 16 standards · 46 controls · 10 packs · 12 framework adapters · 7 runnable blueprints ·
+> Agno (ex-Phidata) como framework padrão · AWS Bedrock, Anthropic, OpenAI e Google ·
 > `en` and `pt-BR`, from the interview through to every generated instruction file.
 
 ---
@@ -79,25 +80,25 @@ Choose 1–3 [1]:
 What are you building?
 
   1. A full agentic product — goal, tools, memory, approvals and observability
-     agentic-product — runs on no framework
+     agentic-product — runs on Agno, Python Native
 
   2. A chat on my website that answers customers, with a human approving the risky actions
-     chatbot-web — runs on no framework
+     chatbot-web — runs on Agno, Python Native
 
   3. An agent that acts on my systems, with a human approving the dangerous part
-     tool-approval — runs on no framework
+     tool-approval — runs on Agno, Python Native
 
   4. An agent that answers from my documents and cites its sources
-     rag-support — runs on no framework, langgraph
+     rag-support — runs on Agno, Python Native, langgraph
 
   5. An agent that uses MCP servers I did not write
-     mcp-consumer — runs on no framework
+     mcp-consumer — runs on Agno, Python Native
 
   6. Expose my agent's tools so other agents and IDEs can call them safely
-     mcp-server — runs on no framework
+     mcp-server — runs on Agno, Python Native
 
   7. Several agents working together without losing track of who may do what
-     multi-agent-handoff — runs on no framework
+     multi-agent-handoff — runs on Agno, Python Native
 
 Choose 1–7 (or q to quit):
 
@@ -106,12 +107,13 @@ Which model provider will it call?
   1. Anthropic (Claude)     claude-sonnet-4-5-20250929
   2. OpenAI (GPT)           gpt-5.6-terra
   3. Google (Gemini)        gemini-3.6-flash
+  4. AWS Bedrock (Nova/Claude)  amazon.nova-micro-v1:0
 
-All three are wired up already — the agent code is the same either way,
+All four are wired up already — the agent code is the same either way,
 and only the manifest and one pinned SDK change. The model id is pinned
 rather than left as an alias, so an upgrade is something you decide.
 
-Choose 1–3 [1]:
+Choose 1–4 [1]:
 
 Where are the people who will use it?
 
@@ -182,8 +184,8 @@ Everything `start` does is also available one command at a time — see
 [the manual route](#the-manual-route) below. And in a script or CI, where there is nobody to ask:
 
 ```bash
-agentarch start --new --blueprint rag-support --framework none \
-  --owner "Ana Silva" --jurisdictions BR --yes
+agentarch start --new --blueprint rag-support --framework agno \
+  --provider bedrock --owner "Ana Silva" --jurisdictions BR --yes
 ```
 
 **If the code already exists**, the third answer installs a refactoring workflow rather than a
@@ -251,7 +253,7 @@ verification command, and the installer prints it too.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r app/requirements.txt
-export ANTHROPIC_API_KEY=...
+export AWS_BEARER_TOKEN_BEDROCK_API_KEY=...   # or ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.
 
 python -m app.cli "where is my order BR-77120?"
 ```
@@ -320,7 +322,7 @@ scripting, adding a second agent, or want to see each step:
 agentarch init --profile standard --jurisdictions BR   # install the standard
 agentarch blueprint list                              # what starting points exist
 agentarch blueprint show rag-support                   # what one demonstrates
-agentarch blueprint add rag-support --framework none --yes
+agentarch blueprint add rag-support --framework agno --yes
 agentarch sync                                        # regenerate the instruction files
 ```
 
@@ -430,8 +432,9 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
 |---|---|
 | **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain, service and edge |
 | **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `api.edge`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
-| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
-| **Adapters** | LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Agno, Vercel AI SDK, FastAPI, and no framework at all |
+| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with Agno as default framework, tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
+| **Adapters** | **Agno (ex-Phidata)** (default), LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Vercel AI SDK, FastAPI, and Python Native (Clean Architecture / Seam Pattern) |
+| **Providers** | Anthropic (Claude), OpenAI (GPT), Google (Gemini), **AWS Bedrock** (Amazon Nova / Claude via Converse API) |
 | **Generated for** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot, Windsurf, `.mcp.json` |
 
 ## Conformance
