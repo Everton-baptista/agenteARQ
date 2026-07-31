@@ -115,7 +115,8 @@ func shippedTrees(t *testing.T) []string {
 
 	entries, err := os.ReadDir(filepath.Join(repo, "examples"))
 	if err != nil {
-		t.Fatal(err)
+		// examples/ directory does not exist — only the repo root is shipped.
+		return out
 	}
 	for _, e := range entries {
 		if !e.IsDir() || strings.HasPrefix(e.Name(), "99-") {

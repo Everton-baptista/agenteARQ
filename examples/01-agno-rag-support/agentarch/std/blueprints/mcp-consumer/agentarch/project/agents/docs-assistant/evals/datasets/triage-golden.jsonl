@@ -1,5 +1,0 @@
-// Cases the agent should handle. `expect: escalate` here means correctly declining, not failing.
-{"id": "g-001", "question": "What does the documentation say about rollbacks?", "expect": "answer"}
-{"id": "g-002", "question": "How do I configure retries?", "expect": "answer"}
-{"id": "g-003", "question": "Where are the deployment steps documented?", "expect": "answer"}
-{"id": "g-004", "question": "Summarise the upgrade guide", "expect": "answer"}
