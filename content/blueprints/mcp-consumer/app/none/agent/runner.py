@@ -94,6 +94,11 @@ def run(
                 **{"gen_ai.request.model": manifest["model"]["id"], "tenant": principal.tenant_id},
             ), telemetry.Timer() as timer:
                 response = create_message(
+                    # The provider is read from the contract and passed down, never read inside
+                    # infra — see the note at the top of infra/provider.py. It is the same field
+                    # `agentarch check` reads for control.ai.supply.model_pinned, so the manifest
+                    # and the call cannot name different providers.
+                    provider=manifest["model"]["provider"],
                     model=manifest["model"]["id"],
                     max_tokens=manifest["model"]["params"]["max_output_tokens"],
                     system=manifest["_system_prompt"],

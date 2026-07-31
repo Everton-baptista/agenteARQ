@@ -34,7 +34,9 @@ app/
     retrieval.py   retrieval and the untrusted block
     manifest.py    loads the contract and verifies the prompt hash
   domain/    business logic. No LLM, no HTTP.
-  infra/     provider client, secrets, storage, telemetry, resilience
+  infra/     secrets, storage, telemetry, resilience
+    provider.py    the provider seam — one call shape, three providers behind it
+    providers/     one module each: anthropic, openai, google
   cli.py     the same agent with no web server — proof the layers hold
 ```
 
@@ -42,6 +44,25 @@ app/
 queue worker or the CLI, and it is checked as `control.ai.api.core_transport_separated`. The drift it
 prevents is gradual and always locally reasonable: a handler needs one header, so the runner imports
 the request, and a few weeks later the agent only runs inside a web server.
+
+## Switching provider
+
+`model.provider` in the manifest decides which SDK is called, and the agent code does not change
+when it changes. Three files have to agree, and `agentarch start --provider <id>` writes all three:
+
+| | what it says |
+|---|---|
+| `agentarch/project/agents/*/agent.yaml` | `model.provider` and a pinned `model.id` |
+| `app/requirements.txt` | the one pinned provider SDK, on the marked line |
+| `.env` | the matching credential — `.env.example` names all three |
+
+Doing it by hand means changing them together. `app/infra/providers/` imports lazily, so a manifest
+that names a provider whose SDK is not installed fails at the first model call rather than at
+startup — with a message naming the package to install.
+
+What each provider module translates is exactly two things: how a tool is declared, and how the
+response is read. `app/tests/test_provider.py` pins both down without a network call or a
+credential, which is why those tests still run in a clone with no keys in it.
 
 ## Run it
 

@@ -170,6 +170,13 @@ var catalog = map[string]map[string]string{
 		"framework.label.none": "no framework",
 		"framework.prompt":     "Choose 1–%d [1]: ",
 
+		// ---- question: which model provider
+		"provider.question": "Which model provider will it call?",
+		"provider.explain": "All three are wired up already — the agent code is the same either way,\n" +
+			"and only the manifest and one pinned SDK change. The model id is pinned\n" +
+			"rather than left as an alias, so an upgrade is something you decide.",
+		"provider.prompt": "Choose 1–%d [1]: ",
+
 		// ---- question: where are the users
 		"juris.question":    "Where are the people who will use it?",
 		"juris.brazil":      "Brazil",
@@ -194,6 +201,7 @@ var catalog = map[string]map[string]string{
 		"plan.installsinto":    "installs into",
 		"plan.strictness":      "strictness",
 		"plan.strictness.note": "(change it later in agentarch/agentarch.yaml)",
+		"plan.provider":        "model",
 		"plan.accountable":     "accountable",
 		"plan.contact":         "contact",
 		"plan.regulation":      "regulation",
@@ -229,6 +237,12 @@ var catalog = map[string]map[string]string{
 		"framework.label.none": "sem framework",
 		"framework.prompt":     "Escolha 1–%d [1]: ",
 
+		"provider.question": "Qual provedor de modelo ele vai chamar?",
+		"provider.explain": "Os três já estão prontos — o código do agente é o mesmo em qualquer um,\n" +
+			"e só mudam o manifesto e um SDK fixado. O id do modelo é fixado em vez de\n" +
+			"ficar num alias, para que atualizar seja uma decisão sua.",
+		"provider.prompt": "Escolha 1–%d [1]: ",
+
 		"juris.question":    "Onde seu projeto vai ser usado?",
 		"juris.brazil":      "Brasil",
 		"juris.brazil.note": "traz as regras da LGPD",
@@ -251,6 +265,7 @@ var catalog = map[string]map[string]string{
 		"plan.installsinto":    "instala em",
 		"plan.strictness":      "rigor",
 		"plan.strictness.note": "(mude depois em agentarch/agentarch.yaml)",
+		"plan.provider":        "modelo",
 		"plan.accountable":     "responsável",
 		"plan.contact":         "contato",
 		"plan.regulation":      "regulação",

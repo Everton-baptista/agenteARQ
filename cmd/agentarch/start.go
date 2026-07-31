@@ -121,6 +121,7 @@ func cmdStart(args []string) int {
 	refactorFlag := fs_.Bool("refactor", false, "adopt, and install the refactoring workflow")
 	bpID := fs_.String("blueprint", "", "which starting point to install")
 	framework := fs_.String("framework", "", "which runnable code to write")
+	providerFlag := fs_.String("provider", "", "model provider: "+strings.Join(providerIDs(), ", "))
 	jurisdictions := fs_.String("jurisdictions", "", "comma-separated, e.g. EU,BR")
 	owner := fs_.String("owner", "", "the person accountable for the agent")
 	contact := fs_.String("contact", "", "how to reach them")
@@ -211,6 +212,7 @@ func cmdStart(args []string) int {
 	// ---- Question 2 and 3: what are you building, and on what. Only for a new project: an
 	// existing one already answered both, in code.
 	var bp blueprint.Blueprint
+	var prov providerChoice
 	fw := *framework
 	if !adoptPath {
 		bps, err := loadBlueprints(*root)
@@ -261,6 +263,26 @@ func cmdStart(args []string) int {
 		case fw == "":
 			fw = bp.Meta.Frameworks[0]
 		}
+
+		// ---- Question 3b: which provider. Only for a new project, and only after the blueprint
+		// is known — an adopted project already answered this in its own code, and re-pointing it
+		// at a different provider is a refactor, not a setup step.
+		switch {
+		case *providerFlag != "":
+			var ok bool
+			if prov, ok = findProvider(*providerFlag); !ok {
+				fmt.Fprintf(os.Stderr, "--provider %q is not one this project implements (%s)\n",
+					*providerFlag, strings.Join(providerIDs(), ", "))
+				return exitUsage
+			}
+		case interactive:
+			var quit bool
+			if prov, quit = askProvider(); quit {
+				return exitOK
+			}
+		default:
+			prov = providers[0]
+		}
 	}
 
 	// ---- Question 4: where are the users? This is the jurisdiction question, asked without the
@@ -296,6 +318,12 @@ func cmdStart(args []string) int {
 	default:
 		fmt.Printf("%s — %s\n", bp.Meta.ID, blueprintTitle(bp))
 		fmt.Printf("%s\n\n", tf("plan.runningon", frameworkLabel(fw)))
+	}
+	if prov.ID != "" {
+		// The model id is shown, not just the provider name. It is what invariant 7 is about, it
+		// is what the bill is denominated in, and a value that lands in a manifest without being
+		// displayed is one nobody re-examines.
+		fmt.Printf("  %-15s %s   %s\n", t("plan.provider"), prov.Label, prov.ModelID)
 	}
 	fmt.Printf("  %-15s %s\n", t("plan.installsinto"), displayRoot(*root))
 	fmt.Printf("  %-15s %s   %s\n", t("plan.strictness"), *profile, t("plan.strictness.note"))
@@ -386,6 +414,19 @@ func cmdStart(args []string) int {
 		}
 	}
 
+	// The provider reaches three places, and all three have to agree: model.provider and model.id
+	// in every manifest, and the pinned SDK in app/requirements.txt. A manifest naming one provider
+	// beside a requirements file pinning another's SDK fails at the first model call, in a
+	// traceback that blames the import rather than the setup.
+	if prov.ID != "" {
+		touched, err := applyProvider(*root, prov)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "start:", err)
+		} else if touched > 0 && prov.ID != providers[0].ID {
+			fmt.Printf("set %s / %s in %d file(s)\n", prov.ID, prov.ModelID, touched)
+		}
+	}
+
 	// The answers only matter if they reach the manifests. A blueprint ships an example owner and
 	// an example jurisdiction list, and an adopted manifest ships `unknown`; leaving either in
 	// place would mean the interview was theatre.
@@ -401,7 +442,7 @@ func cmdStart(args []string) int {
 	if adoptPath {
 		return finishStartAdopt(*root, agentIDs, refactorPath)
 	}
-	return finishStartNew(*root, bp, *profile, *owner != "")
+	return finishStartNew(*root, bp, *profile, *owner != "", prov.Key)
 }
 
 // printNextSteps says where this directory stands and names at most four commands that move it
@@ -677,7 +718,14 @@ func personalizeManifests(root, owner, contact, juris string) (int, error) {
 
 // ------------------------------------------------------- the two endings
 
-func finishStartNew(root string, bp blueprint.Blueprint, profile string, ownerSet bool) int {
+func finishStartNew(
+	root string, bp blueprint.Blueprint, profile string, ownerSet bool, credential string,
+) int {
+	// Naming the wrong variable in the one command somebody copies is a five-minute detour that
+	// ends in "the credential is not set" while the credential is, in fact, set.
+	if credential == "" {
+		credential = providers[0].Key
+	}
 	fmt.Printf("\nChecking what you just installed.\n\n")
 
 	if code := cmdValidate([]string{"--root", root}); code != exitOK {
@@ -710,7 +758,7 @@ Run it:
 
   python -m venv .venv && source .venv/bin/activate
   pip install -r app/requirements.txt
-  export ANTHROPIC_API_KEY=...
+  export %s=...
   python -m app.cli "%s"
 
 Then make it yours, in this order:
@@ -728,7 +776,7 @@ Then make it yours, in this order:
 
 The manifest is the contract. Change it first, then make the code
 match: `+"`agentarch check`"+` is what tells you when the two disagree.
-`, sampleQuestion(bp), firstAgentID(root), ownerLine)
+`, credential, sampleQuestion(bp), firstAgentID(root), ownerLine)
 	return exitOK
 }
 

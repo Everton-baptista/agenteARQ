@@ -33,30 +33,41 @@ async def health() -> Health:
     It verifies the prompt hash too, because a service whose prompt no longer matches its manifest
     is serving something nobody reviewed — and reporting that as healthy is how it keeps doing so.
     """
+    manifest = None
     try:
-        load_manifest()
+        manifest = load_manifest()
         prompt_ok, detail = True, ""
     except ContractError as err:
         prompt_ok, detail = False, str(err).splitlines()[0]
     except FileNotFoundError:
         prompt_ok, detail = False, "manifest not found — run from the project root"
 
+    # Which credential has to be present is a consequence of model.provider, so it is read
+    # from the manifest rather than assumed. A manifest that will not load leaves it empty,
+    # and an empty provider resolves no credential — which is the right answer: a replica
+    # that cannot read its own contract is not ready, whatever key happens to be in its
+    # environment.
+    provider = (manifest or {}).get("model", {}).get("provider", "")
+    has_credential = credential_present(provider)
+
     # The breaker is part of readiness: a replica whose circuit is open will fail every request,
     # and reporting it as healthy is how the load balancer keeps sending it traffic.
     circuit = provider_breaker.state
-    ok = prompt_ok and credential_present() and circuit != "open"
+    ok = prompt_ok and has_credential and circuit != "open"
     return Health(
         status="ok" if ok else "degraded",
-        credential_present=credential_present(),
+        credential_present=has_credential,
         prompt_verified=prompt_ok,
         provider_circuit=circuit,
         pending_approvals=len(approvals.queue),
         tracing=telemetry.ENABLED,
-        detail=_why_degraded(prompt_ok, detail, circuit),
+        detail=_why_degraded(prompt_ok, detail, has_credential, provider, circuit),
     )
 
 
-def _why_degraded(prompt_ok: bool, prompt_detail: str, circuit: str) -> str:
+def _why_degraded(
+    prompt_ok: bool, prompt_detail: str, has_credential: bool, provider: str, circuit: str
+) -> str:
     """Say which check failed.
 
     `status: degraded` with an empty detail tells an operator that something is wrong and nothing
@@ -65,8 +76,14 @@ def _why_degraded(prompt_ok: bool, prompt_detail: str, circuit: str) -> str:
     reasons = []
     if not prompt_ok:
         reasons.append(prompt_detail or "the system prompt does not match the manifest")
-    if not credential_present():
-        reasons.append("ANTHROPIC_API_KEY does not resolve — see infra/secrets.py")
+    if not has_credential:
+        # The provider is named, because "the credential does not resolve" sends an
+        # operator to check the key they think is in use, which on a project that switched
+        # provider is the wrong one.
+        reasons.append(
+            f"no credential resolves for model.provider {provider or '(unreadable)'!r}"
+            " — see infra/secrets.py"
+        )
     if circuit == "open":
         reasons.append("the provider circuit is open; requests are failing fast")
     return "; ".join(reasons)

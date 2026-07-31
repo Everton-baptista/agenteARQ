@@ -108,6 +108,11 @@ jobs:
 
             python -m venv .venv
             .venv/bin/pip install -q -r app/requirements.txt
+            # A generated project pins exactly one provider SDK, and that is right for a project.
+            # This repository ships the seam, so it has to test all three translations — the tests
+            # skip whatever is not installed, and skipping all of them here would mean the OpenAI
+            # and Google paths were never executed by anything.
+            .venv/bin/pip install -q openai==2.51.0 google-genai==2.16.0
 
             echo "── $bp/$fw"
             .venv/bin/python -m pytest app/tests -q
@@ -130,6 +135,26 @@ jobs:
             echo "::error::app/agent imports the transport layer"; exit 1
           fi
           echo "ok  the layers hold"
+
+      # Choosing a provider has to reach every file that has an opinion about it. A manifest naming
+      # one provider beside a requirements file pinning another's SDK still validates, still passes
+      # the gate, and fails at the first model call — in a traceback that blames the import.
+      - name: --provider agrees across the manifest and the pinned SDK
+        run: |
+          set -e
+          for combo in "openai:gpt-5.6-terra:openai==" "google:gemini-3.6-flash:google-genai=="; do
+            prov=${combo%%:*}; rest=${combo#*:}; model=${rest%%:*}; pin=${rest#*:}
+            work=$(mktemp -d) && cd "$work"
+            /tmp/agentarch start --root . --new --blueprint rag-support --provider "$prov" --yes >/dev/null
+            grep -q "provider: $prov" agentarch/project/agents/*/agent.yaml || {
+              echo "::error::$prov did not reach model.provider"; exit 1; }
+            grep -q "id: $model" agentarch/project/agents/*/agent.yaml || {
+              echo "::error::$prov did not reach model.id"; exit 1; }
+            grep -q "^$pin" app/requirements.txt || {
+              echo "::error::$prov did not reach the pinned SDK"; exit 1; }
+            /tmp/agentarch check --profile standard >/dev/null
+            echo "ok  $prov: manifest, model id and SDK agree, and the gate passes"
+          done
 
       # The credential must not be installable. .env has to be ignored, and the committed example
       # must name variables without assigning values to them.

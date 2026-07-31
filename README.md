@@ -101,6 +101,18 @@ What are you building?
 
 Choose 1–7 (or q to quit):
 
+Which model provider will it call?
+
+  1. Anthropic (Claude)     claude-sonnet-4-5-20250929
+  2. OpenAI (GPT)           gpt-5.6-terra
+  3. Google (Gemini)        gemini-3.6-flash
+
+All three are wired up already — the agent code is the same either way,
+and only the manifest and one pinned SDK change. The model id is pinned
+rather than left as an alias, so an upgrade is something you decide.
+
+Choose 1–3 [1]:
+
 Where are the people who will use it?
 
   1. Brazil                     brings the LGPD rules in
@@ -125,6 +137,12 @@ it passes before you touch anything.
 You never type the words *profile*, *jurisdiction* or *blueprint*. It notices whether the
 directory already has code, and only asks about a framework when the starting point you chose
 ships more than one.
+
+**The provider is a question rather than an assumption.** Every blueprint ships a seam —
+`app/infra/provider.py`, with one module per provider behind it — so the answer changes three
+things and nothing else: `model.provider` and a pinned `model.id` in the manifest, and one pinned
+SDK in `app/requirements.txt`. The loop, the tools and the guardrails are identical either way,
+which is the claim the blueprint's own tests check. Switching later is those same three files.
 
 **It asks nothing about you, and reads nothing about you.** An earlier version asked who was
 accountable and offered a default from `git config` — which put a work-provisioned identity into

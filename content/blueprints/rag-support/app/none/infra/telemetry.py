@@ -60,8 +60,17 @@ except ImportError:  # pragma: no cover
 # Per million tokens. Wrong the day a price changes, which is why the number lives in one place and
 # the metric records the model id alongside the cost — a dashboard can then be corrected after the
 # fact instead of silently reporting the old price forever.
+#
+# One row per model this project can be configured to call, not only the one it is configured to
+# call today. A model with no row costs zero, and a cost of zero makes `autonomy.budget.usd_per_run`
+# a limit that can never be reached — the budget would still be declared, still be checked, and
+# never fire. Switching provider must not quietly disable the spend cap.
+#
+# Reviewed 2026-07-31.
 PRICE_PER_MTOK = {
     "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
+    "gpt-5.6-terra": {"input": 2.00, "output": 12.00},
+    "gemini-3.6-flash": {"input": 1.50, "output": 7.50},
 }
 
 

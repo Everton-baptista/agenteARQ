@@ -20,6 +20,47 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## Unreleased
+
+`content` — the blueprints gain a provider seam; `cli` gains the question that drives it.
+
+**The provider is asked rather than assumed.** Every blueprint was Anthropic, and not only in the
+manifest: `app/infra/provider.py` imported the Anthropic SDK and the runner called the Messages API
+shape directly, so anyone on OpenAI or Google received a project that did not run. The seam is now
+`create_message()` — one call shape, with a module per provider under `app/infra/providers/`
+translating the two things that actually differ: how a tool is declared (`input_schema` ·
+`parameters` inside `function` · `function_declarations`) and how the response is read (`content`
+blocks · `tool_calls` on the message · `functionCall` in parts). Nothing in `app/agent/` changed,
+which is the claim, and `app/tests/test_provider.py` is what checks it — with a fake client, so the
+tests still run in a clone with no credentials in it.
+
+The provider arrives as a parameter, read from `model.provider` by the caller that already read the
+manifest. Reading it inside `infra` would invert the import direction
+`control.ai.api.core_transport_separated` exists to keep one-way, and a provider chosen by an
+environment variable is a model decision no review ever saw.
+
+`agentarch start --provider <id>`, or the new question after "what are you building", writes the
+answer to the three files that have to agree: `model.provider` and a pinned `model.id` in every
+manifest, and the marked SDK line in `app/requirements.txt`. A manifest naming one provider beside a
+requirements file pinning another's SDK validates, passes the gate, and fails at the first model
+call — so CI now asserts all three together.
+
+The pinned ids live in one table in `cmd/agentarch/provider.go` with a review date, and
+`TestProviderTableIsReviewed` fails six months after it. This is the only part of agentarch that
+goes stale on its own: nothing here can tell when another company retires a model, and a pinned id
+that has been discontinued is worse than a floating alias because it looks like a decision.
+
+The Anthropic row records what the blueprints already ship — `claude-sonnet-4-5-20250929` — rather
+than the newest model, so choosing the default changes nothing. Moving the blueprints to a newer
+Anthropic model touches the manifests, the examples and the conformance cases together, and belongs
+in its own change rather than riding along in this one.
+
+`PRICE_PER_MTOK` gained a row per provider. A model with no row costs zero, and a cost of zero makes
+`autonomy.budget.usd_per_run` a limit that can never be reached — switching provider must not
+quietly disable the spend cap.
+
+`.env.example` now names all three credentials, values omitted as before.
+
 ## v0.3.0 — 2026-07-31
 
 `cli/0.3.0` · `content/1.2.0` · `spec/1.0` gains one optional field.
@@ -168,8 +209,9 @@ Three layers, with the dependency direction between them as the load-bearing rul
 import `api/`. That is what keeps the loop runnable from a test, a queue worker or `app/cli.py`, and
 the drift it prevents is gradual and always locally reasonable — a handler needs one header, the
 runner imports the request, and a few weeks later the agent only runs inside a web server. The
-LangGraph variant of rag-support differs from the no-framework one in exactly two files, which is
-that claim demonstrated rather than asserted.
+LangGraph variant of rag-support differs from the no-framework one in exactly three files —
+`agent/runner.py`, `requirements.txt` and `README.md` — which is that claim demonstrated rather than
+asserted. (This entry said "two" until v0.3.1; `diff -rq` says three.)
 
 What became real rather than declared: human approval is a queue with a TTL, a tenant check, single
 use and an audit line, because the approver is not in the request and blocking a worker on a person
