@@ -1,0 +1,71 @@
+# What an adopting project's workflow looks like. Copied by `agentarch init`.
+name: agentarch
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write   # for the SARIF upload
+
+jobs:
+  agentarch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install agentarch
+        run: |
+          go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@latest
+
+      # Seconds, no secrets. A hand-edited CLAUDE.md fails the pull request here rather than
+      # drifting unnoticed for months.
+      - name: instruction files are in sync
+        run: agentarch sync --check
+
+      - name: artifacts are structurally valid
+        run: agentarch validate
+
+      # The gate. Exit 4 blocks, exit 5 means an exception lapsed and belongs to its owner.
+      - name: release gate
+        run: agentarch check --profile standard
+
+      - name: upload findings to code scanning
+        if: always()
+        run: agentarch check --profile standard --format sarif --sarif-output agentarch.sarif || true
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: agentarch.sarif
+
+      # The tests. They need no API key, which is the whole reason they run here — a suite that needs
+      # a credential is a suite that gets skipped in CI, and then the rules it covered stop being
+      # checked. Everything in it exercises a rule the manifest declares: the auth boundary, the
+      # three guardrail points, the approval queue's expiry and single use, cost accounting, and the
+      # dependency direction between the layers.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: install the application
+        run: pip install -r app/requirements.txt
+
+      - name: unit and service tests
+        run: python -m pytest app/tests -q
+
+      # The eval harness, without calling the model. It verifies the datasets parse, the paths
+      # resolve, the guardrails run and the metrics compute — and it refuses to write a result,
+      # because a metric computed from a simulated answer measures the simulation.
+      #
+      # To produce real evidence, add ANTHROPIC_API_KEY as a secret and drop --dry-run. Until then
+      # conformance reports L2, which is the honest answer.
+      - name: eval harness is runnable
+        run: python evals/run.py --dry-run
+
+      # Detects a server that changed its tool descriptions after being approved.
+      - name: audit the MCP allowlist
+        run: agentarch mcp audit

@@ -166,8 +166,9 @@ var catalog = map[string]map[string]string{
 
 		// ---- question: which framework
 		"framework.question":   "This blueprint ships runnable code for:",
-		"framework.none":       "(the provider SDK directly)",
-		"framework.label.none": "no framework",
+		"framework.none":       "(SDK do provedor direto em Python Nativo)",
+		"framework.label.none": "Python Native (Clean Architecture / Seam Pattern)",
+		"framework.label.agno": "Agno (Agno AI Agent Framework - ex-Phidata)",
 		"framework.prompt":     "Choose 1–%d [1]: ",
 
 		// ---- question: which model provider
@@ -233,8 +234,9 @@ var catalog = map[string]map[string]string{
 		"blueprint.prompt":   "Escolha 1–%d (ou q para sair): ",
 
 		"framework.question":   "Este blueprint traz código que roda para:",
-		"framework.none":       "(o SDK do provedor direto)",
-		"framework.label.none": "sem framework",
+		"framework.none":       "(SDK do provedor direto em Python Nativo)",
+		"framework.label.none": "Python Nativo (Arquitetura Limpa / Padrão Seam)",
+		"framework.label.agno": "Agno (Framework de Agentes Agno - ex-Phidata)",
 		"framework.prompt":     "Escolha 1–%d [1]: ",
 
 		"provider.question": "Qual provedor de modelo ele vai chamar?",

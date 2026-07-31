@@ -31,6 +31,7 @@ SDK_PACKAGES = {
     "anthropic": "anthropic",
     "openai": "openai",
     "google": "google-genai",
+    "bedrock": "urllib3",
 }
 
 

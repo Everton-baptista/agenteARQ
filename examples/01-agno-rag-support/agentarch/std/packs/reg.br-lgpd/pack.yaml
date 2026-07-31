@@ -1,0 +1,50 @@
+schema_version: "1.0"
+pack:
+  id: reg.br-lgpd
+  version: 1.0.0
+  title: LGPD — controles operacionais para sistemas de IA que tratam dados pessoais
+  description: >-
+    O subconjunto de obrigações da LGPD que o manifesto de um agente consegue evidenciar: base
+    legal declarada, minimização, prazo de retenção e telemetria que não vira, silenciosamente,
+    uma segunda cópia de tudo que o titular escreveu.
+
+    Este pack não torna um projeto conforme à LGPD e não afirma isso. Conformidade é uma
+    avaliação jurídica sobre uma organização; aqui estão as precondições de engenharia sem as
+    quais essa avaliação não tem como ser favorável.
+
+  authority_status: binding_law
+  authority:
+    name: Lei Geral de Proteção de Dados Pessoais
+    reference: "Lei nº 13.709/2018"
+    jurisdiction: [BR]
+    url: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm
+  reviewed_at: "2026-07-28"
+
+  applies_when:
+    jurisdictions: [BR]
+    processes_personal_data: true
+
+  requires:
+    - control: control.ai.privacy.retention_declared
+      severity: blocker
+      required_evidence: [manifest_field]
+      note: Art. 15 e 16 — o tratamento termina, e o prazo precisa estar escrito em algum lugar.
+
+    - control: control.ai.privacy.capture_content_default_off
+      severity: blocker
+      required_evidence: [manifest_field]
+      note: Art. 6º, III — necessidade. Capturar conteúdo por padrão é o oposto de minimização.
+
+    - control: control.ai.agent.secrets_by_reference
+      severity: blocker
+      required_evidence: [tool_spec, scan_result]
+
+    - control: control.ai.genai.output_guardrail
+      severity: blocker
+      required_evidence: [manifest_field, eval_result]
+      note: Art. 6º, VII — segurança. O filtro de saída é onde o vazamento é interceptado.
+
+    - control: control.ai.agent.owner_defined
+      severity: blocker
+      required_evidence: [manifest_field]
+      note: Art. 6º, X — responsabilização e prestação de contas exigem alguém nomeado.

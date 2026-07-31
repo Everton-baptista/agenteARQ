@@ -67,6 +67,13 @@ var providers = []providerChoice{
 		SDK:     "google-genai==2.16.0",
 		Key:     "GOOGLE_API_KEY",
 	},
+	{
+		ID:      "bedrock",
+		Label:   "AWS Bedrock (Amazon Nova / Claude)",
+		ModelID: "amazon.nova-micro-v1:0",
+		SDK:     "urllib3==2.2.1",
+		Key:     "AWS_BEARER_TOKEN_BEDROCK_API_KEY",
+	},
 }
 
 // providersReviewed is the day the ids and pins above were last checked against each provider's own

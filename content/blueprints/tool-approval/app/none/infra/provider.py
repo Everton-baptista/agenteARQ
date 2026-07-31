@@ -42,6 +42,7 @@ CREDENTIAL_NAMES = {
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "google": "GOOGLE_API_KEY",
+    "bedrock": "AWS_BEARER_TOKEN_BEDROCK_API_KEY",
 }
 
 PROVIDERS = tuple(CREDENTIAL_NAMES)

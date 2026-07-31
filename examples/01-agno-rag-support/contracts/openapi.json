@@ -1,0 +1,79 @@
+{
+  "components": {
+    "securitySchemes": {
+      "bearer_jwt": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Answers customer questions about orders and returns from the public help centre, and escalates anything it cannot ground in a cited source.",
+    "title": "support-triage",
+    "version": "1.0.0",
+    "x-agentarch-generated": "DO NOT EDIT — generated from agent.yaml interface by `agentarch sync`",
+    "x-agentarch-source-sha256": "34870f312d428437972ff811c576693c458548cf3987a1a722df9ba41a68bb70"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/approvals/{approval_id}": {
+      "post": {
+        "operationId": "post_approvals_approval_id",
+        "responses": {
+          "200": {
+            "description": "the request was handled"
+          },
+          "401": {
+            "description": "no or invalid credential"
+          },
+          "429": {
+            "description": "the caller's budget is exhausted"
+          }
+        },
+        "security": [
+          {
+            "bearer_jwt": []
+          }
+        ],
+        "summary": "Record a human decision on a paused irreversible action.",
+        "x-agentarch-idempotent": false
+      }
+    },
+    "/v1/ask": {
+      "post": {
+        "operationId": "post_ask",
+        "responses": {
+          "200": {
+            "description": "the request was handled"
+          },
+          "401": {
+            "description": "no or invalid credential"
+          },
+          "429": {
+            "description": "the caller's budget is exhausted"
+          }
+        },
+        "security": [
+          {
+            "bearer_jwt": []
+          }
+        ],
+        "summary": "Ask one question. Returns an answer with citations, an escalation, or a pending approval.",
+        "x-agentarch-idempotent": false
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "get_health",
+        "responses": {
+          "200": {
+            "description": "the request was handled"
+          }
+        },
+        "security": [],
+        "summary": "Readiness. Verifies the credential resolves and the prompt still matches the manifest."
+      }
+    }
+  }
+}

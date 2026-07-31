@@ -1,0 +1,37 @@
+# Local development. `docker compose up --build`, then curl localhost:8000/v1/health
+#
+# The Redis is here on purpose: with it running, the multi-replica approval path is exercised
+# locally instead of discovered in production. Comment it out and the service falls back to the
+# in-memory store, which is correct for one replica and only for one.
+
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    # env_file rather than `environment:` — the value stays out of the image and out of
+    # `docker inspect`, which prints the command line to anyone who can reach the daemon.
+    env_file: [.env]
+    environment:
+      ENV: dev
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis: { condition: service_healthy }
+    # Mounted read-only: the process reads its contract and cannot rewrite it, which is what makes
+    # the startup prompt-hash check meaningful.
+    volumes:
+      - ./agentarch:/srv/agentarch:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/v1/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    # No persistence: approvals are short-lived by design and a durable copy of a pending approval
+    # is a copy of customer text with its own retention question.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s

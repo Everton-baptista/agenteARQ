@@ -1,0 +1,24 @@
+schema_version: '1.0'
+control:
+  id: control.ai.api.caller_identified
+  type: api
+  title: The caller is identified from a verified credential
+  intent: A scope key the caller can set is not a scope; it is a parameter, and two tenants end up sharing one memory
+    store while every declared control passes.
+  status: experimental
+  applies_to:
+    # Nothing to identify where nothing calls in.
+    declares: [interface]
+  check:
+    kind: static_manifest
+    expr: agent.interface.caller.identified_by != null
+    message: No caller identification is declared, so nothing says where the tenant scope comes from.
+  evidence:
+  - agent_manifest
+  - test_result
+  remediation: Declare interface.caller.identified_by and interface.caller.tenant_claim, and remove any identity
+    field from the request schema. A field that was never accepted cannot be overridden.
+  standard_ref: standards/16-service-and-edge.md#controlaiapicalleridentified
+  references:
+  - OWASP API1
+  - OWASP LLM06

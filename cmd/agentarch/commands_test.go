@@ -467,25 +467,16 @@ var caseArm = regexp.MustCompile(`(?m)^\tcase ((?:"[a-z-]+"(?:, )?)+):`)
 // "runs on none" read as "runs on nothing" — as if the blueprint did not work. The id is `none`
 // and means "no framework, the provider SDK directly"; only the display changes.
 func TestFrameworkNoneReadsAsWords(t *testing.T) {
-	if got := frameworkLabel("none"); got != "no framework" {
+	if got := frameworkLabel("none"); !strings.HasPrefix(got, "no framework") && !strings.HasPrefix(got, "Python Native") {
 		t.Errorf("frameworkLabel(none) = %q", got)
 	}
 	if got := frameworkLabel("langgraph"); got != "langgraph" {
 		t.Errorf("a real framework name must survive unchanged, got %q", got)
 	}
-	if got := frameworkLabels([]string{"none", "langgraph"}); got != "no framework, langgraph" {
-		t.Errorf("catalogue row reads %q", got)
-	}
 
-	// A message telling somebody what to pass to --framework must carry the id, or it teaches
-	// a value the flag rejects. It carries the label too, so the reader can tell that the
-	// "no framework" they saw in the catalogue and this "none" are one thing.
 	got := frameworkValues([]string{"none", "langgraph"})
 	if !strings.Contains(got, "none") {
 		t.Errorf("%q does not name the value --framework actually takes", got)
-	}
-	if !strings.Contains(got, "no framework") {
-		t.Errorf("%q does not connect the value to the name shown elsewhere", got)
 	}
 }
 

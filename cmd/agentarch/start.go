@@ -187,7 +187,7 @@ func cmdStart(args []string) int {
 	// Only greet somebody who is there. A script driving this by flags gets the plan and the
 	// result; an invitation to press Enter is noise in a CI log.
 	if interactive {
-		fmt.Printf("\n%s\n\n%s\n", t("banner.title"), t("banner.body"))
+		fmt.Printf("\n%s\n\n%s\n", formatBanner(), bold(t("banner.body")))
 	}
 
 	// ---- Question 1: is the code already written?
@@ -455,20 +455,18 @@ func cmdStart(args []string) int {
 func printNextSteps(state projectState) {
 	switch {
 	case state.Agents > 0:
-		fmt.Printf("\nagentarch is installed here, describing %d agent(s).\n\n", state.Agents)
-		fmt.Printf("  agentarch check         the release gate\n")
-		fmt.Printf("  agentarch conformance   L1 / L2 / L3, with an expiry\n")
-		fmt.Printf("  agentarch blueprint     add another starting point\n")
-		fmt.Printf("  agentarch new agent     scaffold an empty one\n\n")
+		fmt.Printf("\n%s %s\n\n", iconCheck(), bold(green(fmt.Sprintf("agentarch is installed here, describing %d agent(s).", state.Agents))))
+		fmt.Printf("  %-25s %s\n", formatCmd("agentarch check"), dim("the release gate"))
+		fmt.Printf("  %-25s %s\n", formatCmd("agentarch conformance"), dim("L1 / L2 / L3, with an expiry"))
+		fmt.Printf("  %-25s %s\n", formatCmd("agentarch blueprint"), dim("add another starting point"))
+		fmt.Printf("  %-25s %s\n\n", formatCmd("agentarch new agent"), dim("scaffold an empty one"))
 
 	default:
-		// Installed, and describing nothing. The standard is here; there is no agent yet, and
-		// every other command has nothing to read. Only two of them help.
-		fmt.Printf("\nagentarch is installed here, and no agent is described yet.\n")
-		fmt.Printf("Every check reads a manifest, so the next step is to have one.\n\n")
-		fmt.Printf("  agentarch blueprint     start from a complete, working project\n")
-		fmt.Printf("  agentarch new agent     scaffold an empty one from the templates\n\n")
-		fmt.Printf("Then `agentarch check`. Full command list: agentarch --help --all\n\n")
+		fmt.Printf("\n%s %s\n", iconWarn(), bold(yellow("agentarch is installed here, and no agent is described yet.")))
+		fmt.Printf("%s\n\n", dim("Every check reads a manifest, so the next step is to have one."))
+		fmt.Printf("  %-25s %s\n", formatCmd("agentarch blueprint"), dim("start from a complete, working project"))
+		fmt.Printf("  %-25s %s\n\n", formatCmd("agentarch new agent"), dim("scaffold an empty one from the templates"))
+		fmt.Printf("Then %s. Full command list: %s\n\n", formatCmd("agentarch check"), cyan("agentarch --help --all"))
 	}
 }
 
@@ -493,11 +491,11 @@ func askExisting(state projectState) (adopt, refactor, quit bool, code int) {
 		hint = t("existing.hint.hascode")
 	}
 
-	fmt.Printf("\n%s\n\n", t("existing.question"))
-	fmt.Printf("  1. %s\n", t("existing.new"))
-	fmt.Printf("  2. %s\n", t("existing.adopt"))
-	fmt.Printf("  3. %s\n\n", t("existing.refactor"))
-	fmt.Printf("(%s)\n", hint)
+	fmt.Printf("\n%s\n\n", bold(t("existing.question")))
+	fmt.Printf("%s\n", formatStep(1, t("existing.new")))
+	fmt.Printf("%s\n", formatStep(2, t("existing.adopt")))
+	fmt.Printf("%s\n\n", formatStep(3, t("existing.refactor")))
+	fmt.Printf("%s\n", dim("("+hint+")"))
 
 	for attempt := 0; attempt < 3; attempt++ {
 		in := ask(tf("existing.prompt", def))
@@ -535,13 +533,13 @@ func askJurisdictions() (juris string, quit bool) {
 	// A menu that offers a person in Austin, Lagos or Tokyo nothing but "somewhere else" tells
 	// them the tool is not for them, which is the regional-bias failure the design set out to
 	// avoid.
-	fmt.Printf("\n%s\n\n", t("juris.question"))
-	fmt.Printf("  1. %-26s %s\n", t("juris.brazil"), t("juris.brazil.note"))
-	fmt.Printf("  2. %-26s %s\n", t("juris.europe"), t("juris.europe.note"))
-	fmt.Printf("  3. %s\n", t("juris.both"))
-	fmt.Printf("  4. %-26s %s\n", t("juris.other"), t("juris.other.note"))
-	fmt.Printf("  5. %s\n\n", t("juris.undecided"))
-	fmt.Printf("%s\n\n", t("juris.explain"))
+	fmt.Printf("\n%s\n\n", bold(t("juris.question")))
+	fmt.Printf("  1. %-26s %s\n", bold(t("juris.brazil")), dim(t("juris.brazil.note")))
+	fmt.Printf("  2. %-26s %s\n", bold(t("juris.europe")), dim(t("juris.europe.note")))
+	fmt.Printf("  3. %s\n", bold(t("juris.both")))
+	fmt.Printf("  4. %-26s %s\n", bold(t("juris.other")), dim(t("juris.other.note")))
+	fmt.Printf("  5. %s\n\n", bold(t("juris.undecided")))
+	fmt.Printf("%s\n\n", dim(t("juris.explain")))
 
 	for attempt := 0; attempt < 3; attempt++ {
 		in := ask(t("juris.prompt"))

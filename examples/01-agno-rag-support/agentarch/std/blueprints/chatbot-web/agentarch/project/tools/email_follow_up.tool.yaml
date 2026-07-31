@@ -1,0 +1,59 @@
+schema_version: "1.0"
+tool:
+  id: email_follow_up
+  description_for_model: >-
+    Send the visitor a follow-up email on the current conversation. Use only to deliver
+    something the visitor asked for — a quote, a migration guide, a security whitepaper.
+    The message is sent as written and cannot be recalled.
+  description_for_humans: >-
+    Outbound email to the visitor. Irreversible once delivered, so it is gated on human
+    approval and always rate limited. The recipient is resolved server-side from the
+    session; the model supplies the subject and body, never the address.
+
+  input_schema:
+    type: object
+    required: [conversation_id, subject, body]
+    additionalProperties: false
+    properties:
+      conversation_id: { type: string }
+      subject: { type: string, maxLength: 200 }
+      body: { type: string, maxLength: 2000 }
+
+  effect: communication
+  idempotency:
+    idempotent: false
+    key_field: request_id
+
+  permissions:
+    scopes: ["mail:send"]
+    data_access: ["conversations"]
+    network:
+      deny_by_default: true
+      egress: ["mail-api.internal.example.com"]
+    secrets: ["MAIL_API_TOKEN"]
+    sandbox: container
+
+  limits:
+    timeout_ms: 4000
+    max_retries: 1
+    rate_limit_rpm: 10
+    domain_limits:
+      max_messages_per_conversation_per_hour: 3
+
+  approval:
+    required_when: "always"
+    approver_role: support_supervisor
+    timeout_s: 900
+    on_timeout: deny
+
+  failure:
+    on_timeout: fail_closed
+    on_error: fail_closed
+
+  dry_run:
+    supported: true
+    parameter: dry_run
+
+  owner: team-messaging
+  tests:
+    - tests/tools/test_email_follow_up.py

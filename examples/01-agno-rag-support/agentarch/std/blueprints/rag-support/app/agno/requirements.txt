@@ -1,0 +1,35 @@
+# Pinned exactly. control.ai.supply.model_pinned is about more than the model: a floating dependency
+# changes behaviour under you between two deploys of the same commit, and the resulting bug is
+# untraceable because nothing in your repository changed.
+#
+# Verified to install on CPython 3.11 through 3.14. An earlier version of this file pinned pydantic
+# 2.10, which has no wheel for 3.14 — pip fell back to building pydantic-core from source, needed a
+# Rust toolchain, and failed. A pin that does not install is not a pin, it is a trap.
+
+# The provider SDK — exactly one, matching model.provider in the manifest. `agentarch start
+# --provider openai` rewrites the marked line; switching by hand means changing this line and
+# that field together, because app/infra/providers/ imports lazily and a mismatch surfaces as a
+# missing package at the first model call rather than at startup.
+#
+# The three, so the pin for whichever you move to is here rather than looked up under pressure:
+#   anthropic==0.120.2   openai==2.51.0   google-genai==2.16.0
+anthropic==0.120.2  # agentarch:provider-sdk
+agno==1.1.0
+
+fastapi==0.141.1
+uvicorn[standard]==0.52.0
+pydantic==2.13.4
+PyYAML==6.0.3
+httpx==0.28.1
+
+# Tests. In this file rather than a separate requirements-dev.txt, so `pip install -r` gives you a
+# project whose tests run — a suite you have to work out how to install is a suite that stops
+# being run.
+pytest==9.1.1
+
+# Tracing is optional. Without these, app/infra/telemetry.py degrades to no-ops and the service
+# still runs: a starting point that needs a collector in order to boot excludes anyone reading the
+# code for the first time. Uncomment to emit spans and metrics.
+#
+# opentelemetry-sdk==1.29.0
+# opentelemetry-exporter-otlp-proto-http==1.29.0

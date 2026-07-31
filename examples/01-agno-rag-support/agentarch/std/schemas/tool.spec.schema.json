@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/tool.spec.schema.json",
+  "title": "agentarch tool specification",
+  "description": "A tool's contract and permissions, declared in an artifact rather than in code. Permissions expressed only in code are not auditable by a linter, which is what makes the release gate possible.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "tool": {
+      "$ref": "#/$defs/tool"
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "minLength": 2,
+      "maxLength": 64
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "id",
+        "description_for_model",
+        "input_schema",
+        "effect",
+        "idempotency",
+        "permissions",
+        "limits",
+        "owner"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "description_for_model": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 1024,
+          "description": "What the model sees. It is part of the attack surface: never interpolate untrusted content into it."
+        },
+        "description_for_humans": {
+          "type": "string"
+        },
+        "input_schema": {
+          "type": "object",
+          "description": "JSON Schema, inline or a $ref to a file."
+        },
+        "output_schema": {
+          "type": "object"
+        },
+        "effect": {
+          "enum": [
+            "read",
+            "write",
+            "irreversible",
+            "money",
+            "communication"
+          ],
+          "description": "Classify this before writing the implementation: it determines approval, guardrails and blast radius."
+        },
+        "idempotency": {
+          "type": "object",
+          "required": [
+            "idempotent"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "idempotent": {
+              "type": "boolean"
+            },
+            "key_field": {
+              "type": "string",
+              "description": "Input field carrying the idempotency key. Required when the tool is not idempotent, because retries are inevitable."
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "idempotent": {
+                    "const": false
+                  }
+                },
+                "required": [
+                  "idempotent"
+                ]
+              },
+              "then": {
+                "required": [
+                  "key_field"
+                ]
+              }
+            }
+          ]
+        },
+        "permissions": {
+          "type": "object",
+          "required": [
+            "network"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "data_access": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Tables, collections or fields reachable. Narrow this before widening a scope."
+            },
+            "network": {
+              "type": "object",
+              "required": [
+                "deny_by_default"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "deny_by_default": {
+                  "const": true,
+                  "description": "Egress is deny-by-default. This is the main barrier against exfiltration through a compromised tool call."
+                },
+                "egress": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Explicit hostnames. An empty list is legitimate and means no network access at all \u2014 the strictest state. What is not legitimate is a wildcard, which answers \"anything\" and makes the field decorative."
+                }
+              }
+            },
+            "filesystem": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "read": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "write": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "secrets": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]*$"
+              },
+              "description": "Names only. A secret value never enters a manifest, prompt, log or repository."
+            },
+            "sandbox": {
+              "enum": [
+                "container",
+                "subprocess",
+                "none"
+              ]
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "required": [
+            "timeout_ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_retries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "rate_limit_rpm": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "domain_limits": {
+              "type": "object",
+              "description": "Business bounds, e.g. max_amount. Keeps a successful injection cheap.",
+              "additionalProperties": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              }
+            }
+          }
+        },
+        "approval": {
+          "type": "object",
+          "required": [
+            "required_when",
+            "approver_role",
+            "timeout_s",
+            "on_timeout"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "required_when": {
+              "type": "string",
+              "description": "Restricted expression over the input, or the literal 'always'."
+            },
+            "approver_role": {
+              "type": "string"
+            },
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "on_timeout": {
+              "enum": [
+                "deny",
+                "escalate"
+              ],
+              "description": "Never 'allow'. An unanswered approval is not consent."
+            }
+          }
+        },
+        "failure": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "on_timeout": {
+              "enum": [
+                "fail_closed",
+                "fail_warn",
+                "fail_open"
+              ]
+            },
+            "on_error": {
+              "enum": [
+                "fail_closed",
+                "fail_warn",
+                "fail_open"
+              ]
+            }
+          }
+        },
+        "dry_run": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            },
+            "parameter": {
+              "type": "string"
+            }
+          }
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 2
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Invariant 1: a tool that cannot be undone must declare when a human approves it.",
+          "if": {
+            "properties": {
+              "effect": {
+                "enum": [
+                  "irreversible",
+                  "money",
+                  "communication"
+                ]
+              }
+            },
+            "required": [
+              "effect"
+            ]
+          },
+          "then": {
+            "required": [
+              "approval"
+            ]
+          }
+        },
+        {
+          "$comment": "Anything that writes to the world runs somewhere bounded.",
+          "if": {
+            "properties": {
+              "effect": {
+                "enum": [
+                  "write",
+                  "irreversible",
+                  "money"
+                ]
+              }
+            },
+            "required": [
+              "effect"
+            ]
+          },
+          "then": {
+            "properties": {
+              "permissions": {
+                "required": [
+                  "sandbox"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

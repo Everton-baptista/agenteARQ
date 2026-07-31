@@ -1,0 +1,24 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.eval.redteam_executed"
+  type: "eval"
+  title: "Somebody attacked it on purpose"
+  intent: "Adversarial behaviour is not found by the tests written for the happy path."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: 'evals.status != "measured" or (evals.redteam.executed == true and evals.redteam.cases >= 20)'
+    message: "No red team run is recorded, or it has fewer than 20 cases."
+  evidence:
+    - "eval_result"
+  remediation: "Seed a red-team dataset from the attack catalogue in standards/09-security.md. Zero successes on ten cases is a small sample, not a result."
+  standard_ref: "standards/11-evaluation.md#controlaievalredteam_executed"
+  references:
+    - "MITRE ATLAS"
+    - "OWASP LLM01"
+
+# Conditional on `status: measured` on purpose. A project that has honestly not run its evals is
+# not lying about anything, and failing its build teaches it to write plausible numbers instead —
+# which is exactly what happened to the blueprint that used to ship groundedness 0.94 against a
+# dataset that did not exist. The gate blocks a false claim; the badge withholds credit. Absence
+# of evidence costs you L3, not the build.

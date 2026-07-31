@@ -1,0 +1,532 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/agent.manifest.schema.json",
+  "title": "agentarch agent manifest",
+  "description": "The declared contract of one agent. Lives at agentarch/project/agents/<id>/agent.yaml. If behaviour and manifest disagree, one of them is a bug.",
+  "type": "object",
+  "required": ["schema_version", "agent"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "$ref": "#/$defs/schemaVersion" },
+    "agent": { "$ref": "#/$defs/agent" }
+  },
+
+  "$defs": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Major.minor of this schema. The CLI refuses an incompatible major rather than guessing."
+    },
+
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 2,
+      "maxLength": 64,
+      "description": "Lowercase kebab-case, English. IDs stay in English in every language."
+    },
+
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+
+    "controlId": {
+      "type": "string",
+      "description": "The control type vocabulary is closed and identical in control.schema.json and waivers.schema.json. Adding a type means adding it in all three: a manifest rejected by the schema meant to accept it is worse than no schema.",
+      "pattern": "^control\\.ai\\.(agent|genai|rag|tool|mcp|api|privacy|eval|obs|supply|lifecycle)\\.[a-z0-9_]+$"
+    },
+
+    "failMode": {
+      "enum": ["fail_closed", "fail_warn", "fail_open"],
+      "description": "What happens when the guardrail cannot decide. Deterministic checks are fail_closed; an LLM judge is fail_open unless severity is high."
+    },
+
+    "guardrail": {
+      "type": "object",
+      "required": ["control", "fail_mode"],
+      "additionalProperties": false,
+      "properties": {
+        "control": { "$ref": "#/$defs/controlId" },
+        "fail_mode": { "$ref": "#/$defs/failMode" },
+        "note": { "type": "string" }
+      }
+    },
+
+    "agent": {
+      "type": "object",
+      "required": [
+        "id", "owner", "stage", "system_type", "purpose",
+        "out_of_scope", "autonomy", "model", "prompts", "guardrails"
+      ],
+      "additionalProperties": false,
+      "properties": {
+
+        "id": { "$ref": "#/$defs/slug" },
+        "name": { "type": "string", "maxLength": 120 },
+
+        "owner": {
+          "type": "object",
+          "required": ["accountable", "contact"],
+          "additionalProperties": false,
+          "properties": {
+            "team": { "type": "string" },
+            "contact": { "type": "string", "minLength": 3 },
+            "accountable": {
+              "type": "string",
+              "minLength": 3,
+              "description": "A named person. A queue, alias or team name is not accountable."
+            }
+          }
+        },
+
+        "stage": { "enum": ["prototype", "internal", "pilot", "production"] },
+
+        "system_type": {
+          "enum": [
+            "generative_chat", "generative_rag", "agentic_task",
+            "agentic_workflow", "multi_agent", "classifier"
+          ]
+        },
+
+        "purpose": { "type": "string", "minLength": 10, "maxLength": 300 },
+
+        "out_of_scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 5 },
+          "description": "What this agent must refuse. At least one entry: an agent never told what to refuse will attempt it."
+        },
+
+        "users": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "audience": { "enum": ["internal", "external", "public"] },
+            "minors_likely": { "type": "boolean", "default": false }
+          }
+        },
+
+        "jurisdictions": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z]{2}$|^EU$" },
+          "description": "ISO 3166-1 alpha-2, or EU. Selects which reg.* packs apply."
+        },
+
+        "languages": { "type": "array", "items": { "type": "string" } },
+
+        "autonomy": {
+          "type": "object",
+          "required": ["level", "max_steps", "max_tool_calls", "stop_conditions"],
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "enum": [
+                "L0_suggest", "L1_act_with_approval", "L2_act_reversible",
+                "L3_act_irreversible_bounded", "L4_autonomous"
+              ]
+            },
+            "max_steps": { "type": "integer", "minimum": 1, "maximum": 1000 },
+            "max_tool_calls": { "type": "integer", "minimum": 0, "maximum": 10000 },
+            "stop_conditions": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 3 }
+            },
+            "budget": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "usd_per_run": { "type": "number", "exclusiveMinimum": 0 },
+                "runs_per_caller_per_day": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "The bound per-run limits cannot express. A caller who issues ten thousand runs is inside every one of them, and the first symptom is an invoice."
+                },
+                "usd_per_caller_per_day": { "type": "number", "exclusiveMinimum": 0 },
+                "tokens_per_run": { "type": "integer", "exclusiveMinimum": 0 },
+                "latency_p95_ms": { "type": "integer", "exclusiveMinimum": 0 }
+              }
+            }
+          }
+        },
+
+        "model": {
+          "type": "object",
+          "required": ["provider", "id", "pinned"],
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "type": "string", "minLength": 2 },
+            "id": { "type": "string", "minLength": 2 },
+            "pinned": {
+              "type": "boolean",
+              "description": "A floating alias silently changes behaviour. Pin it."
+            },
+            "params": { "type": "object" },
+            "fallback": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["provider", "id", "trigger"],
+                "additionalProperties": false,
+                "properties": {
+                  "provider": { "type": "string" },
+                  "id": { "type": "string" },
+                  "trigger": { "enum": ["circuit_open", "rate_limited", "error", "timeout"] }
+                }
+              }
+            }
+          }
+        },
+
+        "prompts": {
+          "type": "object",
+          "required": ["system"],
+          "additionalProperties": false,
+          "properties": {
+            "system": {
+              "type": "object",
+              "required": ["path", "version", "sha256"],
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string" },
+                "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+                "sha256": { "$ref": "#/$defs/sha256" }
+              }
+            },
+            "variables": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "source", "trusted"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "source": { "enum": ["app", "user", "retrieval", "tool", "agent"] },
+                  "trusted": {
+                    "type": "boolean",
+                    "description": "Only content authored by your own code is trusted."
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "context": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rag": {
+              "type": "object",
+              "required": ["enabled"],
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "corpus_id": { "type": "string" },
+                "corpus_version": { "type": "string" },
+                "top_k": { "type": "integer", "minimum": 1 },
+                "citation_required": { "type": "boolean" },
+                "untrusted": {
+                  "const": true,
+                  "description": "Retrieved content is always data, never instruction. This cannot be set to false."
+                }
+              }
+            },
+            "memory": {
+              "type": "object",
+              "required": ["kind"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": { "enum": ["none", "session", "user", "shared"] },
+                "ttl_days": { "type": "integer", "minimum": 0 },
+                "scope_key": { "type": "string" },
+                "pii_allowed": { "type": "boolean", "default": false }
+              }
+            }
+          }
+        },
+
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ref", "approval"],
+            "additionalProperties": false,
+            "properties": {
+              "ref": { "type": "string", "description": "Relative path to a .tool.yaml" },
+              "approval": { "enum": ["none", "human", "policy"] },
+              "rate_limit": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": { "rpm": { "type": "integer", "minimum": 1 } }
+              }
+            }
+          }
+        },
+
+        "mcp": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowlist_ref": { "type": "string" },
+            "servers_used": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+
+        "handoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "accepts_from": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
+            "hands_off_to": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["agent_id", "payload_schema", "authority", "return_point", "timeout_s"],
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": { "$ref": "#/$defs/slug" },
+                  "payload_schema": { "type": "string" },
+                  "authority": { "enum": ["read_only", "delegated"] },
+                  "return_point": { "type": "string" },
+                  "timeout_s": { "type": "integer", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+
+        "guardrails": {
+          "type": "object",
+          "required": ["input", "output", "action"],
+          "additionalProperties": false,
+          "description": "All three points must be present. An empty array is a recorded decision; a missing key is an oversight.",
+          "properties": {
+            "input": { "type": "array", "items": { "$ref": "#/$defs/guardrail" } },
+            "output": { "type": "array", "items": { "$ref": "#/$defs/guardrail" } },
+            "action": { "type": "array", "items": { "$ref": "#/$defs/guardrail" } }
+          }
+        },
+
+        "privacy": {
+          "type": "object",
+          "required": ["processes_personal_data"],
+          "additionalProperties": false,
+          "properties": {
+            "processes_personal_data": { "type": "boolean" },
+            "data_categories": { "type": "array", "items": { "type": "string" } },
+            "legal_basis": { "type": "string" },
+            "capture_content": {
+              "type": "boolean",
+              "default": false,
+              "description": "Capturing prompt and response content is opt-in, never the default."
+            },
+            "redaction": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "profile": { "type": "string" }
+              }
+            },
+            "retention_days": { "type": "integer", "minimum": 0 }
+          }
+        },
+
+        "interface": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "How callers reach this agent. The contract in layout.paths.contract is generated from here, so this is the reviewed source and the machine file is the derivative — the same relationship .mcp.json has with the MCP allowlist.",
+          "properties": {
+            "transport": {
+              "enum": ["http", "cli", "queue", "library"],
+              "description": "How a request arrives. `library` means the agent is imported rather than called, and the caller owns the edge controls."
+            },
+            "base_path": { "type": "string", "description": "e.g. /v1. Versioned, because an interface without a version cannot be changed." },
+            "caller": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Where identity comes from. Declaring it is what makes a scope key a scope rather than a parameter: a key the caller can set isolates nothing.",
+              "properties": {
+                "identified_by": {
+                  "enum": ["bearer_jwt", "api_key", "mtls", "oauth2", "session_cookie", "iam", "none"],
+                  "description": "`none` is declarable and means anonymous access, which is a decision to record rather than a default to inherit."
+                },
+                "tenant_claim": {
+                  "type": "string",
+                  "description": "The claim or attribute the tenant is read from. Referenced by context.memory.scope_key so the two cannot drift."
+                },
+                "verified_server_side": { "type": "boolean", "default": true }
+              }
+            },
+            "logging": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "What the access log records. This is where privacy.capture_content either holds or is a lie — a web framework logs request paths by default, and an unhandled error records whatever was in scope.",
+              "properties": {
+                "capture_request_body": { "type": "boolean", "default": false },
+                "capture_response_body": { "type": "boolean", "default": false },
+                "log_route_template_only": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Log /v1/approvals/{id} rather than the id. An identifier in a path is personal data in a great many services."
+                },
+                "redact": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Header and field names whose values must never reach a log line. Anything carrying authority belongs here."
+                }
+              }
+            },
+            "routes": {
+              "type": "array",
+              "description": "One entry per endpoint. The generated contract is built from these.",
+              "items": {
+                "type": "object",
+                "required": ["path", "method"],
+                "additionalProperties": false,
+                "properties": {
+                  "path": { "type": "string" },
+                  "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+                  "summary": { "type": "string" },
+                  "request_schema": { "type": "string", "description": "Path or reference to the request model." },
+                  "response_schema": { "type": "string" },
+                  "auth_required": { "type": "boolean", "default": true },
+                  "idempotent": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "otel": {
+              "type": "object",
+              "required": ["enabled"],
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "semconv_version": {
+                  "type": "string",
+                  "description": "Pinned. The GenAI semantic conventions are still changing."
+                },
+                "capture_content": { "type": "boolean", "default": false }
+              }
+            },
+            "slo": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "availability": { "type": "number", "minimum": 0, "maximum": 1 },
+                "latency_p95_ms": { "type": "integer", "exclusiveMinimum": 0 },
+                "task_success_rate": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        },
+
+        "evaluation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "plan_ref": { "type": "string" },
+            "last_result_ref": { "type": "string" },
+            "max_result_age_days": { "type": "integer", "minimum": 1 }
+          }
+        },
+
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "packs": { "type": "array", "items": { "type": "string" } },
+            "waivers_ref": { "type": "string" }
+          }
+        },
+
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "revalidate_on": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "model_changed", "system_prompt_changed", "rag_corpus_changed",
+                  "provider_changed", "tool_added", "tool_effect_raised",
+                  "autonomy_raised", "guardrail_disabled", "mcp_server_added"
+                ]
+              }
+            },
+            "last_validated_at": { "type": "string", "format": "date" },
+            "review_interval_days": { "type": "integer", "minimum": 1 }
+          }
+        },
+
+        "links": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threat_model": { "type": "string" },
+            "model_card": { "type": "string" },
+            "runbook": { "type": "string" },
+            "adrs": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+
+      "allOf": [
+        {
+          "$comment": "Invariant 1: autonomy above L1 requires evaluated tool approvals. Enforced fully by control.ai.tool.irreversible_requires_approval, which can read the referenced tool specs; the schema can only require that tools be declared at all.",
+          "if": {
+            "properties": {
+              "autonomy": {
+                "properties": {
+                  "level": { "enum": ["L2_act_reversible", "L3_act_irreversible_bounded", "L4_autonomous"] }
+                },
+                "required": ["level"]
+              }
+            },
+            "required": ["autonomy"]
+          },
+          "then": { "required": ["tools"] }
+        },
+        {
+          "$comment": "An agent that processes personal data must say how long it keeps it.",
+          "if": {
+            "properties": {
+              "privacy": {
+                "properties": { "processes_personal_data": { "const": true } },
+                "required": ["processes_personal_data"]
+              }
+            },
+            "required": ["privacy"]
+          },
+          "then": {
+            "properties": {
+              "privacy": { "required": ["retention_days", "data_categories"] }
+            }
+          }
+        },
+        {
+          "$comment": "A RAG system must declare its corpus and whether citations are required.",
+          "if": {
+            "properties": { "system_type": { "const": "generative_rag" } },
+            "required": ["system_type"]
+          },
+          "then": {
+            "required": ["context"],
+            "properties": {
+              "context": {
+                "required": ["rag"],
+                "properties": {
+                  "rag": { "required": ["enabled", "corpus_id", "corpus_version", "citation_required"] }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

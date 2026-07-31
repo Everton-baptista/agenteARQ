@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.privacy.retention_declared"
+  type: "privacy"
+  title: "Personal data has a declared retention period"
+  intent: "Data with no stated retention is kept forever by default, which is the outcome nobody chose."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "agent.privacy.processes_personal_data == false or exists(agent.privacy.retention_days)"
+    message: "The agent processes personal data but declares no retention period."
+  evidence: 
+    - "manifest_field"
+  remediation: "Set privacy.retention_days per data class, and make sure something actually deletes on that schedule."
+  standard_ref: "standards/10-privacy.md#controlaiprivacyretention_declared"
+  references: 
+    - "ISO/IEC 42001:2023"

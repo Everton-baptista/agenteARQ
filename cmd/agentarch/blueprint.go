@@ -238,16 +238,16 @@ func cmdBlueprintAdd(args []string) int {
 	// one. Leaving the project one command short of being in sync means the first thing it does
 	// is fail its own CI.
 	if code := cmdSync([]string{"--root", *root}); code != exitOK {
-		fmt.Fprintln(os.Stderr, "blueprint: installed, but sync failed — run `agentarch sync`")
+		fmt.Fprintln(os.Stderr, red("blueprint: installed, but sync failed — run `agentarch sync`"))
 	}
 
-	fmt.Printf("\ninstalled %s\n\n", b.Meta.ID)
+	fmt.Printf("\n%s %s\n\n", iconCheck(), bold(green(fmt.Sprintf("installed %s", b.Meta.ID))))
 	fmt.Printf("It already passes the gate. Verify, then start editing:\n\n")
-	fmt.Printf("  agentarch validate\n")
-	fmt.Printf("  agentarch check --profile standard\n")
-	fmt.Printf("  cat app/README.md      how to run it\n\n")
-	fmt.Printf("The manifest is the contract. Change what the agent does there first,\n")
-	fmt.Printf("then make the code match — `agentarch check` will tell you when they disagree.\n")
+	fmt.Printf("  %s\n", formatCmd("agentarch validate"))
+	fmt.Printf("  %s\n", formatCmd("agentarch check --profile standard"))
+	fmt.Printf("  %s      how to run it\n\n", formatCmd("cat app/README.md"))
+	fmt.Printf("%s Change what the agent does there first,\n", dim("The manifest is the contract."))
+	fmt.Printf("%s — `agentarch check` will tell you when they disagree.\n", dim("then make the code match"))
 	return exitOK
 }
 
@@ -301,6 +301,9 @@ func confirm(prompt string) bool {
 func frameworkLabel(f string) string {
 	if f == "none" {
 		return t("framework.label.none")
+	}
+	if f == "agno" {
+		return t("framework.label.agno")
 	}
 	return f
 }

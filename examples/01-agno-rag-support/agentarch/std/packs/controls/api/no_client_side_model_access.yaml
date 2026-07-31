@@ -1,0 +1,21 @@
+schema_version: '1.0'
+control:
+  id: control.ai.api.no_client_side_model_access
+  type: api
+  title: No web client holds a provider credential
+  intent: A credential shipped to a browser is a public credential, and a client calling a provider directly has
+    no input check, no output check, no tool authorisation, no budget and no audit trail.
+  status: experimental
+  check:
+    kind: static_manifest
+    expr: len(repository.client_provider_refs) == 0
+    message: A file under layout.paths.client references a model provider directly.
+  evidence:
+  - repository_scan
+  - lint_result
+  remediation: 'Route it through your own endpoint: the client sends a question and receives an answer. Rotate the
+    exposed credential — it has been served to every visitor.'
+  standard_ref: standards/16-service-and-edge.md#controlaiapinoclientsidemodelaccess
+  references:
+  - OWASP LLM02
+  - OWASP LLM06

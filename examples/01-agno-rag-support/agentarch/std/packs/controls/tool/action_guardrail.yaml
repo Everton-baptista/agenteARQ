@@ -1,0 +1,18 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.tool.action_guardrail"
+  type: "tool"
+  title: "Tool calls are checked before execution"
+  intent: "Input and output guardrails inspect text; the action point is the last place before something actually happens."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "len(agent.guardrails.action) >= 1"
+    message: "No action guardrail is declared."
+  evidence: 
+    - "manifest_field"
+    - "test_result"
+  remediation: "Verify the tool is declared for this agent, arguments validate, domain limits hold, approval is satisfied, and egress is allowlisted. This check must not consult the model."
+  standard_ref: "standards/08-guardrails.md#controlaitoolaction_guardrail"
+  references: 
+    - "OWASP LLM06"

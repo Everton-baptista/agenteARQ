@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.rag.corpus_versioned"
+  type: "rag"
+  title: "The retrieval corpus is versioned"
+  intent: "A corpus that changes underneath a system invalidates its evals without any code change to point at."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "not exists(agent.context.rag.enabled) or agent.context.rag.enabled == false or exists(agent.context.rag.corpus_version)"
+    message: "RAG is enabled but no corpus_version is recorded."
+  evidence: 
+    - "manifest_field"
+  remediation: "Record a corpus version or snapshot id. Changing it is the rag_corpus_changed revalidation trigger."
+  standard_ref: "standards/02-prompt-and-context.md#controlairagcorpus_versioned"
+  references: 
+    - "NIST AI RMF MAP 2.3"

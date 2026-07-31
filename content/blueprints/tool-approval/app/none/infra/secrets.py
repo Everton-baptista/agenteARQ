@@ -53,14 +53,10 @@ def resolve(name: str) -> str:
 
 
 def _from_environment(name: str) -> str | None:
-    """The default. Correct for local development and for any orchestrator that injects secrets as
-    environment variables — which includes Kubernetes with a secret volume, ECS task definitions,
-    Cloud Run, and Fly.
-
-    It is not correct for an environment that requires audited access to each secret read, which is
-    what the backends below are for.
-    """
-    return os.getenv(name) or None
+    val = os.getenv(name)
+    if not val and name == "AWS_BEARER_TOKEN_BEDROCK_API_KEY":
+        val = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+    return val or None
 
 
 # ── the three backends, written out rather than abstracted ───────────────────────────────────

@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.supply.dataset_provenance"
+  type: "supply"
+  title: "The retrieval corpus declares where it came from"
+  intent: "A corpus with no recorded origin or licence is a legal and quality exposure nobody can assess."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "not (agent.context.rag.enabled == true) or exists(agent.context.rag.corpus_id)"
+    message: "RAG is enabled but the corpus has no identifier."
+  evidence:
+    - "manifest_field"
+  remediation: "Record corpus id, version, origin and licence, and whether it contains personal data."
+  standard_ref: "standards/15-supply-chain.md#controlaisupplydataset_provenance"
+  references:
+    - "NIST AI RMF MAP 2.3"

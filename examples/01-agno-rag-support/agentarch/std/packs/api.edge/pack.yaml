@@ -1,0 +1,60 @@
+schema_version: "1.0"
+pack:
+  id: api.edge
+  version: 1.0.0
+  title: The service that carries the agent
+  description: >-
+    The boundary where an agent becomes a product: an authenticated caller, a request body, a log
+    pipeline, an environment file, and sometimes a web client. This pack exists because that boundary
+    is where the controls in the other packs stop being true — the prompt leaks through the access log,
+    the memory scope key comes from an identity nothing described, and a per-run budget says nothing
+    about a caller who issues ten thousand runs. Nothing here is specific to a framework, a provider or
+    a jurisdiction.
+
+  authority_status: best_practice
+  authority:
+    name: agentarch
+    reference: content/standards/en/16-service-and-edge.md
+    jurisdiction: ["*"]
+  reviewed_at: "2026-07-29"
+
+  requires:
+    # Two blockers, both immediate. Every other control here enters in warn mode so that nothing which
+    # passes today starts failing on upgrade — but these two describe a credential that is already
+    # exposed, and a grace period on "your API key is public" is not a kindness.
+    - control: control.ai.api.secrets_not_committed
+      severity: blocker
+      required_evidence: [repository_scan]
+
+    - control: control.ai.api.no_client_side_model_access
+      severity: blocker
+      required_evidence: [repository_scan]
+
+    # The rest warn until api.edge 1.2 — enforced_from is compared against this pack's own version,
+    # per spec 02 §5, not against content/VERSION. The expensive one is core_transport_separated: a project that
+    # grew the agent inside its route handlers has to move code, which is the whole point of the
+    # control and the reason it gets two minors of warning rather than one.
+    - control: control.ai.api.core_transport_separated
+      severity: major
+      enforced_from: 1.2.0
+      required_evidence: [config, lint_result]
+
+    - control: control.ai.api.caller_identified
+      severity: major
+      enforced_from: 1.2.0
+      required_evidence: [manifest_field]
+
+    - control: control.ai.api.request_logging_redacted
+      severity: major
+      enforced_from: 1.2.0
+      required_evidence: [manifest_field]
+
+    - control: control.ai.api.budget_per_caller
+      severity: minor
+      enforced_from: 1.2.0
+      required_evidence: [manifest_field]
+
+    - control: control.ai.api.contract_generated
+      severity: minor
+      enforced_from: 1.2.0
+      required_evidence: [generated_artifact]

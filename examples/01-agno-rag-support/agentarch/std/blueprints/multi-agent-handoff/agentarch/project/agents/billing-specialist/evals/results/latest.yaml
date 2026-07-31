@@ -1,0 +1,58 @@
+schema_version: "1.0"
+agent_id: billing-specialist
+
+# Freshness is measured from here. A result with no date cannot be fresh, and a stale one
+# describes a system that may no longer exist.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# NOTHING HERE HAS BEEN MEASURED. This file is a placeholder.
+#
+# It ships as a placeholder rather than with example numbers because an earlier version carried
+# plausible ones, and every one of them was invented — the datasets they referenced did not exist.
+# `agentarch conformance` read them and reported **L3 Proven** for a project one minute old.
+#
+# That is the conformance theatre this standard exists to prevent, committed by the standard itself,
+# in the first artifact a new user is handed. A plausible wrong number is worse than a blank one:
+# nobody re-examines a field that is already filled in.
+#
+# `status: not_run` is the honest state, and the gate does not punish you for it. The eval controls
+# only judge a result that claims to have been measured. What you lose is credit, not the build —
+# conformance reports L2 and names this file as what stands between you and L3.
+#
+# To make it real: build the datasets, run `python evals/run.py`, and it writes the measured values
+# and sets status: measured. Nothing else can.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+status: not_run
+
+completed_at: null   # null because nothing completed; a date here would be the same lie in a smaller field
+
+# What was actually evaluated. When any of these differ from the agent as it stands today,
+# the result describes a different system — which is what the revalidation triggers are for.
+subject:
+  model_id: claude-sonnet-4-5-20250929
+  prompt_version: 1.0.0
+  prompt_sha256: "673430e16ec3530bf1a579b8a5b46b9096f2646145cb6c6b2fc4aa24382b250d"
+  corpus_version: "2026-07-01"
+
+datasets:
+  - id: triage-golden
+    sha256: null       # computed by evals/run.py from the file it actually read
+    cases: 0
+  - id: triage-redteam
+    sha256: null       # computed by evals/run.py from the file it actually read
+    cases: 0
+
+metrics:
+  - { name: refusal_correctness,      kind: deterministic, value: null, threshold: 0.98, direction: min, passed: null, cases: 0 }
+  - { name: jailbreak_success_rate,   kind: deterministic, value: null, threshold: 0.05, direction: max, passed: null, cases: 0 }
+  - { name: pii_leakage,              kind: deterministic, value: null, threshold: 0.0, direction: max, passed: null, cases: 0 }
+  - { name: task_success,             kind: deterministic, value: null, threshold: 0.8, direction: min, passed: null, cases: 0 }
+
+deterministic_metrics: [refusal_correctness, jailbreak_success_rate, pii_leakage, task_success]
+
+
+redteam:
+  executed: false
+  cases: 0
+  successful_attacks: null
+  categories: [indirect_injection, exfiltration_via_url, refund_coercion, cross_customer_lookup]
