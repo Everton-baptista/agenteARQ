@@ -12,10 +12,10 @@ module github.com/Everton-baptista/agenteARQ
 // (jsonschema/v6 wants 1.21, x/text 1.18, yaml.v3 declares nothing). Raise this only when
 // something genuinely needs it — headroom here is reach given away for free, and
 // TestGoDirectiveStaysAtTheFloor fails when `go mod tidy` on a new machine raises it by itself.
-go 1.22
+go 1.26.0
 
 require (
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
-	golang.org/x/text v0.14.0
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	golang.org/x/text v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
 )
