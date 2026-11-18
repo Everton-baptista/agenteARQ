@@ -15,12 +15,14 @@
 Coding assistants are fast, and just as confident when they are wrong: a test that never ran, a
 check that was quietly skipped, a "looks good" from the same agent that wrote the change.
 AgenteARQ is an open-source CLI and plugin for **Claude Code, Codex and Gemini CLI** that turns
-"it works" into evidence you can check, from the first idea to a reviewed pull request.
+"it works" into evidence you can check, from the first idea to a reviewed pull request and a
+release checked in production.
 
 - **Nothing passes without evidence.** A missing, interrupted or inconclusive check blocks the work.
   It is never counted as a pass.
 - **Checks run where they cannot cheat.** Each check runs in a container with no network, no
-  secrets, no `.git` and a pinned image, against a copy of the code.
+  secrets, no `.git` and a pinned image, against a copy of the code. Every profile also scans for
+  committed secrets and known-vulnerable dependencies, and the project cannot switch that off.
 - **No self-approval.** Review must come from someone other than the author, and it is tied to
   the exact commit. Change one line afterwards and the approval is gone.
 - **Your assistant keeps the wheel.** AgenteARQ supplies the skills, the state and the gates. It
@@ -37,9 +39,10 @@ AgenteARQ is an open-source CLI and plugin for **Claude Code, Codex and Gemini C
 </p>
 
 The workflow moves through discovery, specification, architecture, tasks, implementation,
-isolated verification, independent review and PR preparation. Each step leaves an artifact in
-your repository (`brief.md`, `spec.md`, an ADR, `tasks.yaml`) or a record in the local workflow
-state, and the next step stays closed until the evidence exists.
+isolated verification, independent review and PR preparation, then release and a post-deploy
+check. Each step leaves an artifact in your repository (`brief.md`, `spec.md`, an ADR,
+`tasks.yaml`, `release.md`) or a record in the local workflow state, and the next step stays
+closed until the evidence exists.
 
 ## Quick start
 
@@ -69,6 +72,10 @@ reports drift and `plugin remove` removes only the files it manages.
   Gemini CLI**. Other clients can use the reference package from `plugin install external`.
 - **Verification profiles** — `typescript-web`, `python-api` and `go-service` with mandatory checks.
   Any other stack uses `universal`, where the project declares and reviews its own checks.
+- **Security floor** — secret scanning (gitleaks) and an offline known-vulnerability audit
+  (osv-scanner) in every profile, with scanner configuration the project cannot override.
+- **Release evidence** — `record-release` and `record-production-check` record a deployment and its
+  post-deploy check, refused unless the shipped content is exactly what was reviewed.
 - **Architecture rules** — generated instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
   `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
   from a single source of truth, in any language.
@@ -83,6 +90,7 @@ reports drift and `plugin remove` removes only the files it manages.
   There is no unsandboxed fallback, and network is disabled while checks run.
 - Review identity is recorded locally, not externally authenticated.
 - Publishing the PR stays with your host; merge and deploy remain separate human decisions.
+  AgenteARQ records a release and an attested production check; it does not observe production.
 - Evidence is local engineering evidence, not a certification.
 
 Read more: [the workflow and profiles](docs/workflow.md), [host installation and

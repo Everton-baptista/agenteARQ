@@ -107,11 +107,23 @@ func (s *Service) status() (Snapshot, error) {
 		return Snapshot{}, e
 	}
 	snap := Snapshot{Product: p, Tasks: t.Tasks, State: st, Fingerprint: fp, Findings: []Finding{}}
-	if st.Verification != nil && !sameFingerprint(st.Verification.Fingerprint, fp) {
-		snap.Findings = append(snap.Findings, Finding{"evidence.stale", "product", "stale", "Source, HEAD, worktree or profile changed; verify and review again."})
-		if phaseIndex(st.Phase) >= phaseIndex("reviewing") {
-			snap.State.Phase = "verifying"
+	// From pr_ready on, the reviewed content may arrive in a different commit (a squash or
+	// rebase merge), so only a content change makes the evidence stale. Before that, any
+	// change of source, HEAD, branch, worktree or profile does.
+	if st.Verification != nil {
+		stale := !sameFingerprint(st.Verification.Fingerprint, fp)
+		if phaseIndex(st.Phase) >= phaseIndex("pr_ready") {
+			stale = !sameContent(st.Verification.Fingerprint, fp)
 		}
+		if stale {
+			snap.Findings = append(snap.Findings, Finding{"evidence.stale", "product", "stale", "Source, HEAD, worktree or profile changed; verify and review again."})
+			if phaseIndex(st.Phase) >= phaseIndex("reviewing") {
+				snap.State.Phase = "verifying"
+			}
+		}
+	}
+	if st.ProductionCheck != nil && st.ProductionCheck.Outcome == "failed" && snap.State.Phase == "released" {
+		snap.Findings = append(snap.Findings, Finding{"production.check_failed", "product", "failed", "The production check failed; follow the rollback in " + ReleasePlanPath + "."})
 	}
 	if st.Verification != nil {
 		for _, check := range st.Verification.Checks {
@@ -170,7 +182,14 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 	case "reviewing":
 		action = "Request an independent human or agent review of this exact fingerprint."
 	case "pr_ready":
-		action = "The local gate passed. Use the host to publish the PR; this tool does not merge or deploy."
+		action = "The local gate passed. Publish the PR with your host; after a person or CI deploys this content, record it with record-release. This tool does not merge or deploy."
+		if gaps := s.releasePlanGaps(); len(gaps) > 0 {
+			action += " Releasing also needs " + ReleasePlanPath + " in the reviewed source."
+		}
+	case "released":
+		action = "Run the post-deploy verification from " + ReleasePlanPath + " and record it with record-production-check."
+	case "production_verified":
+		action = "Shipped and checked in production. Keep watching the signals in " + ReleasePlanPath + "; new work starts at implementing."
 	case "blocked":
 		action = "Resolve the recorded blocker and checkpoint implementing."
 	case "cancelled":
@@ -333,6 +352,9 @@ func (s *Service) Checkpoint(req CheckpointRequest) (Snapshot, error) {
 	if req.Phase == "reviewing" || req.Phase == "pr_ready" {
 		return Snapshot{}, errors.New("only successful verification and independent review can advance to reviewing/pr_ready")
 	}
+	if req.Phase == "released" || req.Phase == "production_verified" {
+		return Snapshot{}, errors.New("only record-release and record-production-check can advance to released/production_verified")
+	}
 	if req.Phase != "blocked" && req.Phase != "cancelled" && phaseIndex(req.Phase) < 0 {
 		return Snapshot{}, errors.New("unknown workflow phase")
 	}
@@ -384,6 +406,7 @@ func (s *Service) Checkpoint(req CheckpointRequest) (Snapshot, error) {
 	}
 	if req.Phase != st.Phase || req.TaskID != "" {
 		st.Review = nil
+		st.Release, st.ProductionCheck = nil, nil
 	}
 	st.Phase = req.Phase
 	st.Checkpoints = append(st.Checkpoints, CheckpointRecord{Phase: req.Phase, TaskID: req.TaskID, Note: req.Note, At: now()})

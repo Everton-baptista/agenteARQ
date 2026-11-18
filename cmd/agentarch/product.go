@@ -21,11 +21,11 @@ import (
 
 func cmdWorkflow(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr [--root DIR] [--format json]")
+		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format json]")
 		return exitUsage
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy.")
+		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
 		return exitOK
 	}
 	command := args[0]
@@ -48,9 +48,12 @@ func cmdWorkflow(args []string) int {
 	reviewer := f.String("reviewer", "", "independent reviewer identity")
 	kind := f.String("kind", "human", "human or independent_agent")
 	verdict := f.String("verdict", "", "approved or changes_requested")
-	summary := f.String("summary", "", "review findings and evidence")
-	prURL := f.String("url", "", "published pull request URL; registration does not publish")
-	head := f.String("head", "", "exact commit of the published pull request")
+	summary := f.String("summary", "", "review findings, or what the production check observed")
+	prURL := f.String("url", "", "record-pr: the published pull request; record-release: the deployment run; record-production-check: the dashboard, log or report")
+	head := f.String("head", "", "record-pr: exact commit of the pull request; record-release: the commit that was deployed")
+	environment := f.String("environment", "", "record-release: target environment id, such as production")
+	outcome := f.String("outcome", "", "record-production-check: passed or failed")
+	attester := f.String("attester", "", "record-production-check: who checked production")
 	if err := f.Parse(hoistFlags(args[1:])); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -102,6 +105,10 @@ func cmdWorkflow(args []string) int {
 		result, err = s.Review(workflow.ReviewRequest{Reviewer: *reviewer, Kind: *kind, Verdict: *verdict, Summary: *summary, ExpectedRevision: expected})
 	case "record-pr":
 		result, err = s.RecordPR(workflow.PRRequest{URL: *prURL, Head: *head, ExpectedRevision: expected})
+	case "record-release":
+		result, err = s.RecordRelease(workflow.ReleaseRequest{URL: *prURL, Head: *head, Environment: *environment, ExpectedRevision: expected})
+	case "record-production-check":
+		result, err = s.RecordProductionCheck(workflow.ProductionCheckRequest{URL: *prURL, Outcome: *outcome, Attester: *attester, Summary: *summary, ExpectedRevision: expected})
 	default:
 		err = fmt.Errorf("unknown workflow command %q", command)
 	}
@@ -147,6 +154,12 @@ func printProduct(v any, err error, format string) int {
 			for _, c := range x.State.Verification.Checks {
 				fmt.Printf("  %-13s %-30s %s\n", c.Status, c.ID, c.Message)
 			}
+		}
+		if r := x.State.Release; r != nil {
+			fmt.Printf("  release       %s at %s · %s\n", r.Environment, r.Head, r.URL)
+		}
+		if c := x.State.ProductionCheck; c != nil {
+			fmt.Printf("  production    %s by %s (attested, not observed by agentarch) · %s\n", c.Outcome, c.Attester, c.URL)
 		}
 	case application.View:
 		if x.Initialized && x.Snapshot != nil {
