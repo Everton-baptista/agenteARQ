@@ -103,7 +103,7 @@ func TestSetModelFieldsRewritesOnlyTheModelBlock(t *testing.T) {
 func TestSetProviderSDKReplacesTheMarkedLineOnlyOnce(t *testing.T) {
 	req := []string{
 		"# a comment mentioning anthropic",
-		"anthropic==0.120.2  # agentarch:provider-sdk",
+		"anthropic==2.8.0  # agentarch:provider-sdk",
 		"fastapi==0.141.1",
 	}
 	if !setProviderSDK(req, "openai==2.51.0") {
