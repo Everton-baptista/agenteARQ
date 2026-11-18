@@ -28,6 +28,15 @@ var profiles = map[string][]Command{
 		// do not accidentally exclude application paths such as src/tests/.
 		{ID: "security", Program: "python", Args: []string{"-m", "bandit", "-r", ".", "-q", "-x", "./.venv/*,./tests/*"}, Timeout: 3 * time.Minute},
 	},
+	// Go services. Modules come from the image's read-only cache (GOPROXY=off); known
+	// vulnerabilities in go.mod are covered by the security floor's dependency-audit.
+	"go-service": {
+		// gofmt -l exits 0 even when files need formatting, so the fixed wrapper fails on output.
+		{ID: "format", Program: "sh", Args: []string{"-c", `out=$(gofmt -l .) || exit 1; [ -z "$out" ] || { printf 'not gofmt-formatted:\n%s\n' "$out"; exit 1; }`}, Timeout: time.Minute},
+		{ID: "vet", Program: "go", Args: []string{"vet", "./..."}, Timeout: 3 * time.Minute},
+		{ID: "build", Program: "go", Args: []string{"build", "./..."}, Timeout: 5 * time.Minute},
+		{ID: "test", Program: "go", Args: []string{"test", "-race", "./..."}, Timeout: 10 * time.Minute},
+	},
 }
 
 // securityFloor runs in every profile, universal included, after the profile's own checks.
@@ -49,7 +58,7 @@ func FloorCheckIDs() []string {
 	return ids
 }
 
-func Profiles() []string { return []string{"universal", "typescript-web", "python-api"} }
+func Profiles() []string { return []string{"universal", "typescript-web", "python-api", "go-service"} }
 
 // ProfileCommands returns the profile's built-in checks followed by the security floor.
 func ProfileCommands(name string) ([]Command, error) {
