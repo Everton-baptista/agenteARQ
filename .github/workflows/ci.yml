@@ -830,5 +830,6 @@ jobs:
         run: python3 -m unittest discover -s scripts/tests -p 'test_live_plugin_smoke.py'
       - name: managed skill helper regressions (no model calls)
         run: |
-          python3 -m pip install --only-binary=:all: pytest==9.1.1
+          # The upgrade-review helper imports PyYAML; same pin as the python-api verifier image.
+          python3 -m pip install --only-binary=:all: pytest==9.1.1 PyYAML==6.0.3
           python3 -m pytest -q verifiers/python-api/tests/test_managed_skills.py
