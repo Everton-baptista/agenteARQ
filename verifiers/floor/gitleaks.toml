@@ -1,0 +1,3 @@
+# AgenteARQ security floor: gitleaks default rules. The project cannot replace this file.
+[extend]
+useDefault = true

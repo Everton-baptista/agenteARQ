@@ -13,9 +13,10 @@ import (
 )
 
 type fakeRunner struct {
-	status string
-	after  func()
-	once   sync.Once
+	status    string
+	statusFor map[string]string // per check ID; overrides status
+	after     func()
+	once      sync.Once
 }
 
 func (f *fakeRunner) Isolation() string { return "simulated" }
@@ -24,6 +25,9 @@ func (f *fakeRunner) Run(_ context.Context, _ string, c Command) CheckResult {
 		f.once.Do(f.after)
 	}
 	status := f.status
+	if s, ok := f.statusFor[c.ID]; ok {
+		status = s
+	}
 	if status == "" {
 		status = "passed"
 	}
@@ -365,8 +369,8 @@ func TestStrictYAMLAndSafeArtifactPath(t *testing.T) {
 }
 func TestUniversalChecksAndProfiles(t *testing.T) {
 	cmds, e := commandsFor(Product{Profile: "universal", Checks: []CheckSpec{{ID: "unit", Program: "cargo", Args: []string{"test", "--offline"}, TimeoutSeconds: 60}}})
-	if e != nil || len(cmds) != 1 {
-		t.Fatalf("universal: %v", e)
+	if e != nil || len(cmds) != 1+len(securityFloor) || cmds[len(cmds)-1].ID != "unit" {
+		t.Fatalf("universal: %+v, %v", cmds, e)
 	}
 	if _, e = commandsFor(Product{Profile: "universal"}); e == nil {
 		t.Fatal("empty universal profile passed")

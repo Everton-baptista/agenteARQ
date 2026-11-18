@@ -789,7 +789,7 @@ jobs:
   product-workflow:
     name: local dashboard, MCP and isolated workflow
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
@@ -811,17 +811,30 @@ jobs:
         run: |
           npm exec --prefix web -- playwright install --with-deps chromium
           npm run test:e2e --prefix web
+      # Every profile now runs the security floor, so the live tests need a verifier image that
+      # carries it. The image is built here from the recipe and served from a throwaway local
+      # registry, because verification only accepts a repository digest and never pulls.
+      - name: build the universal verifier image with the security floor
+        env:
+          BASE: docker.io/library/python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+          REGISTRY: docker.io/library/registry@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+        run: |
+          docker run -d --name floor-registry -p 127.0.0.1:5000:5000 "$REGISTRY"
+          CONTAINER_ENGINE=docker sh verifiers/build.sh universal . "$BASE" localhost:5000/agentarch-universal:ci
+          docker push -q localhost:5000/agentarch-universal:ci
+          image=$(docker inspect --format '{{index .RepoDigests 0}}' localhost:5000/agentarch-universal:ci)
+          # The verifier prefers Podman when it is installed, and hosted runners ship both; the
+          # image must exist in the runtime that will run it with --pull=never.
+          if command -v podman >/dev/null 2>&1; then podman pull -q --tls-verify=false "$image"; fi
+          echo "FLOOR_IMAGE=$image" >> "$GITHUB_ENV"
       - name: real isolated verification, review, stale evidence and timeout cleanup
         env:
-          # Fully qualified: Podman does not resolve short names without a configured search registry.
-          IMAGE: docker.io/library/alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
           AGENTARCH_BIN: /tmp/agentarch
-        run: |
-          # The verifier prefers Podman when it is installed, and hosted runners ship both. Pulling
-          # with Docker alone left the image missing from the runtime that then ran with --pull=never.
-          if command -v podman >/dev/null 2>&1; then runtime=podman; else runtime=docker; fi
-          "$runtime" pull "$IMAGE"
-          bash scripts/test-workflow-live.sh
+        run: IMAGE="$FLOOR_IMAGE" bash scripts/test-workflow-live.sh
+      - name: the security floor finds secrets and vulnerable dependencies and cannot be switched off
+        env:
+          AGENTARCH_BIN: /tmp/agentarch
+        run: IMAGE="$FLOOR_IMAGE" bash scripts/test-security-floor-live.sh
       - name: benchmark protocol tests and dry matrix (no model calls)
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_benchmark*.py'

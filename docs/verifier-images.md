@@ -8,6 +8,15 @@ pulls an image, or falls back to running on the host. These recipes prepare that
 |---|---|---|
 | `typescript-web` | [`verifiers/typescript-web/Dockerfile`](../verifiers/typescript-web/Dockerfile) | `package.json`, `package-lock.json` |
 | `python-api` | [`verifiers/python-api/Dockerfile`](../verifiers/python-api/Dockerfile) | `requirements-verifier.lock` |
+| `universal` | [`verifiers/universal/Dockerfile`](../verifiers/universal/Dockerfile) | none; the base supplies the project's toolchain |
+
+Every recipe installs the **security floor** from [`verifiers/floor/`](../verifiers/floor/):
+gitleaks 8.30.1 and osv-scanner 2.7.0, each verified by SHA-256, the image's own scanner
+configuration, and the OSV vulnerability database for PyPI, npm, Go, crates.io, RubyGems,
+Packagist, Maven, NuGet, Pub and Hex. The database is a snapshot: its download time and each
+archive's SHA-256 are recorded in `/opt/agentarch-floor/osv/`, and the audit refuses to pass
+with a snapshot older than 14 days (`AGENTARCH_OSV_MAX_AGE_DAYS`). Rebuild the image to refresh it.
+The base needs `tar`, a SHA-256 tool and one of curl, wget, python3 or node during the build.
 
 The image build is a separate, network-enabled operation that downloads packages and executes
 build instructions. Review the base image, dependency inputs and Dockerfile before building.
@@ -85,8 +94,8 @@ source copy and container: `test:e2e` cannot reuse output or a web server from t
 `build` command. Start its own local server and prepare its own assets, or use a dev server.
 Browser tests must fit the current 1 GiB memory, 128-process and tmpfs limits; restrict workers.
 The runner does not add host IPC or extra capabilities to satisfy a browser configuration.
-`test:security` must perform offline tests or use an already provisioned database; `npm audit`
-requires registry access and cannot be a passing offline check.
+`test:security` must perform offline tests. `npm audit` requires registry access and cannot be a
+passing offline check; the floor's `dependency-audit` covers known vulnerabilities offline instead.
 
 ## Python API
 
@@ -147,7 +156,8 @@ Configure your source/import layout and tool exclusions in the project. A `src/`
 need pytest's `pythonpath` setting or a reviewed `PYTHONPATH=/workspace/src` in the image;
 verification does not run `pip install -e .`. Use local fixtures such as SQLite where suitable.
 External databases and API services are unreachable; a test can start local processes within
-its own container and command. `pip check` checks dependency consistency, not vulnerability data.
+its own container and command. `pip check` checks dependency consistency, not vulnerability data; the floor's
+`dependency-audit` checks vulnerability data.
 
 ## Install the final digest, then verify
 

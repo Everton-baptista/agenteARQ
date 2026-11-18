@@ -30,13 +30,35 @@ var profiles = map[string][]Command{
 	},
 }
 
+// securityFloor runs in every profile, universal included, after the profile's own checks.
+// No product.yaml setting can remove, replace or rename these checks. The programs are wrappers
+// installed by verifiers/floor/install.sh; they pin the scanner configuration so a file inside
+// the project cannot switch rules off. An image without them exits 127, which the container
+// runner records as inconclusive, so a missing floor blocks readiness instead of passing.
+var securityFloor = []Command{
+	{ID: "secrets", Program: "agentarch-secrets", Timeout: 3 * time.Minute},
+	{ID: "dependency-audit", Program: "agentarch-dependency-audit", Timeout: 5 * time.Minute},
+}
+
+// FloorCheckIDs are the check IDs every verification must contain.
+func FloorCheckIDs() []string {
+	ids := make([]string, 0, len(securityFloor))
+	for _, c := range securityFloor {
+		ids = append(ids, c.ID)
+	}
+	return ids
+}
+
 func Profiles() []string { return []string{"universal", "typescript-web", "python-api"} }
+
+// ProfileCommands returns the profile's built-in checks followed by the security floor.
 func ProfileCommands(name string) ([]Command, error) {
 	p, ok := profiles[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown engineering profile %q", name)
 	}
-	return append([]Command{}, p...), nil
+	out := append([]Command{}, p...)
+	return append(out, securityFloor...), nil
 }
 func commandsFor(p Product) ([]Command, error) {
 	out, e := ProfileCommands(p.Profile)
@@ -46,8 +68,19 @@ func commandsFor(p Product) ([]Command, error) {
 	if p.Profile != "universal" && len(p.Checks) > 0 {
 		return nil, errors.New("custom checks belong to the universal profile; built-in profiles cannot be weakened")
 	}
+	if p.Profile == "universal" && len(p.Checks) == 0 {
+		return nil, errors.New("universal profile requires explicit checks in product.yaml")
+	}
 	ids := map[string]bool{}
+	for _, c := range securityFloor {
+		ids[c.ID] = true
+	}
 	for _, c := range p.Checks {
+		for _, f := range securityFloor {
+			if c.ID == f.ID {
+				return nil, fmt.Errorf("check id %q is reserved for the security floor and cannot be redefined", c.ID)
+			}
+		}
 		if !slug.MatchString(c.ID) || ids[c.ID] {
 			return nil, errors.New("custom checks require unique lowercase ids")
 		}
@@ -59,9 +92,6 @@ func commandsFor(p Product) ([]Command, error) {
 			return nil, errors.New("check timeout_seconds must be between 1 and 600")
 		}
 		out = append(out, Command{ID: c.ID, Program: c.Program, Args: c.Args, Timeout: time.Duration(c.TimeoutSeconds) * time.Second})
-	}
-	if len(out) == 0 {
-		return nil, errors.New("universal profile requires explicit checks in product.yaml")
 	}
 	return out, nil
 }
