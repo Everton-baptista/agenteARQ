@@ -22,3 +22,6 @@ the precise unmet prerequisite rather than claiming a PR exists.
 
 Stop at the requested deliverable. A PR request does not imply merge, deployment, release,
 or ongoing autonomous repair. Do not present an unfinished check as a successful one.
+
+If the change will ship, `agentarch/project/release.md` belongs in the reviewed source; the
+release itself follows `agentarch-release-product`.

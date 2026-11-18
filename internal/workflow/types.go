@@ -1,6 +1,7 @@
 // Package workflow coordinates reviewable product artifacts, never model execution.
 // Read operations are Status/Next. Init, Checkpoint, Verify and Review have effect write;
-// none creates a PR, sends a message, merges, deploys or starts a coding agent.
+// RecordPR, RecordRelease and RecordProductionCheck only record what a person or CI did
+// elsewhere: none creates a PR, sends a message, merges, deploys or starts a coding agent.
 package workflow
 
 import (
@@ -12,7 +13,7 @@ const SchemaVersion = "1.0"
 const ProductPath = "agentarch/project/product.yaml"
 const TasksPath = "agentarch/project/tasks.yaml"
 
-var Phases = []string{"draft", "specified", "planned", "implementing", "verifying", "reviewing", "pr_ready"}
+var Phases = []string{"draft", "specified", "planned", "implementing", "verifying", "reviewing", "pr_ready", "released", "production_verified"}
 
 type Product struct {
 	SchemaVersion       string      `json:"schema_version" yaml:"schema_version"`
@@ -105,6 +106,9 @@ type State struct {
 	Verification   *Verification      `json:"verification,omitempty"`
 	Review         *ReviewRecord      `json:"review,omitempty"`
 	PR             *PRRecord          `json:"pr,omitempty"`
+	// Release and ProductionCheck record shipping done elsewhere; AgenteARQ never deploys.
+	Release         *ReleaseRecord         `json:"release,omitempty"`
+	ProductionCheck *ProductionCheckRecord `json:"production_check,omitempty"`
 }
 
 type NextAction struct {

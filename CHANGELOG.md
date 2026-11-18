@@ -21,7 +21,7 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
-## Unreleased
+## v0.4.0 — 2026-11-18
 
 `cli` — a security floor in every engineering profile.
 
@@ -32,7 +32,15 @@ exit 1 rather than read on a best-effort basis.
 - `verifiers/floor/` installs pinned scanners and the database into every recipe; new
   `verifiers/universal/` recipe.
 
-## v0.4.0 — 2026-11-18
+`cli` — from pull request to production, with evidence and without deploying.
+
+- New phases `released` and `production_verified`. `workflow record-release` records a deployment
+  done by a person or CI, only when the deployed commit carries exactly the reviewed content and
+  `release.md` (environment, owner, rollback, post-deploy verification, signals) was reviewed with
+  it. `workflow record-production-check` records an attested post-deploy check.
+- From `pr_ready` on, evidence goes stale on a content change only, so a squash or rebase merge of
+  the reviewed tree keeps it. New `agentarch-release-product` skill and checklist; the dashboard
+  shows the production phases.
 
 `cli` — product workflow, Codex/Claude/Gemini plugins, MCP stdio server and local React dashboard.
 `content/1.3.0` — contextual product skills, truthful blueprint runtime contracts and enforced gates.

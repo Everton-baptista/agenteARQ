@@ -36,6 +36,8 @@ type Snapshot = {
       checks: Check[];
     };
     review?: { reviewer: string; verdict: string; summary: string };
+    release?: { environment: string; head: string; url: string };
+    production_check?: { outcome: string; attester: string; summary: string };
   };
   fingerprint: { branch: string; head: string };
   findings: Finding[];
@@ -56,6 +58,8 @@ const phases = [
   ["verifying", "Verificação"],
   ["reviewing", "Revisão"],
   ["pr_ready", "Pronto para PR"],
+  ["released", "Liberado"],
+  ["production_verified", "Verificado em produção"],
 ];
 const statuses: Record<string, string> = {
   passed: "Aprovado",
@@ -74,7 +78,9 @@ const actions: Record<string, string> = {
   implementing: "Conclua as tarefas e reúna as evidências.",
   verifying: "Execute as verificações e resolva as pendências.",
   reviewing: "Solicite uma revisão independente desta versão.",
-  pr_ready: "O projeto passou pelo fluxo local. Prepare o pull request.",
+  pr_ready: "O projeto passou pelo fluxo local. Prepare o pull request e, depois do deploy, registre a liberação.",
+  released: "Faça a verificação pós-deploy do release.md e registre o resultado.",
+  production_verified: "Em produção e verificado. Acompanhe os sinais do release.md.",
   blocked: "Resolva o impedimento registrado para continuar.",
   cancelled: "O trabalho foi cancelado. Reabra a descoberta para continuar.",
 };
