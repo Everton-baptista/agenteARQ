@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="title">How AgenteARQ works</title>
+  <desc id="desc">Your coding assistant writes the code through AgenteARQ skills and MCP tools. AgenteARQ keeps the product contract in your Git repository and moves the work through seven phases, from draft to a reviewed pull request. Verification runs in an isolated container, review needs a reviewer other than the author, and products with AI also pass the agent controls. AgenteARQ never merges or deploys.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="1199" height="679" rx="16" fill="#ffffff" stroke="#d0d7de"/>
+
+  <!-- Header -->
+  <text x="40" y="54" font-size="30" font-weight="700" fill="#1f2328">AgenteARQ</text>
+  <text x="40" y="82" font-size="16" fill="#57606a">From idea to a reviewed pull request, with evidence you can check instead of a model's word for it.</text>
+
+  <!-- Row 1: who does what -->
+  <g font-size="13" fill="#57606a">
+    <rect x="40" y="110" width="300" height="92" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+    <text x="60" y="138" font-size="16" font-weight="600" fill="#1f2328">Your coding assistant</text>
+    <text x="60" y="162">Claude Code · Codex · Gemini CLI</text>
+    <text x="60" y="182">talks with you and writes the code</text>
+
+    <rect x="450" y="110" width="300" height="92" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+    <text x="470" y="138" font-size="16" font-weight="600" fill="#0a3069">AgenteARQ (local CLI)</text>
+    <text x="470" y="162" fill="#0a3069">keeps the product contract and state</text>
+    <text x="470" y="182" fill="#0a3069">says which evidence is still missing</text>
+
+    <rect x="860" y="110" width="300" height="92" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+    <text x="880" y="138" font-size="16" font-weight="600" fill="#1f2328">Your Git repository</text>
+    <text x="880" y="162">brief · spec · ADR · tasks · code</text>
+    <text x="880" y="182">versioned and reviewable artifacts</text>
+  </g>
+  <g stroke="#57606a" stroke-width="1.5" fill="none">
+    <line x1="342" y1="156" x2="446" y2="156" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <line x1="752" y1="156" x2="856" y2="156" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  </g>
+  <g font-size="12" fill="#57606a" text-anchor="middle">
+    <text x="395" y="146">skills + MCP</text>
+    <text x="804" y="146">reads, checks</text>
+  </g>
+
+  <!-- Row 2: the workflow -->
+  <text x="40" y="244" font-size="15" font-weight="600" fill="#1f2328">1 · The workflow: each phase needs evidence before the next one opens</text>
+  <g font-size="14" font-weight="600" text-anchor="middle">
+    <rect x="40" y="260" width="140" height="44" rx="22" fill="#ddf4ff" stroke="#54aeff"/>
+    <text x="110" y="287" fill="#0a3069">draft</text>
+    <rect x="203" y="260" width="140" height="44" rx="22" fill="#ddf4ff" stroke="#54aeff"/>
+    <text x="273" y="287" fill="#0a3069">specified</text>
+    <rect x="366" y="260" width="140" height="44" rx="22" fill="#ddf4ff" stroke="#54aeff"/>
+    <text x="436" y="287" fill="#0a3069">planned</text>
+    <rect x="529" y="260" width="140" height="44" rx="22" fill="#ddf4ff" stroke="#54aeff"/>
+    <text x="599" y="287" fill="#0a3069">implementing</text>
+    <rect x="692" y="260" width="140" height="44" rx="22" fill="#fff8c5" stroke="#d4a72c"/>
+    <text x="762" y="287" fill="#4d2d00">verifying</text>
+    <rect x="855" y="260" width="140" height="44" rx="22" fill="#fbefff" stroke="#c297ff"/>
+    <text x="925" y="287" fill="#3e1f79">reviewing</text>
+    <rect x="1018" y="260" width="142" height="44" rx="22" fill="#dafbe1" stroke="#4ac26b"/>
+    <text x="1089" y="287" fill="#044f1e">pr_ready</text>
+  </g>
+  <g stroke="#57606a" stroke-width="1.5">
+    <line x1="181" y1="282" x2="201" y2="282" marker-end="url(#arrow)"/>
+    <line x1="344" y1="282" x2="364" y2="282" marker-end="url(#arrow)"/>
+    <line x1="507" y1="282" x2="527" y2="282" marker-end="url(#arrow)"/>
+    <line x1="670" y1="282" x2="690" y2="282" marker-end="url(#arrow)"/>
+    <line x1="833" y1="282" x2="853" y2="282" marker-end="url(#arrow)"/>
+    <line x1="996" y1="282" x2="1016" y2="282" marker-end="url(#arrow)"/>
+  </g>
+  <g font-size="12" fill="#57606a" text-anchor="middle">
+    <text x="110" y="326">goal and author</text>
+    <text x="273" y="326">brief, AC-1, AC-2 …</text>
+    <text x="436" y="326">ADR and tasks</text>
+    <text x="599" y="326">tasks done in order</text>
+    <text x="762" y="326">checks in a sandbox</text>
+    <text x="925" y="326">reviewer ≠ author</text>
+    <text x="1089" y="326">exact HEAD reviewed</text>
+  </g>
+  <path d="M1089,336 L1089,350 L762,350 L762,340" fill="none" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="925" y="370" font-size="12" fill="#cf222e" text-anchor="middle">any source edit invalidates verification and review</text>
+
+  <!-- Row 3: the gates -->
+  <text x="40" y="410" font-size="15" font-weight="600" fill="#1f2328">2 · What the gates check</text>
+  <g font-size="13" fill="#1f2328">
+    <rect x="40" y="426" width="360" height="176" rx="10" fill="#ffffff" stroke="#d4a72c"/>
+    <rect x="40" y="426" width="360" height="6" rx="3" fill="#d4a72c"/>
+    <text x="60" y="458" font-size="16" font-weight="600">Isolated verification</text>
+    <text x="60" y="484">• Podman or Docker, image pinned by @sha256</text>
+    <text x="60" y="506">• no network, read-only, capabilities dropped</text>
+    <text x="60" y="528">• no .git, no secrets, no host socket</text>
+    <text x="60" y="550">• bounded CPU, memory, processes and time</text>
+    <text x="60" y="572">• failed or inconclusive means blocked</text>
+
+    <rect x="420" y="426" width="360" height="176" rx="10" fill="#ffffff" stroke="#54aeff"/>
+    <rect x="420" y="426" width="360" height="6" rx="3" fill="#54aeff"/>
+    <text x="440" y="458" font-size="16" font-weight="600">Engineering profiles</text>
+    <text x="440" y="484">• typescript-web: lint, types, tests, build,</text>
+    <text x="451" y="506">e2e, accessibility, security</text>
+    <text x="440" y="528">• python-api: Ruff, mypy, pytest, pip check,</text>
+    <text x="451" y="550">Bandit</text>
+    <text x="440" y="572">• universal: the checks your project declares</text>
+
+    <rect x="800" y="426" width="360" height="176" rx="10" fill="#ffffff" stroke="#c297ff"/>
+    <rect x="800" y="426" width="360" height="6" rx="3" fill="#c297ff"/>
+    <text x="820" y="458" font-size="16" font-weight="600">When the product has AI</text>
+    <text x="820" y="484">• the agent manifest is the contract</text>
+    <text x="820" y="506">• controls for approval, scope, owner,</text>
+    <text x="831" y="528">pinned model, guardrails and secrets</text>
+    <text x="820" y="550">• agentarch check blocks the release</text>
+    <text x="820" y="572">• evals and red team for higher levels</text>
+  </g>
+
+  <!-- Footer -->
+  <line x1="40" y1="628" x2="1160" y2="628" stroke="#d0d7de"/>
+  <text x="40" y="656" font-size="14" fill="#1f2328"><tspan font-weight="600">AgenteARQ never merges or deploys.</tspan> It records the evidence; you or your CI ship.</text>
+  <text x="1160" y="656" font-size="13" fill="#57606a" text-anchor="end">runs locally · software with or without AI</text>
+</svg>

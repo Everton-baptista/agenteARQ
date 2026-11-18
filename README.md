@@ -12,6 +12,10 @@ local models — follows the same architecture rules, from a single source of tr
 > Native Python runtimes; a real LangGraph variant for RAG · AWS Bedrock, Anthropic, OpenAI and Google ·
 > `en` and `pt-BR`, from the interview through to every generated instruction file.
 
+<p align="center">
+  <img src="docs/assets/how-it-works.svg" alt="How AgenteARQ works: your coding assistant writes the code through AgenteARQ skills and MCP tools; the work moves from draft to a reviewed pull request, with isolated verification, independent review and agent controls as gates. AgenteARQ never merges or deploys." width="100%">
+</p>
+
 ---
 
 ## Build a product with your coding assistant
