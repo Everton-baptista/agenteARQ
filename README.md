@@ -1,65 +1,94 @@
-# agentarch
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="AgenteARQ: your AI writes the code, AgenteARQ makes it prove it. Seven steps from idea to a reviewed pull request: discover, specify, plan, build, verify, review, PR ready." width="100%">
+</p>
 
-**AgenteARQ: a local product-development workflow and an open, verifiable standard for AI agents.**
+<p align="center">
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
+  <img alt="Status: pre-release" src="https://img.shields.io/badge/status-pre--release-orange">
+  <img alt="Works with Claude Code, Codex and Gemini CLI" src="https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20CLI-6e56cf">
+</p>
 
-What reaches which assistant, precisely:
+# AgenteARQ
 
-- **Architecture rules** — generated instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
-  `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
-  from a single source of truth, in any language.
-- **Product workflow plugin** — skills plus a local MCP server, installed for **Claude Code, Codex
-  and Gemini CLI**. Other clients can use the reference package from `plugin install external`.
-- **Built-in verification profiles** — `typescript-web` and `python-api`. Any other stack uses
-  `universal`, where the project declares and reviews its own checks.
-- **Runnable blueprints** — Python services only.
+**Your AI coding assistant writes the code. AgenteARQ makes it prove it.**
 
-> Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
->
-> 16 standards · 46 controls · 10 packs · 12 framework adapters · 7 runnable blueprints ·
-> Native Python runtimes; a real LangGraph variant for RAG · AWS Bedrock, Anthropic, OpenAI and Google ·
-> `en` and `pt-BR`, from the interview through to every generated instruction file.
+Coding assistants are fast, and just as confident when they are wrong: a test that never ran, a
+check that was quietly skipped, a "looks good" from the same agent that wrote the change.
+AgenteARQ is an open-source CLI and plugin for **Claude Code, Codex and Gemini CLI** that turns
+"it works" into evidence you can check, from the first idea to a reviewed pull request.
+
+- **Nothing passes without evidence.** A missing, interrupted or inconclusive check blocks the work.
+  It is never counted as a pass.
+- **Checks run where they cannot cheat.** Each check runs in a container with no network, no
+  secrets, no `.git` and a pinned image, against a copy of the code.
+- **No self-approval.** Review must come from someone other than the author, and it is tied to
+  the exact commit. Change one line afterwards and the approval is gone.
+- **Your assistant keeps the wheel.** AgenteARQ supplies the skills, the state and the gates. It
+  never calls a model, needs no extra API key, and never merges or deploys.
+- **Built for AI products too.** When the product itself has agents, 46 controls cover approval of
+  risky tools, scope, owners, pinned models, guardrails and secrets.
+
+> **Status: pre-release.** `spec/1.0` is not frozen yet. Feedback and issues are welcome.
+
+## How it works
 
 <p align="center">
   <img src="docs/assets/how-it-works.svg" alt="How AgenteARQ works: your coding assistant writes the code through AgenteARQ skills and MCP tools; the work moves from draft to a reviewed pull request, with isolated verification, independent review and agent controls as gates. AgenteARQ never merges or deploys." width="100%">
 </p>
 
----
+The workflow moves through discovery, specification, architecture, tasks, implementation,
+isolated verification, independent review and PR preparation. Each step leaves an artifact in
+your repository (`brief.md`, `spec.md`, an ADR, `tasks.yaml`) or a record in the local workflow
+state, and the next step stays closed until the evidence exists.
 
-## Build a product with your coding assistant
+## Quick start
 
-The product workflow works with **software with or without AI**. Codex, Claude Code and Gemini
-continue to write the code; AgenteARQ supplies contextual skills, resumable state, acceptance gates
-and a read-only local dashboard. It does not require a separate model API key.
+Requires Go 1.22+, Git, and Docker or Podman for verification.
 
 ```bash
+# 1. Build the CLI once
+git clone https://github.com/Everton-baptista/agenteARQ && cd agenteARQ
 go build -o /tmp/agentarch ./cmd/agentarch
-# In the target Git repository:
+
+# 2. In your project's Git repository
 /tmp/agentarch workflow init --name my-product --profile typescript-web \
   --goal "Describe the user outcome" --author "Your name"
-/tmp/agentarch plugin install codex --owner "Your name" --contact "you@example.com" \
-  --model-provider openai --model "YOUR_EXACT_HOST_MODEL_ID" --binary /tmp/agentarch
-/tmp/agentarch ui
+/tmp/agentarch plugin install claude --owner "Your name" --contact "you@example.com" \
+  --model-provider anthropic --model "YOUR_EXACT_HOST_MODEL_ID" --binary /tmp/agentarch
+/tmp/agentarch ui                              # optional: read-only progress dashboard
 ```
 
-`--model` must describe the model actually configured in your host. The plugin records that
-contract; it cannot change or enforce the model selected by another application. Use `--dry-run`
-to inspect installation, `plugin check codex` to inspect drift, and `plugin remove codex` to remove
-only managed files. Claude Code and Gemini use the same lifecycle with `claude` and `gemini`.
+Then open the project in Claude Code and ask it to build what you described. Use `codex` or
+`gemini` instead of `claude` for those hosts. `--model` records the model your host actually
+uses; it cannot change or enforce it. `--dry-run` previews the installation, `plugin check`
+reports drift and `plugin remove` removes only the files it manages.
 
-The workflow progresses through discovery, specification, architecture, tasks, implementation,
-isolated verification, independent review and PR preparation. TypeScript web and Python API
-profiles have mandatory checks; `universal` declares its checks explicitly. Verification requires
-an installed, digest-pinned Docker/Podman image containing the needed tools and dependencies;
-network is disabled during execution. There is no unsandboxed fallback.
+## What is included
 
-A changed source tree invalidates prior evidence. Missing or interrupted checks are not passes.
-The author cannot approve their own review through the AgenteARQ MCP server; review identity
-is recorded locally, not externally authenticated. Publishing a PR stays with the authorized host;
-merge and deploy remain separate human decisions.
+- **Product workflow plugin** — skills plus a local MCP server, for **Claude Code, Codex and
+  Gemini CLI**. Other clients can use the reference package from `plugin install external`.
+- **Verification profiles** — `typescript-web` and `python-api` with mandatory checks. Any other
+  stack uses `universal`, where the project declares and reviews its own checks.
+- **Architecture rules** — generated instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
+  from a single source of truth, in any language.
+- **Standard for AI agents** — 16 standards, 46 controls, 10 packs and 12 framework adapters.
+- **Runnable blueprints** — 7 Python services with tests, evals, a Dockerfile and deploy guides;
+  native Python runtimes and a LangGraph variant for RAG; Anthropic, OpenAI, Google and AWS Bedrock.
+- **Two languages** — `en` and `pt-BR`, from the interview to every generated instruction file.
 
-See [the workflow and engineering profiles](docs/workflow.md), [host installation and boundaries](docs/plugins.md),
-[the comparative benchmark protocol](docs/benchmark.md) and [implementation and verification notes](docs/implementation.md).
-The underlying standard and its existing commands remain available below.
+## Limits, stated plainly
+
+- Verification needs an installed, digest-pinned Docker/Podman image with the project's tools.
+  There is no unsandboxed fallback, and network is disabled while checks run.
+- Review identity is recorded locally, not externally authenticated.
+- Publishing the PR stays with your host; merge and deploy remain separate human decisions.
+- Evidence is local engineering evidence, not a certification.
+
+Read more: [the workflow and profiles](docs/workflow.md), [host installation and
+boundaries](docs/plugins.md), [the comparative benchmark protocol](docs/benchmark.md) and
+[implementation notes](docs/implementation.md). The standard for AI agents and its commands
+are described below.
 
 ## The problem
 
