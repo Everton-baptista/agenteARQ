@@ -13,7 +13,8 @@ RUN printf '%s\n' "$BASE_IMAGE" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256
 # explicit network-enabled build, into a cache outside /workspace; verification never fetches.
 ENV GOMODCACHE=/opt/gomodcache GOFLAGS=-mod=mod GOTOOLCHAIN=local
 COPY go.mod go.sum ./
-RUN go mod download all && go mod verify && chmod -R a+rX /opt/gomodcache
+# A module with no dependencies downloads nothing, so create the cache directory first.
+RUN mkdir -p /opt/gomodcache && go mod download all && go mod verify && chmod -R a+rX /opt/gomodcache
 
 # Security floor, required by every profile: pinned gitleaks and osv-scanner, fixed configs,
 # and the offline OSV database. Rebuild at least every 14 days; an older database is refused.
