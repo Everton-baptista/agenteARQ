@@ -12,7 +12,7 @@ need() { command -v "$1" >/dev/null 2>&1 || die "$1 is required and was not foun
 case "${1:-}" in
   --help|-h)
     say "Install an authenticated agentarch release (curl, tar, cosign required)."
-    say "Usage: AGENTARCH_VERSION=vX.Y.Z AGENTARCH_BIN_DIR=path sh install.sh"
+    say "Usage: AGENTARCH_VERSION=vX.Y.Z AGENTARCH_BIN_DIR=path sh scripts/install.sh"
     say "The release workflow identity and SHA-256 checksum are mandatory checks."
     exit 0 ;;
   '') ;;

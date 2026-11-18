@@ -89,7 +89,7 @@ reset_fixture() {
 run_installer() {
   PATH="$mockbin" MOCK_FIXTURE="$fixture" MOCK_LOG="$test_root/log" MOCK_REAL_TAR="$real_tar" \
     MOCK_MISSING="$missing" AGENTARCH_VERSION="$version" AGENTARCH_BIN_DIR="$test_root/install" \
-    /bin/sh "$project/install.sh" > "$test_root/output" 2>&1
+    /bin/sh "$project/scripts/install.sh" > "$test_root/output" 2>&1
 }
 failed_install() {
   label=$1

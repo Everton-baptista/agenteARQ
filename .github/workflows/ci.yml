@@ -69,8 +69,8 @@ jobs:
       # green. shellcheck is preinstalled on the runner.
       - name: the installer parses and lints
         run: |
-          sh -n install.sh
-          shellcheck --shell=sh install.sh
+          sh -n scripts/install.sh
+          shellcheck --shell=sh scripts/install.sh
           sh scripts/test-install.sh
 
   # The blueprints ship a service and a test suite. Until this job existed, neither was executed by

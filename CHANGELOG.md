@@ -21,6 +21,15 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## Unreleased
+
+- Repository layout: the installer is now `scripts/install.sh`, the release Dockerfile is
+  `packaging/docker/Dockerfile` and the GoReleaser config is `packaging/goreleaser.yaml`. Releases up
+  to v0.4.1 keep `install.sh` at the tag's root, so the documented tag URLs keep working.
+- The README is a short landing page; the agent-standard guide moved to `docs/agent-standard.md` and
+  the repository layout to `.github/CONTRIBUTING.md`. GitHub language statistics now describe
+  AgenteARQ itself rather than the starter projects it ships.
+
 ## v0.4.1 — 2026-11-18
 
 `cli` — the first published 0.4 release; same features as v0.4.0.

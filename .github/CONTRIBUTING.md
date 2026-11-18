@@ -76,3 +76,24 @@ a governance tool with a large dependency tree is making an argument against its
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). The review process here is adversarial on purpose —
 "can this control actually fail?" and "who starts failing when it ships?" are meant to be hard
 questions. They are asked of the proposal, never of the person who made it.
+
+## Repository layout
+
+| Path | What lives there |
+|---|---|
+| `cmd/`, `internal/` | the `agentarch` CLI, MCP server, workflow engine and policy engine (Go) |
+| `content/` | standards, controls, packs, skills, checklists, blueprints and templates — embedded in the binary |
+| `spec/` | normative spec, JSON schemas and conformance fixtures |
+| `web/` | the local dashboard (React); its build is embedded from `internal/dashboard/assets` |
+| `verifiers/` | recipes for the pinned verification images, including the security floor |
+| `examples/` | a compliant reference project and the cases that must fail, exercised by CI |
+| `docs/` | guides, ADRs and RFCs — start at [`docs/README.md`](../docs/README.md) |
+| `scripts/` | the installer (`install.sh`), release, benchmark and live-test scripts |
+| `packaging/` | release packaging: GoReleaser config, the release Dockerfile, npm and PyPI launchers |
+| `registry/` | the community pack registry index |
+| `benchmarks/` | the comparative benchmark suite definition |
+| `.github/` | CI, release, contribution, governance, security and trademark policies |
+
+At the root: `README.md`, `CHANGELOG.md`, the licences, `go.mod`, `payload.go` (Go can only embed files below the module root) and `AGENTS.md`, `CLAUDE.md` and
+`GEMINI.md` — the instruction files AgenteARQ generates for assistants working on this repository,
+which the assistants read from the root.

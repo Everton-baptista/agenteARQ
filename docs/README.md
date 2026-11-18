@@ -2,6 +2,7 @@
 
 **Using AgenteARQ**
 
+- [Standard for AI agents](agent-standard.md) — manifests, the 46 controls, regulatory packs, conformance and the CI gate, for products that contain agents.
 - [Product workflow](workflow.md) — phases, evidence, isolated verification, release and production checks.
 - [Host plugins](plugins.md) — installing into Claude Code, Codex and Gemini CLI, and what the plugin can and cannot enforce.
 - [Verifier images](verifier-images.md) — building the pinned images verification runs in, including the security floor.
