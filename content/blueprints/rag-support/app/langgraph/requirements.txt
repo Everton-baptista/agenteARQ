@@ -25,7 +25,7 @@ httpx==0.28.1
 # file — app/agent/runner.py — which is the claim the layout makes, demonstrated rather than
 # asserted.
 langgraph==0.6.7
-langchain-anthropic==0.3.21
+langchain-anthropic==1.7.10
 
 # Tests. In this file rather than a separate requirements-dev.txt, so `pip install -r` gives you a
 # project whose tests run — a suite you have to work out how to install is a suite that stops
