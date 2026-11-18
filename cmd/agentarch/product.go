@@ -33,7 +33,7 @@ func cmdWorkflow(args []string) int {
 	root := f.String("root", ".", "project Git worktree")
 	format := f.String("format", "text", "text or json")
 	name := f.String("name", "", "product name")
-	profile := f.String("profile", "universal", "universal, typescript-web or python-api")
+	profile := f.String("profile", "", "universal (default for a new product), typescript-web or python-api")
 	goal := f.String("goal", "", "observable product goal")
 	author := f.String("author", "", "accountable implementer (never inferred)")
 	ai := f.Bool("has-ai", false, "product contains AI components")
@@ -250,9 +250,14 @@ func cmdMCPServe(args []string) int {
 		}
 		return exitUsage
 	}
+	resolved, err := mcpserver.ResolveRoot(*root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "mcp:", err)
+		return exitUsage
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	if err := mcpserver.Serve(ctx, *root, os.Stdin, os.Stdout); err != nil {
+	if err := mcpserver.Serve(ctx, resolved, os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "mcp:", err)
 		return exitUsage
 	}

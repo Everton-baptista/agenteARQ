@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -28,6 +30,30 @@ type request struct {
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+// ResolveRoot fixes the workspace before the server accepts a request. It searches upward
+// from start for the nearest directory that contains agentarch/project, so a host that
+// launches the server from a subfolder still serves the project rather than the subfolder.
+// A start path that does not exist, or one with no project above it, is an error: answering
+// for a directory that is not a project would report a workflow that is not there.
+func ResolveRoot(start string) (string, error) {
+	abs, err := filepath.Abs(start)
+	if err != nil {
+		return "", err
+	}
+	abs, err = filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", fmt.Errorf("project root %s does not exist", start)
+	}
+	for dir := abs; ; dir = filepath.Dir(dir) {
+		if st, err := os.Stat(filepath.Join(dir, "agentarch", "project")); err == nil && st.IsDir() {
+			return dir, nil
+		}
+		if filepath.Dir(dir) == dir {
+			return "", fmt.Errorf("no agentarch/project in %s or any parent; run `agentarch workflow init` first", abs)
+		}
+	}
 }
 
 // Serve implements MCP stdio JSON-RPC with bounded requests, cancellation, and

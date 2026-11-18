@@ -37,6 +37,9 @@ exit 1 rather than read on a best-effort basis.
 - Installer authenticates a Sigstore bundle and exact workflow/tag before checksum and extraction.
   Releases require reusable CI; dependencies/actions are pinned and security scanning is configured.
 - Comparative 12-scenario benchmark protocol separates model measurements from infrastructure tests.
+- Claude Code's shared `.mcp.json` uses a portable `--root .`; `mcp serve` resolves the nearest
+  project upward and refuses a missing root. `workflow init` adopts a committed product in a clone
+  without repeating its facts, and rejects a conflicting name or profile instead of ignoring it.
 
 
 `content` — the blueprints gain a provider seam; `cli` gains the question that drives it.

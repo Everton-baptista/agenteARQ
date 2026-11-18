@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -144,6 +146,33 @@ func TestToolCallMetadataAndUnknownFields(t *testing.T) {
 	for _, raw := range []string{`{"name":"inspect_project","arguments":{},"root":"/"}`, `{"name":"inspect_project","arguments":{}} {}`} {
 		if _, e := Call(context.Background(), t.TempDir(), []byte(raw)); e == nil {
 			t.Fatalf("invalid params accepted: %s", raw)
+		}
+	}
+}
+
+func TestResolveRootFindsProjectFromSubfolder(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "agentarch", "project"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "app", "src")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want, _ := filepath.EvalSymlinks(root)
+	for _, start := range []string{root, sub} {
+		got, err := ResolveRoot(start)
+		if err != nil || got != want {
+			t.Fatalf("ResolveRoot(%s) = %q, %v; want %q", start, got, err, want)
+		}
+	}
+}
+
+func TestResolveRootRejectsMissingOrNonProjectPaths(t *testing.T) {
+	empty := t.TempDir()
+	for _, start := range []string{filepath.Join(empty, "does-not-exist"), "${CLAUDE_PROJECT_DIR}", empty} {
+		if got, err := ResolveRoot(start); err == nil {
+			t.Fatalf("ResolveRoot(%q) = %q; want an error", start, got)
 		}
 	}
 }

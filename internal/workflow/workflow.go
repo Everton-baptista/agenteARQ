@@ -20,29 +20,38 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 		return Snapshot{}, e
 	}
 	defer unlock()
-	if strings.TrimSpace(o.Name) == "" {
-		return Snapshot{}, errors.New("product name is required")
-	}
-	if o.Profile == "" {
-		o.Profile = "universal"
-	}
-	if _, ok := profiles[o.Profile]; !ok {
-		return Snapshot{}, fmt.Errorf("unknown engineering profile %q", o.Profile)
-	}
 	if _, e = os.Stat(s.statePath()); e == nil {
 		return Snapshot{}, errors.New("workflow already initialized; use status or checkpoint")
 	}
-	p := Product{SchemaVersion: SchemaVersion, Name: o.Name, Goal: o.Goal, Profile: o.Profile, Author: o.Author, HasAI: o.HasAI, ExecutorIDs: o.ExecutorIDs, ApplicationAgentIDs: o.ApplicationAgentIDs}
-	// Do not overwrite an adopted product or partially initialized artifacts.
+	var p Product
+	// Do not overwrite an adopted product or partially initialized artifacts. A clone or a
+	// new worktree adopts the committed product.yaml, so its facts need not be typed again;
+	// a value that contradicts it is an error rather than silently ignored.
 	if _, e = os.Stat(s.Root + "/" + ProductPath); e == nil {
 		existing, _, err := s.loadArtifacts()
 		if err != nil {
 			return Snapshot{}, err
 		}
+		if name := strings.TrimSpace(o.Name); name != "" && name != existing.Name {
+			return Snapshot{}, fmt.Errorf("product.yaml already names this product %q; omit --name to adopt it", existing.Name)
+		}
+		if o.Profile != "" && o.Profile != existing.Profile {
+			return Snapshot{}, fmt.Errorf("product.yaml already uses profile %q; omit --profile to adopt it", existing.Profile)
+		}
 		p = existing
 	} else if !os.IsNotExist(e) {
 		return Snapshot{}, e
 	} else {
+		if strings.TrimSpace(o.Name) == "" {
+			return Snapshot{}, errors.New("product name is required")
+		}
+		if o.Profile == "" {
+			o.Profile = "universal"
+		}
+		if _, ok := profiles[o.Profile]; !ok {
+			return Snapshot{}, fmt.Errorf("unknown engineering profile %q", o.Profile)
+		}
+		p = Product{SchemaVersion: SchemaVersion, Name: o.Name, Goal: o.Goal, Profile: o.Profile, Author: o.Author, HasAI: o.HasAI, ExecutorIDs: o.ExecutorIDs, ApplicationAgentIDs: o.ApplicationAgentIDs}
 		pb, err := yaml.Marshal(p)
 		if err != nil {
 			return Snapshot{}, err
