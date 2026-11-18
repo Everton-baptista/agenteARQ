@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Everton-baptista/agenteARQ/internal/policy"
@@ -43,6 +42,7 @@ func gatherEvidence(root, profile string, now time.Time) ([]policy.AgentEvidence
 		}
 
 		if evalNode, ok := a.Ctx["evals"].(map[string]any); ok {
+			ev.EvalStatus, _ = evalNode["status"].(string)
 			ev.EvalCompletedAt, _ = evalNode["completed_at"].(string)
 			if rt, ok := evalNode["redteam"].(map[string]any); ok {
 				ev.RedTeamExecuted, _ = rt["executed"].(bool)
@@ -54,6 +54,9 @@ func gatherEvidence(root, profile string, now time.Time) ([]policy.AgentEvidence
 					}
 				}
 			}
+		}
+		if gate, ok := a.Ctx["eval_gate"].(map[string]any); ok {
+			ev.EvalGatePassed, _ = gate["passed"].(bool)
 		}
 		if e, ok := ag["evaluation"].(map[string]any); ok {
 			if v, ok := e["max_result_age_days"].(float64); ok {
@@ -77,34 +80,6 @@ func gatherEvidence(root, profile string, now time.Time) ([]policy.AgentEvidence
 		out = append(out, ev)
 	}
 	return out, nil
-}
-
-// gateRunsInCI looks for the gate in a committed workflow. A gate that exists only on a laptop
-// is a linter, not a gate — the whole claim of L2 is that the rules block a merge.
-func gateRunsInCI(root string) bool {
-	for _, p := range []string{
-		".github/workflows", ".gitlab-ci.yml", ".circleci/config.yml", "azure-pipelines.yml",
-	} {
-		full := filepath.Join(root, p)
-		info, err := os.Stat(full)
-		if err != nil {
-			continue
-		}
-		if !info.IsDir() {
-			if b, err := os.ReadFile(full); err == nil && strings.Contains(string(b), "agentarch check") {
-				return true
-			}
-			continue
-		}
-		entries, _ := os.ReadDir(full)
-		for _, e := range entries {
-			if b, err := os.ReadFile(filepath.Join(full, e.Name())); err == nil &&
-				strings.Contains(string(b), "agentarch check") {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func cmdConformance(args []string) int {

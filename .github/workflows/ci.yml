@@ -1,6 +1,8 @@
 name: ci
 
 on:
+  workflow_call:
+  merge_group:
   pull_request:
   push:
     branches: [main]
@@ -20,8 +22,8 @@ jobs:
     name: generated files are in sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -46,21 +48,21 @@ jobs:
     name: build, vet and test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
       - name: gofmt
         run: |
-          unformatted=$(gofmt -l ./cmd ./internal payload.go)
+          unformatted=$(gofmt -l ./cmd ./internal payload.go payload_test.go)
           if [ -n "$unformatted" ]; then
             echo "::error::not gofmt'd:"; echo "$unformatted"; exit 1
           fi
       - name: vet
         run: go vet ./...
       - name: test
-        run: go test ./... -v
+        run: go test -race ./... -v
 
       # install.sh is the first thing a new user runs, and it is the one file here that nothing
       # else exercises — a typo in it breaks adoption for everybody while every Go test stays
@@ -69,13 +71,7 @@ jobs:
         run: |
           sh -n install.sh
           shellcheck --shell=sh install.sh
-          # It must fail before touching the filesystem when the platform has no artifact.
-          out=$(AGENTARCH_VERSION=v0.0.0-nonexistent sh install.sh 2>&1) && {
-            echo "::error::the installer reported success for a release that does not exist"
-            echo "$out"; exit 1; }
-          echo "$out" | grep -qi "no such artifact\|could not" || {
-            echo "::error::unclear failure for a missing release:"; echo "$out"; exit 1; }
-          echo "ok  installer parses, lints, and fails cleanly"
+          sh scripts/test-install.sh
 
   # The blueprints ship a service and a test suite. Until this job existed, neither was executed by
   # anything: the Go tests check the payload's shape, and a Python file that imports a name that does
@@ -85,12 +81,12 @@ jobs:
     name: every blueprint's own tests pass
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: build
@@ -112,7 +108,7 @@ jobs:
             # This repository ships the seam, so it has to test all three translations — the tests
             # skip whatever is not installed, and skipping all of them here would mean the OpenAI
             # and Google paths were never executed by anything.
-            .venv/bin/pip install -q openai==2.51.0 google-genai==2.16.0
+            .venv/bin/pip install -q openai==2.51.0 google-genai==2.16.0 'fakeredis[lua]==2.40.0' redis==8.1.0
 
             echo "── $bp/$fw"
             .venv/bin/python -m pytest app/tests -q
@@ -177,8 +173,8 @@ jobs:
     name: examples behave as documented
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -299,14 +295,14 @@ jobs:
           print('ok  sarif', len(run['results']), 'result(s)')
           "
 
-      - name: the reference example reaches L3
+      - name: the reference example never claims unmeasured evidence
         run: |
           out=$(/tmp/agentarch conformance --profile standard examples/01-rag-support-agent)
           echo "$out"
-          echo "$out" | grep -q "conformance: L3" || {
-            echo "::error::the reference example must demonstrate L3, or the level is theory"; exit 1; }
-          echo "$out" | grep -q "valid until" || {
-            echo "::error::an L3 assessment must carry an expiry"; exit 1; }
+          echo "$out" | grep -q "conformance: L2" || {
+            echo "::error::the reference fixture must stop at L2 until real evals run"; exit 1; }
+          echo "$out" | grep -q "MISS.*measured evaluation" || {
+            echo "::error::missing evaluation evidence must remain visible"; exit 1; }
 
       - name: translations are not stale
         run: /tmp/agentarch validate --strict-i18n examples/01-rag-support-agent
@@ -622,8 +618,14 @@ jobs:
           p = Principal(tenant_id="t-1", subject="u-1", customer_id="cus-42")
           tools = load_tools(load_manifest())
 
-          out = dispatch("search_orders",
-                         {"order_reference": "BR-1", "customer_id": "cus-ATTACKER"},
+          # Extra identity fields are rejected by the reviewed input_schema before dispatch.
+          refused = dispatch("search_orders",
+                             {"order_reference": "BR-77120", "customer_id": "cus-ATTACKER"},
+                             tools["search_orders"], p)
+          assert "error" in refused and refused["retryable"] is False, refused
+
+          # A valid call derives identity only from the authenticated principal.
+          out = dispatch("search_orders", {"order_reference": "BR-77120"},
                          tools["search_orders"], p)
           assert out["orders"][0]["customer_id"] == "cus-42", out
 
@@ -781,3 +783,46 @@ jobs:
           grep -q "on_timeout: deny" agentarch/project/tools/delete_account.tool.yaml
           grep -q "sandbox: container" agentarch/project/tools/delete_account.tool.yaml
           echo "ok  irreversible tool scaffolds its approval"
+
+  product-workflow:
+    name: local dashboard, MCP and isolated workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with: { go-version-file: go.mod }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: '22.23.4', cache: npm, cache-dependency-path: web/package-lock.json }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: '3.12' }
+      - name: dashboard build is reproducible
+        run: |
+          npm ci --prefix web --ignore-scripts
+          npm run build --prefix web
+          git diff --exit-code -- internal/dashboard/assets
+          test -z "$(git ls-files --others --exclude-standard internal/dashboard/assets)"
+      - run: go build -o /tmp/agentarch ./cmd/agentarch
+      - name: browser navigation, mobile layout and accessibility
+        env:
+          AGENTARCH_BIN: /tmp/agentarch
+        run: |
+          npm exec --prefix web -- playwright install --with-deps chromium
+          npm run test:e2e --prefix web
+      - name: real isolated verification, review, stale evidence and timeout cleanup
+        env:
+          IMAGE: alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
+          AGENTARCH_BIN: /tmp/agentarch
+        run: |
+          docker pull "$IMAGE"
+          bash scripts/test-workflow-live.sh
+      - name: benchmark protocol tests and dry matrix (no model calls)
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_benchmark*.py'
+          python3 scripts/benchmark-products.py --dry-run
+      - name: live plugin smoke parser and process tests (no model calls)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_live_plugin_smoke.py'
+      - name: managed skill helper regressions (no model calls)
+        run: |
+          python3 -m pip install --only-binary=:all: pytest==9.1.1
+          python3 -m pytest -q verifiers/python-api/tests/test_managed_skills.py

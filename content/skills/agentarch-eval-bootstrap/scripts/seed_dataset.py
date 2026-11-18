@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Derive seed eval datasets from what the manifest already declares.
 
 A seed, not a suite. Twenty generated cases are where you start; the set has to grow from real

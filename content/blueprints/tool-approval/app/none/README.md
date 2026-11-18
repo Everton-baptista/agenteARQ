@@ -110,8 +110,8 @@ deliberate. An earlier version of this blueprint shipped plausible numbers — g
 jailbreak rate of 0.03 — that nobody had measured, and `agentarch conformance` read them and
 reported **L3 Proven** for a project one minute old.
 
-So conformance reports L2 until you run the evals, and `agentarch conformance` names this file as
-what stands between you and L3. Only `evals/run.py` can write `status: measured`.
+Conformance is assessed from the installed project and its current evidence. A new blueprint has
+no measured model evaluation. Run `evals/run.py` to produce evidence; do not fill in result values by hand.
 
 ## Make it yours
 
@@ -144,3 +144,8 @@ rather than preferences: the credential comes from a secret store, the container
 `/v1/health` is wired to readiness, and **more than one replica means Redis** — the approval store
 defaults to in-memory, so an approval raised by one replica is a 404 at the other and the run is
 lost. `app/infra/store.py` has the Redis implementation in full.
+
+
+## Runtime boundary
+
+This is a development blueprint, not a production deployment certification. The demo identity and domain adapters are intentionally rejected when `ENV=production`. Replace them with verified identity, durable domain storage and a shared caller budget before deployment. Agno is not advertised: the former variant duplicated the native loop without using Agno.

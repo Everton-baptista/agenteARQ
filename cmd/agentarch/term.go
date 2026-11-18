@@ -18,25 +18,25 @@ func colorEnabled() bool {
 
 // ANSI Escape Codes
 const (
-	ansiReset       = "\033[0m"
-	ansiBold        = "\033[1m"
-	ansiDim         = "\033[2m"
-	ansiItalic      = "\033[3m"
-	ansiUnderline   = "\033[4m"
-	ansiRed         = "\033[31m"
-	ansiGreen       = "\033[32m"
-	ansiYellow      = "\033[33m"
-	ansiBlue        = "\033[34m"
-	ansiMagenta     = "\033[35m"
-	ansiCyan        = "\033[36m"
-	ansiBrightCyan  = "\033[96m"
-	ansiBrightBlue  = "\033[94m"
-	ansiGray        = "\033[90m"
-	ansiBgGreen     = "\033[42;30m"
-	ansiBgRed       = "\033[41;37m"
-	ansiBgYellow    = "\033[43;30m"
-	ansiBgCyan      = "\033[46;30m"
-	ansiBgBlue      = "\033[44;37m"
+	ansiReset      = "\033[0m"
+	ansiBold       = "\033[1m"
+	ansiDim        = "\033[2m"
+	ansiItalic     = "\033[3m"
+	ansiUnderline  = "\033[4m"
+	ansiRed        = "\033[31m"
+	ansiGreen      = "\033[32m"
+	ansiYellow     = "\033[33m"
+	ansiBlue       = "\033[34m"
+	ansiMagenta    = "\033[35m"
+	ansiCyan       = "\033[36m"
+	ansiBrightCyan = "\033[96m"
+	ansiBrightBlue = "\033[94m"
+	ansiGray       = "\033[90m"
+	ansiBgGreen    = "\033[42;30m"
+	ansiBgRed      = "\033[41;37m"
+	ansiBgYellow   = "\033[43;30m"
+	ansiBgCyan     = "\033[46;30m"
+	ansiBgBlue     = "\033[44;37m"
 )
 
 func style(code, text string) string {
@@ -143,7 +143,7 @@ func formatCard(title string, bodyLines []string) string {
 		if pad < 0 {
 			pad = 0
 		}
-		result = append(result, cyan("│ ") + l + strings.Repeat(" ", pad) + cyan("│"))
+		result = append(result, cyan("│ ")+l+strings.Repeat(" ", pad)+cyan("│"))
 	}
 	result = append(result, bottom)
 	return strings.Join(result, "\n")

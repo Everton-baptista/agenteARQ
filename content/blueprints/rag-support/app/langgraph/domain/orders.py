@@ -40,11 +40,5 @@ def lookup(order_reference: str, customer_id: str) -> dict:
 
 
 def send_message(conversation_id: str, body: str, tenant_id: str) -> dict:
-    """Deliver a message to the customer. Irreversible once it lands.
-
-    In your implementation this is where the outbound provider is called. Keep it here rather than
-    in the tool: the fact that a message cannot be unsent is a property of the world, and the
-    domain is where properties of the world belong.
-    """
-    print(f"[would send to {conversation_id} in tenant {tenant_id}]: {body}")
-    return {"sent": True, "conversation_id": conversation_id}
+    """No messaging provider is configured by the blueprint. Fail without a side effect."""
+    return {"error": "messaging integration is not configured", "retryable": False}

@@ -80,28 +80,10 @@
             },
             "key_field": {
               "type": "string",
-              "description": "Input field carrying the idempotency key. Required when the tool is not idempotent, because retries are inevitable."
+              "minLength": 1,
+              "description": "Input field carrying a real deduplication key. Non-idempotent tools must provide this field or explicitly disable retries with limits.max_retries: 0. A revision precondition is not a deduplication key."
             }
-          },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "idempotent": {
-                    "const": false
-                  }
-                },
-                "required": [
-                  "idempotent"
-                ]
-              },
-              "then": {
-                "required": [
-                  "key_field"
-                ]
-              }
-            }
-          ]
+          }
         },
         "permissions": {
           "type": "object",
@@ -285,6 +267,32 @@
         }
       },
       "allOf": [
+        {
+          "$comment": "Non-idempotent operations need a deduplication key or an explicit prohibition on retries.",
+          "if": {
+            "properties": {
+              "idempotency": {
+                "properties": { "idempotent": { "const": false } },
+                "required": ["idempotent"]
+              }
+            },
+            "required": ["idempotency"]
+          },
+          "then": {
+            "anyOf": [
+              { "properties": { "idempotency": { "required": ["key_field"] } } },
+              {
+                "properties": {
+                  "limits": {
+                    "properties": { "max_retries": { "const": 0 } },
+                    "required": ["max_retries"]
+                  }
+                },
+                "required": ["limits"]
+              }
+            ]
+          }
+        },
         {
           "$comment": "Invariant 1: a tool that cannot be undone must declare when a human approves it.",
           "if": {

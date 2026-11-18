@@ -27,6 +27,11 @@ import json
 import os
 import pathlib
 import subprocess
+import re
+import selectors
+import time
+
+from ..agent.authorization import validate_arguments
 
 import logging
 
@@ -69,9 +74,16 @@ class AllowlistedMCPClient:
         self.server = server
         self.proc: subprocess.Popen | None = None
         self._id = 0
+        self._schemas = {}
 
     def __enter__(self):
         s = self.server
+        if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", s.get("pin", {}).get("version", "")):
+            raise AllowlistError("server version must be pinned exactly")
+        if s.get("sandbox") == "container":
+            raise AllowlistError("this subprocess adapter cannot enforce the declared container sandbox; configure an isolated transport adapter")
+        if s.get("network_egress") is not None:
+            raise AllowlistError("this subprocess adapter cannot enforce a network allowlist; configure an isolated transport adapter")
 
         # Only the variables the allowlist names. A server that inherits the process
         # environment inherits every credential in it, and it never had to ask.
@@ -80,7 +92,10 @@ class AllowlistedMCPClient:
             if key in os.environ:
                 env[key] = os.environ[key]
 
-        args = [a if not a.startswith("/srv/") or os.path.exists(a) else "/tmp" for a in s.get("args", [])]
+        args = list(s.get("args", []))
+        for arg in args:
+            if arg.startswith("/srv/") and not os.path.exists(arg):
+                raise AllowlistError(f"configured resource root does not exist: {arg}")
         self.proc = subprocess.Popen(
             [s["command"], *args],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env, text=True, bufsize=1)
@@ -94,21 +109,37 @@ class AllowlistedMCPClient:
     def __exit__(self, *_):
         if self.proc:
             self.proc.terminate()
+            try:
+                self.proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait(timeout=3)
 
     def _rpc(self, method: str, params: dict) -> dict:
         self._id += 1
         self.proc.stdin.write(json.dumps(
             {"jsonrpc": "2.0", "id": self._id, "method": method, "params": params}) + "\n")
+        self.proc.stdin.flush()
+        deadline = time.monotonic() + 10
         while True:
-            line = self.proc.stdout.readline()
+            with selectors.DefaultSelector() as selector:
+                selector.register(self.proc.stdout, selectors.EVENT_READ)
+                if not selector.select(max(0, deadline-time.monotonic())):
+                    raise AllowlistError("MCP response timeout")
+            line = self.proc.stdout.readline(1_048_577)
+            if len(line) > 1_048_576:
+                raise AllowlistError("MCP response exceeds size limit")
             if not line:
                 raise AllowlistError(f"{self.server['name']} closed the connection")
             msg = json.loads(line)
             if msg.get("id") == self._id:
+                if "error" in msg:
+                    raise AllowlistError("MCP server returned an RPC error")
                 return msg.get("result", {})
 
     def _notify(self, method: str):
         self.proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method}) + "\n")
+        self.proc.stdin.flush()
 
     def tools(self) -> list[dict]:
         """List the server's tools, keeping only what was allowlisted and verifying that each
@@ -133,7 +164,9 @@ class AllowlistedMCPClient:
                 continue
 
             recorded = digests.get(name)
-            if recorded and description_digest(tool.get("description", "")) != recorded:
+            if not recorded:
+                raise RugPull(f"{name} has no reviewed description hash")
+            if description_digest(tool.get("description", "")) != recorded:
                 raise RugPull(
                     f" {s['name']}/{name} changed its description since it was reviewed.\n"
                     f"  approved {recorded[:12]}…\n"
@@ -142,6 +175,7 @@ class AllowlistedMCPClient:
                     "`agentarch mcp audit --probe --record` to re-record the digest."
                 )
 
+            self._schemas[f"{s['name']}__{name}"] = tool.get("inputSchema")
             log.info("allowed %s/%s", s["name"], name)
             out.append({"name": f"{s['name']}__{name}",
                         "description": tool.get("description", ""),
@@ -149,7 +183,16 @@ class AllowlistedMCPClient:
         return out
 
     def call(self, name: str, args: dict) -> dict:
-        bare = name.split("__", 1)[1]
+        prefix = self.server["name"] + "__"
+        if not name.startswith(prefix):
+            return {"error": "tool belongs to another server", "retryable": False}
+        bare = name[len(prefix):]
         if bare not in set(self.server.get("tools_allow", [])):
             return {"error": f"{bare} is not allowlisted", "retryable": False}
-        return self._rpc("tools/call", {"name": bare, "arguments": args})
+        valid, reason = validate_arguments(args, {"input_schema": getattr(self, "_schemas", {}).get(name)})
+        if not valid:
+            return {"error": reason, "retryable": False}
+        result = self._rpc("tools/call", {"name": bare, "arguments": args})
+        if result.get("isError"):
+            return {"error": "remote tool failed", "retryable": False}
+        return result

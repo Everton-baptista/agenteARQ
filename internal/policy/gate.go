@@ -223,13 +223,14 @@ type Result struct {
 	// control MUST still be evaluated and MUST be reported as deprecated — see
 	// spec/normative/08-versioning.md. Dropping it silently looks to the reader like a
 	// failure they fixed.
-	Deprecated  bool     `json:"deprecated,omitempty"`
-	Remediation string   `json:"remediation,omitempty"`
-	FromPack    string   `json:"from_pack"`
-	PackVersion string   `json:"pack_version"`
-	Evidence    []string `json:"evidence,omitempty"`
-	Error       string   `json:"error,omitempty"`
-	StandardRef string   `json:"standard_ref,omitempty"`
+	Deprecated       bool     `json:"deprecated,omitempty"`
+	Remediation      string   `json:"remediation,omitempty"`
+	FromPack         string   `json:"from_pack"`
+	PackVersion      string   `json:"pack_version"`
+	Evidence         []string `json:"evidence,omitempty"`
+	EvidenceVerified bool     `json:"evidence_verified,omitempty"`
+	Error            string   `json:"error,omitempty"`
+	StandardRef      string   `json:"standard_ref,omitempty"`
 }
 
 // Resolution records which pack imposed a control at which severity, so `--explain-resolution`
@@ -405,6 +406,11 @@ func Evaluate(cat *Catalog, res []Resolution, ctx map[string]any, waivers []Waiv
 			Remediation: c.Remediation, StandardRef: c.StandardRef,
 			Deprecated: c.Status == "deprecated",
 		}
+		// Evidence labels describe required inputs; they are never proof by themselves.
+		if c.ID == "control.ai.eval.gate_thresholds" || c.ID == "control.ai.eval.result_fresh" {
+			gate, _ := ctx["eval_gate"].(map[string]any)
+			base.EvidenceVerified = gate["passed"] == true
+		}
 
 		if ok, why := controlApplies(c, agent); !ok {
 			base.Skipped, base.SkipReason, base.Passed = true, why, true
@@ -431,7 +437,14 @@ func Evaluate(cat *Catalog, res []Resolution, ctx map[string]any, waivers []Waiv
 				}
 			}
 		case "file_exists":
-			base.Passed = true // resolved by the caller, which knows the agent directory
+			pass, err := checkArtifactFile(c.Check.PathExpr, ctx, now)
+			base.Passed = pass
+			base.EvidenceVerified = pass
+			if err != nil {
+				base.Error = err.Error()
+			} else if !pass {
+				base.Message = c.Check.Message
+			}
 		default:
 			base.Error = "unknown check kind " + c.Check.Kind
 		}

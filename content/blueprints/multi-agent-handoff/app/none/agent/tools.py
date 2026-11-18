@@ -16,6 +16,7 @@ from __future__ import annotations
 from ..domain import orders
 from .guardrails import action_guardrail
 from .principal import Principal
+from .authorization import ApprovalGrant
 
 
 class ApprovalRequired(Exception):
@@ -24,7 +25,7 @@ class ApprovalRequired(Exception):
     def __init__(self, tool: str, args: dict, spec: dict):
         super().__init__(f"{tool} requires approval")
         self.tool = tool
-        self.args = args
+        self.arguments = args
         self.spec = spec
 
 
@@ -34,7 +35,8 @@ def dispatch(
     spec: dict | None,
     principal: Principal,
     authority: str,
-    approved: set[str] | None = None,
+    approved: ApprovalGrant | None = None,
+    call_id: str = "",
 ) -> dict:
     """Run one tool call, or refuse.
 
@@ -47,7 +49,7 @@ def dispatch(
         return {"error": reason, "retryable": False}
 
     assert spec is not None
-    if spec["effect"] in ("irreversible", "money", "communication") and name not in (approved or set()):
+    if spec["effect"] in ("irreversible", "money", "communication") and not (isinstance(approved, ApprovalGrant) and approved.consume(call_id, name, args, spec, principal)):
         raise ApprovalRequired(name, args, spec)
 
     tenant = principal.tenant_id

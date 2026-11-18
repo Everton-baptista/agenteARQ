@@ -1,8 +1,8 @@
 ---
 lang: pt-BR
 source: content/standards/en/03-tools.md
-source_sha256: "8ad4a17b97f3761ba6c885b2f9080bc98c45ffd6ef2a158df1eb620b1228e7fb"
-translated_at: "2026-07-29"
+source_sha256: "c35a40f88910c7d5fd6527ef69e0dd34e9c33f7490818bce6d574953824a2ae1"
+translated_at: "2026-11-16"
 translators: ["everton"]
 ---
 
@@ -90,9 +90,11 @@ about the task being wrong-shaped.
 **Intenção.** Retries are inevitable; their consequences should not be a surprise.
 **Severidade** `major`
 
-`idempotency.idempotent` is declared. When it is `false`, `key_field` names the input field
-carrying the idempotency key. Agents retry on timeout, and a non-idempotent tool without a key
-turns one intended refund into three.
+Declare `idempotency.idempotent`. Quando for `false`, informe em `key_field` um campo de entrada
+com deduplicação implementada, ou declare `limits.max_retries: 0`. Sem chave de deduplicação,
+o chamador não deve repetir automaticamente: confirme o resultado antes de autorizar outra
+operação. Uma precondição de revisão impede gravações desatualizadas, mas não é uma chave de
+deduplicação. Um timeout não prova que a primeira chamada deixou de alterar o estado.
 
 ### control.ai.tool.timeout_declared
 

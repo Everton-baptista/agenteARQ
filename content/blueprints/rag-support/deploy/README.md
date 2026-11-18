@@ -88,3 +88,8 @@ worth alerting on:
 
 Do not alert on p99 latency alone. An agent that pauses for human approval has a legitimately
 unbounded response time, and paging somebody for it teaches them to ignore the page.
+
+
+## Runtime boundary
+
+This is a development blueprint, not a production deployment certification. The demo identity and domain adapters are intentionally rejected when `ENV=production`. Replace them with verified identity, durable domain storage and a shared caller budget before deployment. Agno is not advertised: the former variant duplicated the native loop without using Agno.

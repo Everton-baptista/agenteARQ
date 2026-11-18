@@ -28,7 +28,7 @@ description: >-
   /v1/approvals/{id} — and app/api/main.py, where the page is served and the docs console is off
   outside development.
 
-frameworks: [agno, none]
+frameworks: [none]
 
 demonstrates:
   - A web client that calls only the service's own API, with no provider SDK, key or hostname in it

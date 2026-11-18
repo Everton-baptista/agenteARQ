@@ -17,6 +17,8 @@ func cmdMCP(args []string) int {
 		return exitUsage
 	}
 	switch args[0] {
+	case "serve":
+		return cmdMCPServe(args[1:])
 	case "audit":
 		return cmdMCPAudit(args[1:])
 	default:

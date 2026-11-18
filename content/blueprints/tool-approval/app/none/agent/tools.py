@@ -14,6 +14,7 @@ from __future__ import annotations
 from ..domain import accounts
 from .guardrails import action_guardrail, needs_approval
 from .principal import Principal
+from .authorization import ApprovalGrant
 
 
 class ApprovalRequired(Exception):
@@ -27,7 +28,7 @@ class ApprovalRequired(Exception):
     def __init__(self, tool: str, args: dict, spec: dict):
         super().__init__(f"{tool} requires approval")
         self.tool = tool
-        self.args = args
+        self.arguments = args
         self.spec = spec
 
 
@@ -37,19 +38,20 @@ def dispatch(
     spec: dict | None,
     principal: Principal,
     autonomy: str,
-    approved: set[str] | None = None,
+    approved: ApprovalGrant | None = None,
+    call_id: str = "",
 ) -> dict:
     """Run one tool call, or refuse, or pause for a person.
 
-    `approved` is a set of tool names a human has cleared for this run — not a boolean, so approving
-    one action does not silently approve the next one in the same conversation.
+    `approved` is a single-use ApprovalGrant bound to the original principal, call id,
+    reviewed tool specification and exact arguments. A tool name alone grants nothing.
     """
     ok, reason = action_guardrail(name, args, spec, principal, autonomy)
     if not ok:
         return {"error": reason, "retryable": False}
 
     assert spec is not None  # action_guardrail refuses when it is None
-    if needs_approval(spec) and name not in (approved or set()):
+    if needs_approval(spec) and not (isinstance(approved, ApprovalGrant) and approved.consume(call_id, name, args, spec, principal)):
         raise ApprovalRequired(name, args, spec)
 
     tenant = principal.tenant_id

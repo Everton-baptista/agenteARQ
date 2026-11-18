@@ -6,7 +6,7 @@ project_name: agentarch
 
 before:
   hooks:
-    - go mod tidy
+    - go mod verify
     - go test ./...
 
 builds:
@@ -42,12 +42,10 @@ checksum:
 # Keyless signing. The provenance is verifiable by anyone without a key to protect or rotate.
 signs:
   - cmd: cosign
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
-      - "--output-signature=${signature}"
-      - "--output-certificate=${certificate}"
+      - "--bundle=${signature}"
       - "${artifact}"
       - --yes
     artifacts: checksum
@@ -64,9 +62,8 @@ release:
 
     ```bash
     cosign verify-blob checksums.txt \
-      --signature checksums.txt.sig \
-      --certificate checksums.txt.pem \
-      --certificate-identity-regexp 'https://github.com/Everton-baptista/agenteARQ/.*' \
+      --bundle checksums.txt.sigstore.json \
+      --certificate-identity 'https://github.com/Everton-baptista/agenteARQ/.github/workflows/release.yml@refs/tags/{{ .Tag }}' \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com
     ```
 

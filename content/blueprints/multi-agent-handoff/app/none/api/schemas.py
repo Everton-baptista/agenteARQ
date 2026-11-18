@@ -36,6 +36,7 @@ class AskRequest(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "examples": [{"question": "where is my order BR-77120?"}]
         }

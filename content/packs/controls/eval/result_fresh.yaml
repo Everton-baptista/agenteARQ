@@ -7,8 +7,8 @@ control:
   status: "stable"
   check:
     kind: "static_manifest"
-    expr: 'evals.status != "measured" or (exists(evals.completed_at) and age_days(evals.completed_at) <= agent.evaluation.max_result_age_days)'
-    message: "The evaluation result is missing or older than max_result_age_days."
+    expr: 'evals.status != "measured" or (exists(evals.completed_at) and age_days(evals.completed_at) >= 0 and age_days(evals.completed_at) <= agent.evaluation.max_result_age_days)'
+    message: "The evaluation result is missing, future-dated or older than max_result_age_days."
   evidence:
     - "eval_result"
   remediation: "Re-run the evals. Extending the window instead is how a freshness control stops meaning anything."

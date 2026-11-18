@@ -32,6 +32,10 @@ class Budget:
     max_depth: int = 3
     max_usd: float = 1.0
 
+    max_tool_calls: int = 12
+    max_tokens: int = 40000
+    tool_calls: int = 0
+    tokens_used: int = 0
     used: int = 0
     depth: int = 0
     spent_usd: float = 0.0
@@ -68,6 +72,16 @@ class Budget:
             return False, f"shared cost budget of ${self.max_usd} exhausted"
         return True, ""
 
+    def spend_tools(self, amount: int) -> tuple[bool, str]:
+        if self.tool_calls + amount > self.max_tool_calls:
+            return False, "shared tool call budget exhausted"
+        self.tool_calls += amount
+        return True, ""
+
+    def spend_tokens(self, amount: int) -> tuple[bool, str]:
+        self.tokens_used += amount
+        return (self.tokens_used <= self.max_tokens, "shared token budget exhausted")
+
     def enter(self, agent_id: str) -> None:
         self.depth += 1
         self.path.append(agent_id)
@@ -85,6 +99,8 @@ class Budget:
         """
         return {
             "steps_used": self.used,
+            "tool_calls": self.tool_calls,
+            "tokens_used": self.tokens_used,
             "max_steps": self.max_steps,
             "depth": self.depth,
             "path": list(self.path),

@@ -7,8 +7,8 @@ control:
   status: "stable"
   check:
     kind: "static_manifest"
-    expr: 'evals.status != "measured" or any(evals.metrics[].passed != null)'
-    message: "No evaluation metric is wired to the gate."
+    expr: 'evals.status != "measured" or eval_gate.passed == true'
+    message: "Every blocking metric must pass its planned threshold with measured observations and a deterministic check."
   evidence:
     - "eval_result"
   remediation: "Name the blocking metrics in gate.block_on, and prefer deterministic ones."

@@ -45,7 +45,7 @@ func TestPassingExamples(t *testing.T) {
 
 	dirs, err := filepath.Glob(filepath.Join(root, "examples", "0*"))
 	if err != nil || len(dirs) == 0 {
-		t.Skip("no passing examples found — examples/ directory not present")
+		t.Fatal("required passing examples are missing from examples/")
 	}
 
 	for _, d := range dirs {
@@ -81,7 +81,7 @@ func TestFailingExamples(t *testing.T) {
 
 	files, err := filepath.Glob(filepath.Join(root, "examples", "99-failing", "*", "expected.yaml"))
 	if err != nil || len(files) == 0 {
-		t.Skip("no failing examples found — examples/99-failing/ directory not present")
+		t.Fatal("required negative fixtures are missing from examples/99-failing/")
 	}
 
 	for _, f := range files {

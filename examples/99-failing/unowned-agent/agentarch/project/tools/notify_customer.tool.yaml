@@ -1,0 +1,56 @@
+schema_version: "1.0"
+tool:
+  id: notify_customer
+  description_for_model: >-
+    Send a message to the customer on the current conversation. Use only to deliver an
+    update the customer asked for. The message is sent as written and cannot be recalled.
+  description_for_humans: >-
+    Outbound customer message. Irreversible once delivered, so it is gated on human
+    approval above a length threshold and always rate limited.
+
+  input_schema:
+    type: object
+    required: [conversation_id, body]
+    additionalProperties: false
+    properties:
+      conversation_id: { type: string }
+      body: { type: string, maxLength: 2000 }
+
+  effect: communication
+  idempotency:
+    idempotent: false
+    key_field: request_id
+
+  permissions:
+    scopes: ["messaging:send"]
+    data_access: ["conversations"]
+    network:
+      deny_by_default: true
+      egress: ["messaging-api.internal.example.com"]
+    secrets: ["MESSAGING_API_TOKEN"]
+    sandbox: container
+
+  limits:
+    timeout_ms: 4000
+    max_retries: 1
+    rate_limit_rpm: 10
+    domain_limits:
+      max_messages_per_conversation_per_hour: 3
+
+  approval:
+    required_when: "always"
+    approver_role: support_supervisor
+    timeout_s: 900
+    on_timeout: deny
+
+  failure:
+    on_timeout: fail_closed
+    on_error: fail_closed
+
+  dry_run:
+    supported: true
+    parameter: dry_run
+
+  owner: team-messaging
+  tests:
+    - tests/tools/test_notify_customer.py

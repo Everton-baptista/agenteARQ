@@ -62,7 +62,10 @@ def run(
     resume: dict | None = None,
     approved: set[str] | None = None,
 ) -> Outcome:
+    if resume or approved:
+        return Outcome(status="escalated", text="[ESCALATE] this read-only MCP adapter does not support approval continuation")
     manifest = load_manifest()
+    telemetry.require_model_price(manifest["model"]["id"])
 
     ok, reason = input_guardrail(question)
     telemetry.record_guardrail(
@@ -79,6 +82,7 @@ def run(
     ]
     calls = (resume or {}).get("tool_calls", 0)
     spent = (resume or {}).get("spent_usd", 0.0)
+    tokens = 0
     used_tools: list[str] = []
 
     with mcp.AllowlistedMCPClient(servers[0]) as client:
@@ -107,6 +111,7 @@ def run(
                     messages=messages,
                 )
 
+            tokens += response.usage.input_tokens + response.usage.output_tokens
             spent += telemetry.record_model_call(
                 model=manifest["model"]["id"],
                 tenant=principal.tenant_id,
@@ -114,7 +119,7 @@ def run(
                 output_tokens=response.usage.output_tokens,
                 latency_ms=timer.ms,
             )
-            if spent > manifest["autonomy"]["budget"]["usd_per_run"]:
+            if spent > manifest["autonomy"]["budget"]["usd_per_run"] or tokens > manifest["autonomy"]["budget"].get("tokens_per_run", 40000):
                 return Outcome(status="escalated", text="[ESCALATE] run cost budget exhausted",
                                tool_calls=calls, cost_usd=spent, mcp_calls=used_tools)
 
