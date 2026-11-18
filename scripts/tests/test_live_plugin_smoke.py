@@ -233,6 +233,19 @@ class TraceTests(unittest.TestCase):
         self.assertNotIn("private", json.dumps(auth))
         self.assertNotIn("token", json.dumps(auth))
 
+    def test_managed_transport_matches_what_each_host_installer_writes(self):
+        # Claude's shared .mcp.json carries a portable "."; Gemini keeps the absolute root.
+        for host, root in (("claude", "."), ("gemini", str(self.project))):
+            path = self.project / (".mcp.json" if host == "claude" else ".gemini/settings.json")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            entry = {"command": "/tmp/agentarch", "args": ["mcp", "serve", "--root", root]}
+            path.write_text(json.dumps({"mcpServers": {"agentarch": entry}}))
+            self.assertEqual(smoke.managed_transport(self.project, host, "/tmp/agentarch"), entry)
+            entry["args"][-1] = "/somewhere/else"
+            path.write_text(json.dumps({"mcpServers": {"agentarch": entry}}))
+            with self.assertRaises(Exception):
+                smoke.managed_transport(self.project, host, "/tmp/agentarch")
+
     def test_commands_keep_host_safety_and_explicit_managed_transport(self):
         saved = {key: os.environ.get(key) for key in ("HOME", "CODEX_HOME", "CLAUDE_CONFIG_DIR")}
         server = {"command": "/tmp/agentarch", "args": ["mcp", "serve", "--root", str(self.project)]}

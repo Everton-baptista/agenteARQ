@@ -427,7 +427,10 @@ def managed_transport(project, host, binary):
     else:
         path = project / (".mcp.json" if host == "claude" else ".gemini/settings.json")
         server = json.loads(path.read_text())["mcpServers"]["agentarch"]
-    require(server.get("command") == binary and server.get("args") == ["mcp", "serve", "--root", str(project)], "managed_transport_mismatch")
+    # Claude's .mcp.json is committed and shared, so its root is "." and the server resolves the
+    # project upward from its launch directory; the other hosts receive the absolute root.
+    root = "." if host == "claude" else str(project)
+    require(server.get("command") == binary and server.get("args") == ["mcp", "serve", "--root", root], "managed_transport_mismatch")
     return server
 
 
