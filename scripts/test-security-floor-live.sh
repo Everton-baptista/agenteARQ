@@ -90,12 +90,17 @@ new_product "$root/secret"
 printf 'GITHUB_TOKEN = "%s"\n' "$fake_token" > "$root/secret/settings.py"
 verify_case committed-secret "$root/secret" failed passed
 
-# 3. The project cannot switch the scanner off with its own config or ignore file.
-new_product "$root/secret-disabled"
-printf 'GITHUB_TOKEN = "%s"\n' "$fake_token" > "$root/secret-disabled/settings.py"
-printf '[allowlist]\npaths = [".*"]\n' > "$root/secret-disabled/.gitleaks.toml"
-printf 'settings.py:github-pat:1\n' > "$root/secret-disabled/.gitleaksignore"
-verify_case secret-with-project-overrides "$root/secret-disabled" failed passed
+# 3. The project cannot switch the scanner off with its own config...
+new_product "$root/secret-config"
+printf 'GITHUB_TOKEN = "%s"\n' "$fake_token" > "$root/secret-config/settings.py"
+printf '[allowlist]\npaths = [".*"]\n' > "$root/secret-config/.gitleaks.toml"
+verify_case secret-with-project-gitleaks-toml "$root/secret-config" failed passed
+
+# 3b. ...or with an ignore file, which gitleaks would otherwise always load from the source.
+new_product "$root/secret-ignore"
+printf 'GITHUB_TOKEN = "%s"\n' "$fake_token" > "$root/secret-ignore/settings.py"
+printf 'settings.py:github-pat:1\n' > "$root/secret-ignore/.gitleaksignore"
+verify_case secret-with-project-gitleaksignore "$root/secret-ignore" failed passed
 
 # 4. A pinned dependency with published advisories fails the audit, offline.
 new_product "$root/vulnerable"
