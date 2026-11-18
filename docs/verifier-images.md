@@ -8,6 +8,7 @@ pulls an image, or falls back to running on the host. These recipes prepare that
 |---|---|---|
 | `typescript-web` | [`verifiers/typescript-web/Dockerfile`](../verifiers/typescript-web/Dockerfile) | `package.json`, `package-lock.json` |
 | `python-api` | [`verifiers/python-api/Dockerfile`](../verifiers/python-api/Dockerfile) | `requirements-verifier.lock` |
+| `go-service` | [`verifiers/go-service/Dockerfile`](../verifiers/go-service/Dockerfile) | `go.mod`, `go.sum` |
 | `universal` | [`verifiers/universal/Dockerfile`](../verifiers/universal/Dockerfile) | none; the base supplies the project's toolchain |
 
 Every recipe installs the **security floor** from [`verifiers/floor/`](../verifiers/floor/):

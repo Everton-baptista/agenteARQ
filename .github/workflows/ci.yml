@@ -835,6 +835,18 @@ jobs:
         env:
           AGENTARCH_BIN: /tmp/agentarch
         run: IMAGE="$FLOOR_IMAGE" bash scripts/test-security-floor-live.sh
+      - name: the go-service profile verifies a Go module and blocks bad formatting and failing tests
+        env:
+          AGENTARCH_BIN: /tmp/agentarch
+          BASE: docker.io/library/golang:1.27-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea
+        run: |
+          fixture=$(mktemp -d)
+          printf 'module example.com/fixture\n\ngo 1.22\n' > "$fixture/go.mod"
+          CONTAINER_ENGINE=docker sh verifiers/build.sh go-service "$fixture" "$BASE" localhost:5000/agentarch-go-service:ci
+          docker push -q localhost:5000/agentarch-go-service:ci
+          image=$(docker inspect --format '{{index .RepoDigests 0}}' localhost:5000/agentarch-go-service:ci)
+          if command -v podman >/dev/null 2>&1; then podman pull -q --tls-verify=false "$image"; fi
+          IMAGE="$image" bash scripts/test-go-service-live.sh
       - name: benchmark protocol tests and dry matrix (no model calls)
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_benchmark*.py'

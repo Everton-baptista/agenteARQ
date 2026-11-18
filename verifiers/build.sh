@@ -3,7 +3,7 @@
 set -eu
 die() { printf '%s\n' "$1" >&2; exit 1; }
 if [ "${1:-}" = --help ] || [ "$#" -ne 4 ]; then
-  printf '%s\n' 'Usage: sh verifiers/build.sh <typescript-web|python-api|universal> <project-dir> <base-image@sha256:digest> <output-tag>'
+  printf '%s\n' 'Usage: sh verifiers/build.sh <typescript-web|python-api|go-service|universal> <project-dir> <base-image@sha256:digest> <output-tag>'
   printf '%s\n' 'Builds with network access; copies only reviewed dependency manifests. Does not push or run verification.'
   if [ "${1:-}" = --help ]; then exit 0; else exit 1; fi
 fi
@@ -11,7 +11,7 @@ profile=$1
 project=$2
 base=$3
 tag=$4
-case "$profile" in typescript-web|python-api|universal) ;; *) die 'Unsupported verifier profile' ;; esac
+case "$profile" in typescript-web|python-api|go-service|universal) ;; *) die 'Unsupported verifier profile' ;; esac
 printf '%s\n' "$base" | LC_ALL=C grep -Eq '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[a-f0-9]{64}$' || die 'Supply a real base image reference pinned by SHA-256 digest'
 case "$base" in *'
 '*) die 'Base image must be a single line' ;; esac
@@ -38,6 +38,10 @@ case "$profile" in
     file=requirements-verifier.lock
     [ -f "$project/$file" ] && [ ! -L "$project/$file" ] || die "Missing regular dependency input: $file"
     cp "$project/$file" "$context/$file" ;;
+  go-service)
+    [ -f "$project/go.mod" ] && [ ! -L "$project/go.mod" ] || die "Missing regular dependency input: go.mod"
+    cp "$project/go.mod" "$context/go.mod"
+    if [ -f "$project/go.sum" ] && [ ! -L "$project/go.sum" ]; then cp "$project/go.sum" "$context/go.sum"; else : > "$context/go.sum"; fi ;;
   universal) ;; # the floor only; extend this image with the project's own toolchain
 esac
 # Every profile carries the security floor: pinned scanners, fixed configs, offline OSV data.
