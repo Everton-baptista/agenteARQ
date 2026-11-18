@@ -12,19 +12,19 @@
 # missing package at the first model call rather than at startup.
 #
 # The three, so the pin for whichever you move to is here rather than looked up under pressure:
-#   anthropic==0.120.2   openai==2.51.0   google-genai==2.16.0
-anthropic==0.120.2  # agentarch:provider-sdk
+#   anthropic==2.8.0   openai==2.51.0   google-genai==2.16.0
+anthropic==2.8.0  # agentarch:provider-sdk
 
-fastapi==0.141.1
-uvicorn[standard]==0.52.0
-pydantic==2.13.4
+fastapi==0.163.1
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
 PyYAML==6.0.3
 httpx==0.28.1
 
 # Tests. In this file rather than a separate requirements-dev.txt, so `pip install -r` gives you a
 # project whose tests run — a suite you have to work out how to install is a suite that stops
 # being run.
-pytest==9.1.1
+pytest==9.2.0
 
 # Tracing is optional. Without these, app/infra/telemetry.py degrades to no-ops and the service
 # still runs: a starting point that needs a collector in order to boot excludes anyone reading the

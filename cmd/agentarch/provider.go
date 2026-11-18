@@ -50,7 +50,7 @@ var providers = []providerChoice{
 		ID:      "anthropic",
 		Label:   "Anthropic (Claude)",
 		ModelID: "claude-sonnet-4-5-20250929",
-		SDK:     "anthropic==0.120.2",
+		SDK:     "anthropic==2.8.0",
 		Key:     "ANTHROPIC_API_KEY",
 	},
 	{
