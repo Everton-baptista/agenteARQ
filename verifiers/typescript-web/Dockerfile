@@ -19,6 +19,11 @@ RUN node -e 'const p=require("./package.json"); if(p.workspaces) throw new Error
     && test ! -e /node_modules \
     && mv node_modules /node_modules
 
+# Security floor, required by every profile: pinned gitleaks and osv-scanner, fixed configs,
+# and the offline OSV database. Rebuild at least every 14 days; an older database is refused.
+COPY floor/ /opt/agentarch-floor-src/
+RUN sh /opt/agentarch-floor-src/install.sh && rm -rf /opt/agentarch-floor-src
+
 # /workspace is overlaid by tmpfs on every check. Dependencies must live outside it.
 # Node finds /node_modules by walking up from /workspace; npm scripts also need its bins.
 ENV PATH="/node_modules/.bin:${PATH}" \

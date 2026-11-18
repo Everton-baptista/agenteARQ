@@ -84,7 +84,7 @@ func TestVerifyProfileUnsafeSourceFailsBeforeAnyContainerExecution(t *testing.T)
 	}
 	t.Setenv("PATH", bin)
 	v, err := VerifyProfile(context.Background(), root, "python-api", "fixture@sha256:"+strings.Repeat("a", 64))
-	if err != nil || v.Passed || len(v.Checks) != 5 {
+	if err != nil || v.Passed || len(v.Checks) != 5+len(securityFloor) {
 		t.Fatalf("unsafe candidate verification: %+v, %v", v, err)
 	}
 	for _, check := range v.Checks {
