@@ -1,7 +1,7 @@
 ---
 rfc: 0002
 title: Skip a control the agent's shape puts out of reach
-status: draft
+status: accepted   # implemented in v0.3.0 (applies_to.declares)
 author: Everton Baptista
 created: 2026-07-30
 affects: [spec, content, cli]

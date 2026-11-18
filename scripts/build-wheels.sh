@@ -9,7 +9,7 @@ VERSION="${1:?usage: build-wheels.sh vX.Y.Z}"
 VERSION="${VERSION#v}"
 BASE="https://github.com/Everton-baptista/agenteARQ/releases/download/v${VERSION}"
 WORK="$(mktemp -d)"
-OUT="dist-pypi/dist"
+OUT="packaging/pypi/dist"
 
 # PEP 600 / PEP 425 tags.
 PLATFORMS=(
@@ -38,7 +38,7 @@ for row in "${PLATFORMS[@]}"; do
 
   stage="$WORK/stage-$tag"
   rm -rf "$stage"
-  cp -R dist-pypi "$stage"
+  cp -R packaging/pypi "$stage"
   rm -rf "$stage/dist"
   mkdir -p "$stage/agentarch/bin"
 

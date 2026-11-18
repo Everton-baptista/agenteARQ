@@ -27,7 +27,7 @@ go run ./cmd/agentarch check --profile standard examples/01-rag-support-agent
 
 ## If this adds or changes a control
 
-- [ ] An RFC exists (`rfcs/`) — required for a new control, a severity change, a new sync target,
+- [ ] An RFC exists (`docs/rfcs/`) — required for a new control, a severity change, a new sync target,
       a schema change, or a new official pack.
 - [ ] The prose half exists in `content/standards/`, anchored so `standard_ref` resolves.
 - [ ] It enters with `enforced_from` one minor ahead. No control is born blocking.

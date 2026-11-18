@@ -2,7 +2,7 @@
 #
 # A governance tool with a shell and a package manager inside it is a tool that can be used for
 # something other than governance in a pipeline that trusted it.
-FROM golang:1.26-alpine AS build
+FROM golang:1.26-alpine@sha256:ecb67f987aa1a57794c91d19ade7ae0209f2f0f5496aaef9e6ae85ddf92d02ab AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

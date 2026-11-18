@@ -24,7 +24,7 @@ correct without reading a line of the Go.
 
 ## 2. When an RFC is required
 
-Open one in [`rfcs/`](rfcs/) for:
+Open one in [`docs/rfcs/`](../docs/rfcs/) for:
 
 - a new control, or a change to an existing control's expression
 - raising a severity, or shortening a grace period

@@ -407,8 +407,8 @@ jobs:
 
       - name: the distribution launchers are valid
         run: |
-          node --check dist-npm/bin/agentarch.js
-          python3 -m py_compile dist-pypi/agentarch/__main__.py
+          node --check packaging/npm/bin/agentarch.js
+          python3 -m py_compile packaging/pypi/agentarch/__main__.py
           bash -n scripts/publish-npm.sh
           bash -n scripts/build-wheels.sh
           echo "ok  launchers and publish scripts parse"

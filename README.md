@@ -46,19 +46,27 @@ closed until the evidence exists.
 
 ## Quick start
 
-Requires Go 1.22+, Git, and Docker or Podman for verification.
+**1. Install the CLI** — pick one:
 
 ```bash
-# 1. Build the CLI once
-git clone https://github.com/Everton-baptista/agenteARQ && cd agenteARQ
-go build -o /tmp/agentarch ./cmd/agentarch
+# Signed release binary (needs curl, tar and cosign; the installer refuses an unverified download)
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.4.1/install.sh | sh
 
-# 2. In your project's Git repository
-/tmp/agentarch workflow init --name my-product --profile typescript-web \
+# With Go 1.22+
+go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.4.1
+
+# As a container
+docker run --rm ghcr.io/everton-baptista/agentarch:v0.4.1 version
+```
+
+**2. In your project's Git repository** (Docker or Podman is needed for verification):
+
+```bash
+agentarch workflow init --name my-product --profile typescript-web \
   --goal "Describe the user outcome" --author "Your name"
-/tmp/agentarch plugin install claude --owner "Your name" --contact "you@example.com" \
-  --model-provider anthropic --model "YOUR_EXACT_HOST_MODEL_ID" --binary /tmp/agentarch
-/tmp/agentarch ui                              # optional: read-only progress dashboard
+agentarch plugin install claude --owner "Your name" --contact "you@example.com" \
+  --model-provider anthropic --model "YOUR_EXACT_HOST_MODEL_ID"
+agentarch ui        # optional: read-only progress dashboard
 ```
 
 Then open the project in Claude Code and ask it to build what you described. Use `codex` or
@@ -496,6 +504,28 @@ just a tool:
 `spec/conformance/` holds fixtures and expected outputs, so anyone can write a second
 implementation — in Rust, in TypeScript, inside an internal platform — and prove it correct.
 
+### Repository layout
+
+| Path | What lives there |
+|---|---|
+| `cmd/`, `internal/` | the `agentarch` CLI, MCP server, workflow engine and policy engine (Go) |
+| `content/` | standards, controls, packs, skills, checklists, blueprints and templates — embedded in the binary |
+| `spec/` | normative spec, JSON schemas and conformance fixtures |
+| `web/` | the local dashboard (React); its build is embedded from `internal/dashboard/assets` |
+| `verifiers/` | recipes for the pinned verification images, including the security floor |
+| `examples/` | a compliant reference project and the cases that must fail, exercised by CI |
+| `docs/` | guides, ADRs and RFCs — start at [`docs/README.md`](docs/README.md) |
+| `scripts/` | release, benchmark, installer-test and live-test scripts |
+| `packaging/` | npm and PyPI launchers for the released binaries |
+| `registry/` | the community pack registry index |
+| `benchmarks/` | the comparative benchmark suite definition |
+| `.github/` | CI, release, contribution, governance, security and trademark policies |
+
+At the root: `README.md`, `CHANGELOG.md`, the licences, `install.sh`, the release `Dockerfile`,
+`payload.go` (Go can only embed files below the module root) and `AGENTS.md`, `CLAUDE.md` and
+`GEMINI.md` — the instruction files AgenteARQ generates for assistants working on this repository,
+which the assistants read from the root.
+
 ### Every rule exists twice
 
 Once as **prose** you can read (`content/standards/`) and once as an **executable control**
@@ -573,8 +603,8 @@ Shipping in v1: `en`, `pt-BR`.
 ## Contributing
 
 New controls, severity changes, new sync targets, schema changes and new official packs go
-through the RFC process in [`rfcs/`](rfcs/). See [CONTRIBUTING.md](CONTRIBUTING.md),
-[GOVERNANCE.md](GOVERNANCE.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+through the RFC process in [`docs/rfcs/`](docs/rfcs/). See [CONTRIBUTING.md](.github/CONTRIBUTING.md),
+[GOVERNANCE.md](.github/GOVERNANCE.md) and [CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md).
 
 No control is ever born blocking. Controls enter with `enforced_from` one minor ahead and run
 in warn mode until then, and no release makes an existing control stricter without a content
@@ -585,5 +615,5 @@ major.
 Code is Apache-2.0 ([LICENSE](LICENSE)). Spec and content are CC BY 4.0
 ([LICENSE-CONTENT](LICENSE-CONTENT)) so they can be quoted, translated and reimplemented.
 
-The name is not covered by either — see [TRADEMARK.md](TRADEMARK.md). You may state a factual
+The name is not covered by either — see [TRADEMARK.md](.github/TRADEMARK.md). You may state a factual
 claim of compliance without asking; you may not imply endorsement or name a product after it.

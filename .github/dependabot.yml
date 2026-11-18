@@ -22,6 +22,10 @@ updates:
       go-dependencies:
         patterns: ["*"]
         update-types: [minor, patch]
+    # New golang.org/x/text releases require a go directive above the deliberate 1.22 floor,
+    # which TestGoDirectiveStaysAtTheFloor rejects. Remove this when the floor is raised.
+    ignore:
+      - dependency-name: golang.org/x/text
   - package-ecosystem: pip
     directories:
       - /content/blueprints/*/app/none
@@ -33,3 +37,7 @@ updates:
       blueprint-runtime:
         patterns: ["*"]
         update-types: [minor, patch]
+      # Major SDK releases arrive once for every blueprint, not as one pull request per directory.
+      blueprint-major:
+        patterns: ["*"]
+        update-types: [major]

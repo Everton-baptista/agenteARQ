@@ -35,7 +35,7 @@ __pycache__/
 *.local.*
 
 # built wheels
-/dist-pypi/dist/
+/packaging/pypi/dist/
 
 # local browser QA artifacts
 .playwright-cli/
