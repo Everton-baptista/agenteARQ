@@ -1,7 +1,7 @@
 ---
 rfc: 0001
 title: Cover the service that carries the agent — layout, contract, edge
-status: draft
+status: accepted   # implemented in v0.3.0 (api.edge pack, standards/16-service-and-edge.md)
 author: Everton Baptista
 created: 2026-07-29
 affects: [spec, content, cli]

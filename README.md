@@ -46,19 +46,27 @@ closed until the evidence exists.
 
 ## Quick start
 
-Requires Go 1.22+, Git, and Docker or Podman for verification.
+**1. Install the CLI** — pick one:
 
 ```bash
-# 1. Build the CLI once
-git clone https://github.com/Everton-baptista/agenteARQ && cd agenteARQ
-go build -o /tmp/agentarch ./cmd/agentarch
+# Signed release binary (needs curl, tar and cosign; the installer refuses an unverified download)
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.4.0/install.sh | sh
 
-# 2. In your project's Git repository
-/tmp/agentarch workflow init --name my-product --profile typescript-web \
+# With Go 1.22+
+go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.4.0
+
+# As a container
+docker run --rm ghcr.io/everton-baptista/agentarch:v0.4.0 version
+```
+
+**2. In your project's Git repository** (Docker or Podman is needed for verification):
+
+```bash
+agentarch workflow init --name my-product --profile typescript-web \
   --goal "Describe the user outcome" --author "Your name"
-/tmp/agentarch plugin install claude --owner "Your name" --contact "you@example.com" \
-  --model-provider anthropic --model "YOUR_EXACT_HOST_MODEL_ID" --binary /tmp/agentarch
-/tmp/agentarch ui                              # optional: read-only progress dashboard
+agentarch plugin install claude --owner "Your name" --contact "you@example.com" \
+  --model-provider anthropic --model "YOUR_EXACT_HOST_MODEL_ID"
+agentarch ui        # optional: read-only progress dashboard
 ```
 
 Then open the project in Claude Code and ask it to build what you described. Use `codex` or
