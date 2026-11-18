@@ -32,7 +32,7 @@ func verifyProfile(ctx context.Context, root, profile string, runner Runner) (Ve
 	if err != nil {
 		return Verification{}, err
 	}
-	if len(commands) == 0 {
+	if profile == "universal" || len(commands) <= len(securityFloor) {
 		return Verification{}, errors.New("verify-profile requires a fixed engineering profile")
 	}
 	s, err := New(root)
