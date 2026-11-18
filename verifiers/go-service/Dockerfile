@@ -21,8 +21,10 @@ RUN mkdir -p /opt/gomodcache && go mod download all && go mod verify && chmod -R
 COPY floor/ /opt/agentarch-floor-src/
 RUN sh /opt/agentarch-floor-src/install.sh && rm -rf /opt/agentarch-floor-src
 
-# /workspace and /tmp are disposable tmpfs; the build cache must be writable, the module cache not.
-ENV GOPROXY=off GOFLAGS=-mod=readonly GOCACHE=/tmp/go-build GOPATH=/tmp/go CGO_ENABLED=1 \
+# /workspace (512 MiB) and /tmp (128 MiB) are disposable tmpfs. The build cache must be writable
+# and go test -race rebuilds the standard library with race instrumentation, which does not fit
+# in /tmp, so the cache lives in the larger /workspace; each check starts with a fresh copy.
+ENV GOPROXY=off GOFLAGS=-mod=readonly GOCACHE=/workspace/.cache/go-build GOPATH=/tmp/go CGO_ENABLED=1 \
     HOME=/tmp XDG_CACHE_HOME=/tmp/cache
 WORKDIR /workspace
 
