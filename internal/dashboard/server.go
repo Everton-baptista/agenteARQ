@@ -52,6 +52,9 @@ func Handler(root, host, token string) http.Handler {
 				http.Error(w, "invalid session", http.StatusUnauthorized)
 				return
 			}
+			// Not Secure on purpose: the listener is plain HTTP bound to 127.0.0.1, and a browser that
+			// does not treat loopback HTTP as a secure context would drop the cookie and lock the
+			// user out. HttpOnly, SameSite=Strict and the Host/Origin checks above carry the session.
 			http.SetCookie(w, &http.Cookie{Name: sessionCookieName(host), Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
