@@ -86,6 +86,6 @@ Open an issue on the repository, or contact the maintainer named in `GOVERNANCE.
 
 ---
 
-*This policy covers the name only. The code remains Apache-2.0 ([LICENSE](LICENSE)); the spec and
-content remain CC BY 4.0 ([LICENSE-CONTENT](LICENSE-CONTENT)). Nothing here restricts a right
+*This policy covers the name only. The code remains Apache-2.0 ([LICENSE](../LICENSE)); the spec and
+content remain CC BY 4.0 ([LICENSE-CONTENT](../LICENSE-CONTENT)). Nothing here restricts a right
 either licence grants.*

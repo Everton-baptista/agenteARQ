@@ -21,6 +21,17 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## v0.4.1 — 2026-11-18
+
+`cli` — the first published 0.4 release; same features as v0.4.0.
+
+- The v0.4.0 tag exists but its release run stopped before publishing anything: the pinned
+  cosign installer looked for a detached `.sig` that cosign v3 no longer ships. The installer is
+  now v4.1.3, which verifies cosign v3 bundles.
+- Repository layout: community and policy documents moved to `.github/`, npm and PyPI packaging to
+  `packaging/`, RFCs to `docs/rfcs/`; `docs/README.md` indexes the documentation.
+- Dependabot groups major blueprint SDK updates; the release Dockerfile pins its Go builder by digest.
+
 ## v0.4.0 — 2026-11-18
 
 `cli` — a security floor in every engineering profile.

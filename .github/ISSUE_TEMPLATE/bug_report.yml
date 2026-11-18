@@ -8,7 +8,7 @@ body:
         If the behaviour and the **specification** disagree, the specification is right and the
         code has a bug — say which document you are comparing against and this gets fixed faster.
 
-        For a security issue, do not open an issue. See [SECURITY.md](../blob/main/SECURITY.md).
+        For a security issue, do not open an issue. See [SECURITY.md](../blob/main/.github/SECURITY.md).
 
   - type: textarea
     id: versions

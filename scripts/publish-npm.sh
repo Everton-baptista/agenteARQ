@@ -71,7 +71,7 @@ done
 
 echo "── agentarch (launcher)"
 LAUNCHER="$WORK/launcher"
-cp -R dist-npm "$LAUNCHER"
+cp -R packaging/npm "$LAUNCHER"
 # One version for every package, so a partially-published release is visibly partial.
 node -e "
   const fs = require('fs'), p = '$LAUNCHER/package.json';

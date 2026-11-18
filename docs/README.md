@@ -19,4 +19,4 @@
 - [Authoring a control](03-control-authoring.md) — adding or changing a control.
 - [Adding a target](04-adding-a-target.md) — supporting another assistant's instruction file.
 - Architecture decisions: [a pack is data, never code](adr/0001-a-pack-is-data-never-code.md) and [the core is a fixed budget](adr/0002-the-core-is-a-fixed-budget.md).
-- [RFCs](../rfcs/) — proposals for changes to the specification, content or CLI.
+- [RFCs](rfcs/) — proposals for changes to the specification, content or CLI.

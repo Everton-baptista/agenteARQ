@@ -220,7 +220,12 @@ func TestEveryPolicyDocumentTheSpecCitesExists(t *testing.T) {
 	}
 
 	for doc, from := range cited {
-		if _, err := os.Stat(filepath.Join(repo, doc)); err != nil {
+		// Community and policy documents live in .github/, which GitHub reads as the root.
+		_, err := os.Stat(filepath.Join(repo, doc))
+		if err != nil {
+			_, err = os.Stat(filepath.Join(repo, ".github", doc))
+		}
+		if err != nil {
 			t.Errorf("%s is cited by %s and does not exist. A spec that points at a missing "+
 				"document answers the reader's question with authority and nothing else.",
 				doc, strings.Join(from, ", "))

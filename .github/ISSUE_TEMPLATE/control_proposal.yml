@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         New controls, severity changes, new sync targets, schema changes and new official packs
-        go through the RFC process in [`rfcs/`](../tree/main/rfcs). This issue is where the idea
+        go through the RFC process in [`docs/rfcs/`](../tree/main/docs/rfcs). This issue is where the idea
         is discussed **before** an RFC is written — most of them are resolved here.
 
         Two rules shape every answer, so it is worth knowing them first:
