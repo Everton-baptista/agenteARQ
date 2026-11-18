@@ -22,7 +22,7 @@ httpx==0.28.1
 
 # The MCP SDK, for app/mcp_server.py. Pinned like everything else: a tool server whose protocol
 # version floats under its consumers is the server-side form of an unpinned model.
-mcp==1.29.0
+mcp==2.3.0
 
 # Tests. In this file rather than a separate requirements-dev.txt, so `pip install -r` gives you a
 # project whose tests run — a suite you have to work out how to install is a suite that stops
