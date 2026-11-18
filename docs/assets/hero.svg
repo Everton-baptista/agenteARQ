@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-labelledby="t d" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">AgenteARQ: your AI writes the code, AgenteARQ makes it prove it</title>
+  <desc id="d">AgenteARQ takes work done by Claude Code, Codex or Gemini CLI from idea to a reviewed pull request through seven steps: discover, specify, plan, build, verify, review and PR ready. Checks run in a sandbox with no network and no secrets, missing evidence never passes, and review must come from someone other than the author.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0f1f"/>
+      <stop offset="1" stop-color="#141d45"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="track" gradientUnits="userSpaceOnUse" x1="112" y1="0" x2="1168" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7c5cff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#7c5cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#ffffff" fill-opacity="0.07"/>
+    </pattern>
+    <clipPath id="frame"><rect width="1280" height="640" rx="20"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="640" fill="url(#bg)"/>
+    <rect width="1280" height="640" fill="url(#dots)"/>
+    <circle cx="1120" cy="80" r="380" fill="url(#glowA)"/>
+    <circle cx="120" cy="620" r="320" fill="url(#glowB)"/>
+  </g>
+
+  <!-- Brand -->
+  <rect x="64" y="52" width="44" height="44" rx="11" fill="url(#accent)"/>
+  <path d="M77 86 L86 62 L95 86 M80.5 77 H91.5" fill="none" stroke="#0a0f1f" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="122" y="83" font-size="26" font-weight="700" fill="#ffffff">AgenteARQ</text>
+  <rect x="1024" y="58" width="192" height="32" rx="16" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.18"/>
+  <text x="1120" y="79" font-size="14" fill="#c7d0ee" text-anchor="middle">open source · Apache-2.0</text>
+
+  <!-- Headline -->
+  <text x="64" y="190" font-size="58" font-weight="800" fill="#ffffff" letter-spacing="-1">Your AI writes the code.</text>
+  <text x="64" y="258" font-size="58" font-weight="800" fill="url(#accent)" letter-spacing="-1">AgenteARQ makes it prove it.</text>
+  <text x="64" y="308" font-size="21" fill="#aab6d6">From idea to a reviewed pull request, with sandboxed checks,</text>
+  <text x="64" y="338" font-size="21" fill="#aab6d6">independent review and evidence tied to the exact commit.</text>
+
+  <!-- Journey -->
+  <line x1="112" y1="424" x2="1168" y2="424" stroke="url(#track)" stroke-width="3" stroke-opacity="0.8"/>
+  <g fill="#121a3a" stroke="url(#accent)" stroke-width="2">
+    <circle cx="112" cy="424" r="27"/>
+    <circle cx="288" cy="424" r="27"/>
+    <circle cx="464" cy="424" r="27"/>
+    <circle cx="640" cy="424" r="27"/>
+    <circle cx="816" cy="424" r="27"/>
+    <circle cx="992" cy="424" r="27"/>
+  </g>
+  <circle cx="1168" cy="424" r="29" fill="#22c55e"/>
+
+  <g fill="none" stroke="#e6ecff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- discover: magnifier -->
+    <circle cx="108" cy="420" r="8"/>
+    <line x1="114" y1="426" x2="121" y2="433"/>
+    <!-- specify: document -->
+    <path d="M280 410 H292 L297 415 V438 H280 Z"/>
+    <line x1="284" y1="421" x2="293" y2="421"/>
+    <line x1="284" y1="427" x2="293" y2="427"/>
+    <line x1="284" y1="433" x2="290" y2="433"/>
+    <!-- plan: ordered tasks -->
+    <circle cx="455" cy="414" r="2"/>
+    <line x1="461" y1="414" x2="474" y2="414"/>
+    <circle cx="455" cy="424" r="2"/>
+    <line x1="461" y1="424" x2="474" y2="424"/>
+    <circle cx="455" cy="434" r="2"/>
+    <line x1="461" y1="434" x2="470" y2="434"/>
+    <!-- build: code brackets -->
+    <path d="M630 414 L622 424 L630 434"/>
+    <path d="M650 414 L658 424 L650 434"/>
+    <line x1="643" y1="411" x2="637" y2="437"/>
+    <!-- verify: shield -->
+    <path d="M816 408 L829 413 V423 C829 431 823 437 816 440 C809 437 803 431 803 423 V413 Z"/>
+    <path d="M810 424 L815 429 L823 419"/>
+    <!-- review: two people -->
+    <circle cx="985" cy="417" r="5"/>
+    <path d="M976 437 C976 429 994 429 994 437"/>
+    <circle cx="1000" cy="419" r="4"/>
+    <path d="M997 431 C1004 429 1009 432 1009 437"/>
+  </g>
+  <path d="M1156 425 L1165 434 L1181 415" fill="none" stroke="#06210f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g font-size="17" font-weight="600" fill="#e6ecff" text-anchor="middle">
+    <text x="112" y="482">Discover</text>
+    <text x="288" y="482">Specify</text>
+    <text x="464" y="482">Plan</text>
+    <text x="640" y="482">Build</text>
+    <text x="816" y="482">Verify</text>
+    <text x="992" y="482">Review</text>
+    <text x="1168" y="482" fill="#4ade80">PR ready</text>
+  </g>
+  <g font-size="13.5" fill="#8a96b8" text-anchor="middle">
+    <text x="112" y="504">the real problem</text>
+    <text x="288" y="504">testable criteria</text>
+    <text x="464" y="504">ADR and tasks</text>
+    <text x="640" y="504">by your assistant</text>
+    <text x="816" y="504">sandbox, no network</text>
+    <text x="992" y="504">reviewer ≠ author</text>
+    <text x="1168" y="504">exact commit</text>
+  </g>
+
+  <!-- Promises -->
+  <line x1="64" y1="548" x2="1216" y2="548" stroke="#ffffff" stroke-opacity="0.1"/>
+  <g fill="none" stroke="url(#accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="66" y="578" width="16" height="12" rx="2"/>
+    <path d="M69 578 V573 A5 5 0 0 1 79 573 V578"/>
+    <circle cx="478" cy="584" r="9"/>
+    <path d="M473 584 L477 588 L484 580"/>
+    <rect x="884" y="575" width="20" height="16" rx="3"/>
+    <path d="M888 581 L891 584 L888 587 M894 587 H899"/>
+  </g>
+  <g font-size="16" fill="#c7d0ee">
+    <text x="94" y="590">Sandboxed checks · no network, no secrets</text>
+    <text x="498" y="590">Fails closed · missing evidence never passes</text>
+    <text x="914" y="590">Claude Code · Codex · Gemini CLI</text>
+  </g>
+</svg>
