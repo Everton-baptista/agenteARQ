@@ -27,6 +27,7 @@ class Principal:
     subject: str        # the end user or service account
     customer_id: str    # which customer's records this caller may see
     tier: str = "standard"
+    role: str = "customer"
 
     @property
     def memory_scope_key(self) -> str:

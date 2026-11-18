@@ -17,6 +17,7 @@ from __future__ import annotations
 import sys
 
 from .agent import runner
+from .agent.authorization import ApprovalGrant
 from .agent.manifest import ContractError
 from .agent.principal import Principal
 from .infra.provider import MissingCredential
@@ -38,7 +39,7 @@ def main() -> int:
         print(err)
         return 2
 
-    if outcome.status == "awaiting_approval":
+    while outcome.status == "awaiting_approval":
         preview = outcome.approval or {}
         print("\n─── approval required ───────────────────────────────")
         print(f"  tool      {preview.get('tool')}  ({preview.get('effect')}, cannot be undone)")
@@ -47,6 +48,9 @@ def main() -> int:
         for k, v in (preview.get("arguments") or {}).items():
             print(f"  {k:9} {v}")
         print(f"  on timeout: {preview.get('on_timeout')}")
+        if getattr(principal, "role", "") != preview.get("approver_role"):
+            print("[ESCALATE] this local identity does not hold the required approver role")
+            return 2
         try:
             granted = input("\n  approve? [y/N] ").strip().lower() in ("y", "yes")
         except (EOFError, KeyboardInterrupt):
@@ -55,7 +59,7 @@ def main() -> int:
             print(f"[ESCALATE] {preview.get('tool')} was not approved")
             return 0
         outcome = runner.run(
-            question, principal, resume=outcome.state, approved={outcome.state["tool"]}
+            question, principal, resume=outcome.state, approved=ApprovalGrant.for_call(outcome.state["pending_calls"][0], outcome.state["approval_spec"], principal)
         )
 
     print(outcome.text)

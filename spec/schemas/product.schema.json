@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/product.schema.json",
+  "title": "Product engineering contract (independent of AI agent contracts)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "goal", "profile", "author", "has_ai", "executor_ids", "application_agent_ids"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "name": {"type": "string", "minLength": 1},
+    "goal": {"type": "string"},
+    "profile": {"enum": ["universal", "typescript-web", "python-api"]},
+    "author": {"type": "string"},
+    "has_ai": {"type": "boolean"},
+    "executor_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"}},
+    "application_agent_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"}},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "program", "args", "timeout_seconds"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+          "program": {"type": "string", "minLength": 1},
+          "args": {"type": "array", "items": {"type": "string"}},
+          "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 600}
+        }
+      },
+      "description": "Only for universal: reviewed executable and argv, run in an isolated container without a shell wrapper."
+    }
+  }
+}

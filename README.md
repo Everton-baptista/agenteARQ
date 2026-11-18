@@ -1,6 +1,6 @@
 # agentarch
 
-**An open, versioned, verifiable standard for building AI agents.**
+**AgenteARQ: a local product-development workflow and an open, verifiable standard for AI agents.**
 
 Install it into any agent project, in any language, and every AI assistant working on that
 project — Claude Code, Gemini CLI, Cursor, Copilot, Codex, Grok, Kimi, Qwen Code, Windsurf,
@@ -9,10 +9,46 @@ local models — follows the same architecture rules, from a single source of tr
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
 >
 > 16 standards · 46 controls · 10 packs · 12 framework adapters · 7 runnable blueprints ·
-> Agno (ex-Phidata) como framework padrão · AWS Bedrock, Anthropic, OpenAI e Google ·
+> Native Python runtimes; a real LangGraph variant for RAG · AWS Bedrock, Anthropic, OpenAI and Google ·
 > `en` and `pt-BR`, from the interview through to every generated instruction file.
 
 ---
+
+## Build a product with your coding assistant
+
+The product workflow works with **software with or without AI**. Codex, Claude Code and Gemini
+continue to write the code; AgenteARQ supplies contextual skills, resumable state, acceptance gates
+and a read-only local dashboard. It does not require a separate model API key.
+
+```bash
+go build -o /tmp/agentarch ./cmd/agentarch
+# In the target Git repository:
+/tmp/agentarch workflow init --name my-product --profile typescript-web \
+  --goal "Describe the user outcome" --author "Your name"
+/tmp/agentarch plugin install codex --owner "Your name" --contact "you@example.com" \
+  --model-provider openai --model "YOUR_EXACT_HOST_MODEL_ID" --binary /tmp/agentarch
+/tmp/agentarch ui
+```
+
+`--model` must describe the model actually configured in your host. The plugin records that
+contract; it cannot change or enforce the model selected by another application. Use `--dry-run`
+to inspect installation, `plugin check codex` to inspect drift, and `plugin remove codex` to remove
+only managed files. Claude Code and Gemini use the same lifecycle with `claude` and `gemini`.
+
+The workflow progresses through discovery, specification, architecture, tasks, implementation,
+isolated verification, independent review and PR preparation. TypeScript web and Python API
+profiles have mandatory checks; `universal` declares its checks explicitly. Verification requires
+an installed, digest-pinned Docker/Podman image containing the needed tools and dependencies;
+network is disabled during execution. There is no unsandboxed fallback.
+
+A changed source tree invalidates prior evidence. Missing or interrupted checks are not passes.
+The author cannot approve their own review through the AgenteARQ MCP server; review identity
+is recorded locally, not externally authenticated. Publishing a PR stays with the authorized host;
+merge and deploy remain separate human decisions.
+
+See [the workflow and engineering profiles](docs/workflow.md), [host installation and boundaries](docs/plugins.md),
+[the comparative benchmark protocol](docs/benchmark.md) and [implementation and verification notes](docs/implementation.md).
+The underlying standard and its existing commands remain available below.
 
 ## The problem
 
@@ -80,25 +116,25 @@ Choose 1–3 [1]:
 What are you building?
 
   1. A full agentic product — goal, tools, memory, approvals and observability
-     agentic-product — runs on Agno, Python Native
+     agentic-product — runs on Python Native
 
   2. A chat on my website that answers customers, with a human approving the risky actions
-     chatbot-web — runs on Agno, Python Native
+     chatbot-web — runs on Python Native
 
   3. An agent that acts on my systems, with a human approving the dangerous part
-     tool-approval — runs on Agno, Python Native
+     tool-approval — runs on Python Native
 
   4. An agent that answers from my documents and cites its sources
-     rag-support — runs on Agno, Python Native, langgraph
+     rag-support — runs on Python Native, langgraph
 
   5. An agent that uses MCP servers I did not write
-     mcp-consumer — runs on Agno, Python Native
+     mcp-consumer — runs on Python Native
 
   6. Expose my agent's tools so other agents and IDEs can call them safely
-     mcp-server — runs on Agno, Python Native
+     mcp-server — runs on Python Native
 
   7. Several agents working together without losing track of who may do what
-     multi-agent-handoff — runs on Agno, Python Native
+     multi-agent-handoff — runs on Python Native
 
 Choose 1–7 (or q to quit):
 
@@ -184,7 +220,7 @@ Everything `start` does is also available one command at a time — see
 [the manual route](#the-manual-route) below. And in a script or CI, where there is nobody to ask:
 
 ```bash
-agentarch start --new --blueprint rag-support --framework agno \
+agentarch start --new --blueprint rag-support --framework none \
   --provider bedrock --owner "Ana Silva" --jurisdictions BR --yes
 ```
 
@@ -218,8 +254,9 @@ to validate its agents.
 | `docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start` | needs nothing but Docker |
 | [Releases](https://github.com/Everton-baptista/agenteARQ/releases) | signed binaries, verified by hand |
 
-The installer works out your platform, verifies the download against the signed `checksums.txt`,
-and refuses to install anything whose checksum does not match. It never uses `sudo` on your
+The installer requires Cosign, verifies the Sigstore bundle for `checksums.txt` against the exact
+release workflow and tag, then verifies the binary checksum. Missing or invalid signature bundles
+are errors, including for old releases without the required bundle. It never uses `sudo` on your
 behalf — without write access to `/usr/local/bin` it installs to `~/.local/bin` and tells you how
 to add it.
 
@@ -236,15 +273,18 @@ less install.sh && sh install.sh
 Or take a signed binary straight from Releases and check it yourself:
 
 ```bash
-gh release download v0.3.0 --repo Everton-baptista/agenteARQ \
-  -p 'agentarch_0.3.0_darwin_arm64.tar.gz' -p 'checksums.txt'
+# Replace VERSION and the platform with an actual signed release.
+VERSION=vX.Y.Z
+gh release download "$VERSION" --repo Everton-baptista/agenteARQ \
+  -p 'agentarch_*_darwin_arm64.tar.gz' -p 'checksums.txt' -p 'checksums.txt.sigstore.json'
+cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
+  --certificate-identity "https://github.com/Everton-baptista/agenteARQ/.github/workflows/release.yml@refs/tags/$VERSION" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 shasum -a 256 -c checksums.txt --ignore-missing
-tar -xzf agentarch_0.3.0_darwin_arm64.tar.gz
-./agentarch version
 ```
 
-Every release is signed with cosign keyless; the footer of each release page carries the
-verification command, and the installer prints it too.
+The release workflow produces a keyless Cosign bundle. Verify the exact tag and workflow identity
+before extraction; the checksum alone does not authenticate a download.
 
 </details>
 
@@ -322,7 +362,7 @@ scripting, adding a second agent, or want to see each step:
 agentarch init --profile standard --jurisdictions BR   # install the standard
 agentarch blueprint list                              # what starting points exist
 agentarch blueprint show rag-support                   # what one demonstrates
-agentarch blueprint add rag-support --framework agno --yes
+agentarch blueprint add rag-support --framework none --yes
 agentarch sync                                        # regenerate the instruction files
 ```
 
@@ -372,6 +412,10 @@ agentarch check --update-baseline   # drops entries you have fixed
 | `agentarch mcp audit --probe` | has a server changed its tool descriptions since review? |
 | `agentarch diff --base main` | which revalidation triggers fired, and is validation overdue |
 | `agentarch report --out reports/` | markdown and a self-contained HTML page |
+| `agentarch workflow` | create, resume, verify and review a product workflow |
+| `agentarch plugin` | install, inspect and remove managed host integrations |
+| `agentarch mcp serve` | bounded workflow tools over stdio |
+| `agentarch ui` | authenticated, read-only loopback dashboard |
 | `agentarch score` | maturity by dimension, declared vs proven; never blocks |
 | `agentarch aibom --out ai-bom.json` | models, prompts, corpora, tools, MCP servers |
 | `agentarch upgrade --dry-run` | what a newer standard would change here |
@@ -432,8 +476,8 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
 |---|---|
 | **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain, service and edge |
 | **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `api.edge`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
-| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with Agno as default framework, tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
-| **Adapters** | **Agno (ex-Phidata)** (default), LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Vercel AI SDK, FastAPI, and Python Native (Clean Architecture / Seam Pattern) |
+| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with Python Native as the default runtime, tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
+| **Adapters** | **Agno (ex-Phidata)** (documentation adapter), LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Vercel AI SDK, FastAPI, and Python Native (Clean Architecture / Seam Pattern) |
 | **Providers** | Anthropic (Claude), OpenAI (GPT), Google (Gemini), **AWS Bedrock** (Amazon Nova / Claude via Converse API) |
 | **Generated for** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot, Windsurf, `.mcp.json` |
 
@@ -446,6 +490,10 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
 | **L1 Declared** | agents are described: manifest, named owner, explicit out-of-scope, declared autonomy and budget |
 | **L2 Enforced** | the rules block: gate in CI, guardrails at all three points, least-privilege tools, MCP allowlist denying by default |
 | **L3 Proven** | there is evidence: evals within their freshness window, red team executed, threat model reviewed, OTel with pinned semconv, AI-BOM |
+
+These are **local artifact assessments**, not certification or proof that a remote CI job ran.
+Evidence labels alone never earn proven credit. A measured result must match current model, prompt,
+corpus and dataset hashes and pass the authoritative plan thresholds.
 
 The badge **expires**. An L3 badge whose evals went stale drops to L2 on its own. Conformance
 that never decays is advertising.

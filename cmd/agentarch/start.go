@@ -21,6 +21,7 @@ package main
 // about the software being built.
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/Everton-baptista/agenteARQ/internal/blueprint"
+	"gopkg.in/yaml.v3"
 )
 
 // insideStart suppresses the "Next:" footers that init and the adopt path print on their own.
@@ -627,42 +629,42 @@ func displayRoot(root string) string {
 
 // ------------------------------------------------------- writing the answers in
 
-// fieldRe matches one `key: value` line. The indentation is captured so that rewriting a value
-// does not reformat a file the reader is about to read; the trailing comment is not, because the
-// comments on these particular fields exist to say "fill this in" and are noise once filled.
+// Provider adaptation still uses scalar line matching; interview answers use a YAML tree.
 var fieldRe = regexp.MustCompile(`^(\s*)([a-z_]+):[ \t]*([^#\n]*)(#.*)?$`)
 
-// setField rewrites the first occurrence of a scalar field, by key alone rather than by path.
-//
-// It is intentionally blunt. It runs only against files this command has just written, where each
-// of these three keys appears exactly once, and the alternative — a YAML round-trip — would strip
-// the comments those files exist to carry. If a future template repeats one of these keys, the
-// CI assertions on start are what will catch it.
-func setField(lines []string, key, value string) bool {
-	for i, l := range lines {
-		m := fieldRe.FindStringSubmatch(l)
-		if m == nil || m[2] != key {
-			continue
-		}
-		lines[i] = m[1] + key + ": " + value
-		return true
+// manifestNode follows a mapping path without confusing equally named nested fields.
+// A yaml.Node round-trip preserves the manifest's comments and scalar values, including hashes.
+func manifestNode(node *yaml.Node, path ...string) *yaml.Node {
+	if node.Kind == yaml.DocumentNode && len(node.Content) == 1 {
+		node = node.Content[0]
 	}
-	return false
+	for _, key := range path {
+		if node.Kind != yaml.MappingNode {
+			return nil
+		}
+		var next *yaml.Node
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if node.Content[i].Value == key {
+				next = node.Content[i+1]
+				break
+			}
+		}
+		if next == nil {
+			return nil
+		}
+		node = next
+	}
+	return node
 }
 
-// yamlScalar quotes a value when writing it bare would change how YAML parses the line.
-//
-// A name is free text typed by a person, and people are named "Ana: Costa" and "Jean-Luc #2".
-// Written bare, the first produces invalid YAML and the second silently truncates to "Jean-Luc" —
-// and the failure then surfaces as a schema error that blames the blueprint.
-func yamlScalar(v string) string {
-	safe := v == strings.TrimSpace(v) && v != "" &&
-		!strings.ContainsAny(v, ":#\"'\n\t{}[],&*?|>%@`") &&
-		!strings.HasPrefix(v, "-")
-	if safe {
-		return v
+func personalizeScalar(doc *yaml.Node, value string, path ...string) bool {
+	node := manifestNode(doc, path...)
+	if node == nil || value == "" {
+		return false
 	}
-	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", " ", "\t", " ").Replace(v) + `"`
+	node.Kind, node.Tag, node.Value, node.Style = yaml.ScalarNode, "!!str", value, 0
+	node.Content, node.Alias, node.Anchor = nil, nil, ""
+	return true
 }
 
 // personalizeManifests writes the interview's answers into every manifest just installed.
@@ -670,16 +672,18 @@ func personalizeManifests(root, owner, contact, juris string) (int, error) {
 	dir := filepath.Join(root, "agentarch", "project", "agents")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return 0, nil
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
 	}
 
-	list := "[]"
+	var jurisdictions []*yaml.Node
 	if juris != "" {
-		var parts []string
 		for _, j := range strings.Split(juris, ",") {
-			parts = append(parts, `"`+strings.ToUpper(strings.TrimSpace(j))+`"`)
+			jurisdictions = append(jurisdictions, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str",
+				Style: yaml.DoubleQuotedStyle, Value: strings.ToUpper(strings.TrimSpace(j))})
 		}
-		list = "[" + strings.Join(parts, ", ") + "]"
 	}
 
 	changed := 0
@@ -690,23 +694,37 @@ func personalizeManifests(root, owner, contact, juris string) (int, error) {
 		p := filepath.Join(dir, e.Name(), "agent.yaml")
 		raw, err := os.ReadFile(p)
 		if err != nil {
-			continue
+			if os.IsNotExist(err) {
+				continue
+			}
+			return changed, err
 		}
-		lines := strings.Split(string(raw), "\n")
-		touched := false
-		if owner != "" && setField(lines, "accountable", yamlScalar(owner)) {
+		var doc yaml.Node
+		if err := yaml.Unmarshal(raw, &doc); err != nil {
+			return changed, fmt.Errorf("personalize %s: %w", p, err)
+		}
+		touched := personalizeScalar(&doc, owner, "agent", "owner", "accountable")
+		if personalizeScalar(&doc, contact, "agent", "owner", "contact") {
 			touched = true
 		}
-		if contact != "" && setField(lines, "contact", yamlScalar(contact)) {
-			touched = true
-		}
-		if setField(lines, "jurisdictions", list) {
+		if node := manifestNode(&doc, "agent", "jurisdictions"); node != nil {
+			node.Kind, node.Tag, node.Value, node.Style = yaml.SequenceNode, "!!seq", "", yaml.FlowStyle
+			node.Content, node.Alias, node.Anchor = jurisdictions, nil, ""
 			touched = true
 		}
 		if !touched {
 			continue
 		}
-		if err := os.WriteFile(p, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		var out bytes.Buffer
+		encoder := yaml.NewEncoder(&out)
+		encoder.SetIndent(2)
+		if err := encoder.Encode(&doc); err != nil {
+			return changed, fmt.Errorf("personalize %s: %w", p, err)
+		}
+		if err := encoder.Close(); err != nil {
+			return changed, err
+		}
+		if err := os.WriteFile(p, out.Bytes(), 0o644); err != nil {
 			return changed, err
 		}
 		changed++

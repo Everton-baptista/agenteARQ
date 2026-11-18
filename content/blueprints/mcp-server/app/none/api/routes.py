@@ -11,6 +11,9 @@ the drift is gradual and always locally reasonable.
 
 from __future__ import annotations
 
+from starlette.concurrency import run_in_threadpool
+from ..agent.authorization import ApprovalGrant
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..agent import runner
@@ -24,6 +27,27 @@ from .deps import current_principal, enforce_caller_budget
 from .schemas import AskRequest, AskResponse, ApprovalDecision, Health
 
 router = APIRouter()
+
+def _respond(outcome, principal):
+    payload = dict(status=outcome.status, answer=outcome.text,
+                   tool_calls=outcome.tool_calls, cost_usd=round(outcome.cost_usd, 6))
+    if "actions" in AskResponse.model_fields:
+        payload["actions"] = getattr(outcome, "actions", [])
+    if "citations" in AskResponse.model_fields:
+        payload["citations"] = [{"passage_id": c} for c in getattr(outcome, "citations", [])]
+    if "budget" in AskResponse.model_fields:
+        payload["budget"] = getattr(outcome, "budget", None) or None
+    if "mcp_calls" in AskResponse.model_fields:
+        payload["mcp_calls"] = getattr(outcome, "mcp_calls", [])
+    if outcome.status == "awaiting_approval":
+        if not outcome.state or not outcome.state.get("pending_calls"):
+            raise HTTPException(status_code=503, detail="this adapter cannot safely persist this approval")
+        payload["approval_id"] = approvals.queue.put(approvals.Pending(
+            tenant_id=principal.tenant_id, subject=principal.subject,
+            tool=outcome.state["tool"], preview=outcome.approval or {}, state=outcome.state))
+        payload["approval"] = outcome.approval
+    return AskResponse(**payload)
+
 
 
 @router.get("/health", response_model=Health, tags=["ops"])
@@ -120,32 +144,9 @@ async def ask(
         "agent.run",
         **{"tenant": principal.tenant_id, "agent.id": "tool-gateway"},
     ):
-        outcome = runner.run(body.instruction, principal)
+        outcome = await run_in_threadpool(runner.run, body.instruction, principal)
 
-    if outcome.status == "awaiting_approval":
-        approval_id = approvals.queue.put(
-            approvals.Pending(
-                tenant_id=principal.tenant_id,
-                subject=principal.subject,
-                tool=outcome.state["tool"],
-                preview=outcome.approval or {},
-                state=outcome.state or {},
-            )
-        )
-        return AskResponse(
-            status="awaiting_approval",
-            approval_id=approval_id,
-            approval=outcome.approval,
-            tool_calls=outcome.tool_calls,
-            cost_usd=round(outcome.cost_usd, 6),
-        )
-
-    return AskResponse(
-        status=outcome.status,
-        answer=outcome.text,
-        tool_calls=outcome.tool_calls,
-        cost_usd=round(outcome.cost_usd, 6),
-    )
+    return _respond(outcome, principal)
 
 
 @router.post(
@@ -167,7 +168,8 @@ async def decide(
     friction that gets approval switched off entirely.
     """
     pending = approvals.queue.take(
-        approval_id, principal.tenant_id, body.decision, principal.subject
+        approval_id, principal.tenant_id, body.decision, principal.subject,
+        role=getattr(principal, "role", ""), reason=body.reason
     )
     if pending is None:
         # One status for unknown, expired and wrong-tenant. See the note in approvals.Store.take.
@@ -186,19 +188,11 @@ async def decide(
             cost_usd=round(pending.state.get("spent_usd", 0.0), 6),
         )
 
-    with telemetry.span(
-        "agent.run.resumed",
-        **{"tenant": principal.tenant_id, "gen_ai.tool.name": pending.tool},
-    ):
-        outcome = runner.run(
-            pending.state["question"],
-            principal,
-            resume=pending.state,
-            approved={pending.tool},
-        )
-    return AskResponse(
-        status=outcome.status,
-        answer=outcome.text,
-        tool_calls=outcome.tool_calls,
-        cost_usd=round(outcome.cost_usd, 6),
-    )
+    try:
+        original = Principal(**pending.state["principal"])
+        grant = ApprovalGrant.for_call(pending.state["pending_calls"][0], pending.state["approval_spec"], original)
+    except (KeyError, TypeError, IndexError):
+        raise HTTPException(status_code=409, detail="approval state is obsolete; start a new run") from None
+    outcome = await run_in_threadpool(runner.run, pending.state["question"], original,
+        resume=pending.state, approved=grant)
+    return _respond(outcome, original)

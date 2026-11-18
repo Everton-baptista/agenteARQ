@@ -1,4 +1,4 @@
-<!-- agentarch:generated v=1.2.0 core_sha256=398bc491bfb22dc98b39da4fb4d301f4762c43df1aa4c97569ae00cbaef07cc4 target=gemini lang=en
+<!-- agentarch:generated v=1.3.0 core_sha256=398bc491bfb22dc98b39da4fb4d301f4762c43df1aa4c97569ae00cbaef07cc4 target=gemini lang=en
      DO NOT EDIT. Edit agentarch/std/core/en/ and run `agentarch sync`.
      Read by: Gemini CLI -->
 

@@ -12,6 +12,7 @@ before something happens in the world.
 from __future__ import annotations
 
 from .principal import Principal
+from .authorization import validate_arguments
 
 INJECTION_MARKERS = (
     "ignore previous", "ignore the above", "disregard your instructions",
@@ -63,6 +64,12 @@ def action_guardrail(
     if spec is None:
         return False, f"tool {name!r} is not declared for this agent"
 
+    if spec.get("id") != name:
+        return False, "tool name does not match its reviewed contract"
+    valid, reason = validate_arguments(args, spec)
+    if not valid:
+        return False, reason
+
     for limit, cap in spec.get("limits", {}).get("domain_limits", {}).items():
         key = limit.replace("max_", "")
         if key in args and isinstance(args[key], (int, float)) and args[key] > cap:
@@ -94,5 +101,5 @@ def render_for_approver(spec: dict, args: dict, principal: Principal) -> dict:
         "approver_role": spec["approval"]["approver_role"],
         "on_timeout": spec["approval"]["on_timeout"],
         "acting_for": {"tenant": principal.tenant_id, "customer": principal.customer_id},
-        "arguments": {k: (v if len(str(v)) < 500 else str(v)[:500] + "…") for k, v in args.items()},
+        "arguments": dict(args),
     }

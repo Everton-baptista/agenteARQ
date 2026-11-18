@@ -1,0 +1,1350 @@
+{
+  "schema_version": "1.0",
+  "suite": "products-web-v2",
+  "repetitions": 3,
+  "conditions": [
+    "executor_only",
+    "agentarch"
+  ],
+  "common_requirements": "Build a local HTTP application in the requested language. Listen only on HOST=127.0.0.1 and PORT from environment. GET /health must return 200 {\"ok\":true}. API responses including errors must be JSON. GET / must return a minimal functional HTML page for this product: users can create at least one valid domain record through a labelled form and see the resulting state without using a terminal. Include document language, descriptive title, one h1, programmatic labels for inputs, native keyboard-operable submit buttons, visible focus and a status/error region with role=status or aria-live. No external CDN/assets/services. Include real headless-browser tests for a successful UI mutation and its visible result, keyboard submit, input labels and feedback; TypeScript test:a11y must execute these checks, and Python pytest must include them. A script that merely exits successfully or asserts no UI exists does not satisfy accessibility. Persist application data exclusively under DATA_DIR; never change source during startup or requests. Include meaningful repository tests and startup instructions. The checks are a public contract, not hidden tests.",
+  "scenarios": [
+    {
+      "id": "python-tasks",
+      "language": "python",
+      "profile": "python-api",
+      "title": "Task tracker",
+      "requirements": "Create tasks with caller-supplied unique id and nonblank title. New tasks have done=false. PATCH accepts only a boolean done. Reject invalid input with 400 and duplicate ids with 409. Persist changes across process restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/tasks",
+          "status": 201,
+          "assertions": {
+            "/id": "t1",
+            "/title": "Review PR",
+            "/done": false
+          },
+          "body": {
+            "id": "t1",
+            "title": "Review PR"
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "POST",
+          "path": "/tasks",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "t1",
+            "title": "Overwrite"
+          }
+        },
+        {
+          "id": "invalid",
+          "method": "POST",
+          "path": "/tasks",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "t2",
+            "title": ""
+          }
+        },
+        {
+          "id": "complete",
+          "method": "PATCH",
+          "path": "/tasks/t1",
+          "status": 200,
+          "assertions": {
+            "/done": true
+          },
+          "body": {
+            "done": true
+          }
+        },
+        {
+          "id": "invalid-type",
+          "method": "PATCH",
+          "path": "/tasks/t1",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "done": "false"
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/tasks/t1",
+          "status": 200,
+          "assertions": {
+            "/title": "Review PR",
+            "/done": true
+          }
+        },
+        {
+          "id": "missing",
+          "method": "GET",
+          "path": "/tasks/missing",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "python-bookmarks",
+      "language": "python",
+      "profile": "python-api",
+      "title": "Bookmark library",
+      "requirements": "Create bookmarks with unique caller id, nonblank title and absolute http/https URL. Reject invalid URLs with 400 and duplicate ids with 409. DELETE returns JSON deleted=true. GET /bookmarks?tag=TAG returns {items:[...]} filtered by exact tag. Preserve insertion order and persist changes across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 201,
+          "assertions": {
+            "/id": "b1"
+          },
+          "body": {
+            "id": "b1",
+            "title": "Docs",
+            "url": "https://example.org/docs",
+            "tags": [
+              "work"
+            ]
+          }
+        },
+        {
+          "id": "second",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 201,
+          "assertions": {
+            "/id": "b2"
+          },
+          "body": {
+            "id": "b2",
+            "title": "News",
+            "url": "https://example.org/news",
+            "tags": [
+              "personal"
+            ]
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "b1",
+            "title": "Wrong",
+            "url": "https://example.org",
+            "tags": []
+          }
+        },
+        {
+          "id": "invalid-url",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "b3",
+            "title": "Bad",
+            "url": "javascript:alert(1)",
+            "tags": []
+          }
+        },
+        {
+          "id": "filter",
+          "method": "GET",
+          "path": "/bookmarks?tag=work",
+          "status": 200,
+          "assertions": {
+            "/items": [
+              {
+                "id": "b1",
+                "title": "Docs",
+                "url": "https://example.org/docs",
+                "tags": [
+                  "work"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "delete",
+          "method": "DELETE",
+          "path": "/bookmarks/b2",
+          "status": 200,
+          "assertions": {
+            "/deleted": true
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/bookmarks/b1",
+          "status": 200,
+          "assertions": {
+            "/title": "Docs"
+          }
+        },
+        {
+          "id": "deleted",
+          "method": "GET",
+          "path": "/bookmarks/b2",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "python-expenses",
+      "language": "python",
+      "profile": "python-api",
+      "title": "Expense ledger",
+      "requirements": "Record expenses with unique caller id, positive integer amount_cents and nonblank category. Reject invalid amounts with 400 and duplicate ids with 409. GET /summary returns {total_cents,by_category:{category:sum}} using exact integer arithmetic. Persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 201,
+          "assertions": {
+            "/amount_cents": 1250
+          },
+          "body": {
+            "id": "e1",
+            "amount_cents": 1250,
+            "category": "food"
+          }
+        },
+        {
+          "id": "second",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "e2",
+            "amount_cents": 275,
+            "category": "food"
+          }
+        },
+        {
+          "id": "third",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "e3",
+            "amount_cents": 999,
+            "category": "travel"
+          }
+        },
+        {
+          "id": "negative",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "e4",
+            "amount_cents": -1,
+            "category": "food"
+          }
+        },
+        {
+          "id": "fraction",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "e5",
+            "amount_cents": 1.5,
+            "category": "food"
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "e1",
+            "amount_cents": 1,
+            "category": "other"
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "summary",
+          "method": "GET",
+          "path": "/summary",
+          "status": 200,
+          "assertions": {
+            "/total_cents": 2524,
+            "/by_category": {
+              "food": 1525,
+              "travel": 999
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "python-inventory",
+      "language": "python",
+      "profile": "python-api",
+      "title": "Inventory adjustments",
+      "requirements": "PUT /items/{id} creates an item with nonnegative integer quantity (201), duplicate id=409. POST /items/{id}/adjust changes quantity by integer delta, returns updated item; rejects a negative resulting quantity with 409 and noninteger delta with 400. Missing item=404. Rejected updates must leave state unchanged; persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "PUT",
+          "path": "/items/sku1",
+          "status": 201,
+          "assertions": {
+            "/id": "sku1",
+            "/quantity": 3
+          },
+          "body": {
+            "quantity": 3
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "PUT",
+          "path": "/items/sku1",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "quantity": 8
+          }
+        },
+        {
+          "id": "decrement",
+          "method": "POST",
+          "path": "/items/sku1/adjust",
+          "status": 200,
+          "assertions": {
+            "/quantity": 1
+          },
+          "body": {
+            "delta": -2
+          }
+        },
+        {
+          "id": "oversell",
+          "method": "POST",
+          "path": "/items/sku1/adjust",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "delta": -2
+          }
+        },
+        {
+          "id": "fraction",
+          "method": "POST",
+          "path": "/items/sku1/adjust",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "delta": 0.5
+          }
+        },
+        {
+          "id": "missing",
+          "method": "POST",
+          "path": "/items/missing/adjust",
+          "status": 404,
+          "assertions": {},
+          "body": {
+            "delta": 1
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/items/sku1",
+          "status": 200,
+          "assertions": {
+            "/quantity": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "python-reservations",
+      "language": "python",
+      "profile": "python-api",
+      "title": "Resource reservations",
+      "requirements": "POST /reservations accepts unique id, resource, ISO8601 UTC start/end with start<end. Intervals are half-open [start,end); overlap on the same resource is 409, adjacent reservations and different resources are allowed. Invalid interval=400. GET /reservations/{id} returns stored reservation; missing=404. Persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 201,
+          "assertions": {
+            "/id": "r1"
+          },
+          "body": {
+            "id": "r1",
+            "resource": "room1",
+            "start": "2027-01-02T10:00:00Z",
+            "end": "2027-01-02T11:00:00Z"
+          }
+        },
+        {
+          "id": "overlap",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "r2",
+            "resource": "room1",
+            "start": "2027-01-02T10:30:00Z",
+            "end": "2027-01-02T11:30:00Z"
+          }
+        },
+        {
+          "id": "adjacent",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "r3",
+            "resource": "room1",
+            "start": "2027-01-02T11:00:00Z",
+            "end": "2027-01-02T12:00:00Z"
+          }
+        },
+        {
+          "id": "other-resource",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "r4",
+            "resource": "room2",
+            "start": "2027-01-02T10:00:00Z",
+            "end": "2027-01-02T11:00:00Z"
+          }
+        },
+        {
+          "id": "invalid",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "r5",
+            "resource": "room1",
+            "start": "2027-01-02T10:00:00Z",
+            "end": "2027-01-02T10:00:00Z"
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/reservations/r1",
+          "status": 200,
+          "assertions": {
+            "/resource": "room1",
+            "/start": "2027-01-02T10:00:00Z"
+          }
+        },
+        {
+          "id": "rejected-not-saved",
+          "method": "GET",
+          "path": "/reservations/r2",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "python-events",
+      "language": "python",
+      "profile": "python-api",
+      "title": "Idempotent event inbox",
+      "requirements": "POST /events accepts nonblank id/type and object payload. First delivery returns 201 with duplicate=false. Repeated id returns 200 duplicate=true without overwriting the first event, even after restart. Invalid event=400. GET /events/{id} returns original {id,type,payload}; missing=404. Persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/events",
+          "status": 201,
+          "assertions": {
+            "/duplicate": false
+          },
+          "body": {
+            "id": "ev1",
+            "type": "order.created",
+            "payload": {
+              "order_id": "o1"
+            }
+          }
+        },
+        {
+          "id": "retry",
+          "method": "POST",
+          "path": "/events",
+          "status": 200,
+          "assertions": {
+            "/duplicate": true
+          },
+          "body": {
+            "id": "ev1",
+            "type": "tampered",
+            "payload": {
+              "order_id": "o2"
+            }
+          }
+        },
+        {
+          "id": "invalid",
+          "method": "POST",
+          "path": "/events",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "type": "missing.id",
+            "payload": {}
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "original",
+          "method": "GET",
+          "path": "/events/ev1",
+          "status": 200,
+          "assertions": {
+            "/id": "ev1",
+            "/type": "order.created",
+            "/payload": {
+              "order_id": "o1"
+            }
+          }
+        },
+        {
+          "id": "retry-after-restart",
+          "method": "POST",
+          "path": "/events",
+          "status": 200,
+          "assertions": {
+            "/duplicate": true
+          },
+          "body": {
+            "id": "ev1",
+            "type": "changed",
+            "payload": {}
+          }
+        },
+        {
+          "id": "missing",
+          "method": "GET",
+          "path": "/events/missing",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "typescript-tasks",
+      "language": "typescript",
+      "profile": "typescript-web",
+      "title": "Task tracker",
+      "requirements": "Create tasks with caller-supplied unique id and nonblank title. New tasks have done=false. PATCH accepts only a boolean done. Reject invalid input with 400 and duplicate ids with 409. Persist changes across process restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/tasks",
+          "status": 201,
+          "assertions": {
+            "/id": "t1",
+            "/title": "Review PR",
+            "/done": false
+          },
+          "body": {
+            "id": "t1",
+            "title": "Review PR"
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "POST",
+          "path": "/tasks",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "t1",
+            "title": "Overwrite"
+          }
+        },
+        {
+          "id": "invalid",
+          "method": "POST",
+          "path": "/tasks",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "t2",
+            "title": ""
+          }
+        },
+        {
+          "id": "complete",
+          "method": "PATCH",
+          "path": "/tasks/t1",
+          "status": 200,
+          "assertions": {
+            "/done": true
+          },
+          "body": {
+            "done": true
+          }
+        },
+        {
+          "id": "invalid-type",
+          "method": "PATCH",
+          "path": "/tasks/t1",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "done": "false"
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/tasks/t1",
+          "status": 200,
+          "assertions": {
+            "/title": "Review PR",
+            "/done": true
+          }
+        },
+        {
+          "id": "missing",
+          "method": "GET",
+          "path": "/tasks/missing",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "typescript-bookmarks",
+      "language": "typescript",
+      "profile": "typescript-web",
+      "title": "Bookmark library",
+      "requirements": "Create bookmarks with unique caller id, nonblank title and absolute http/https URL. Reject invalid URLs with 400 and duplicate ids with 409. DELETE returns JSON deleted=true. GET /bookmarks?tag=TAG returns {items:[...]} filtered by exact tag. Preserve insertion order and persist changes across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 201,
+          "assertions": {
+            "/id": "b1"
+          },
+          "body": {
+            "id": "b1",
+            "title": "Docs",
+            "url": "https://example.org/docs",
+            "tags": [
+              "work"
+            ]
+          }
+        },
+        {
+          "id": "second",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 201,
+          "assertions": {
+            "/id": "b2"
+          },
+          "body": {
+            "id": "b2",
+            "title": "News",
+            "url": "https://example.org/news",
+            "tags": [
+              "personal"
+            ]
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "b1",
+            "title": "Wrong",
+            "url": "https://example.org",
+            "tags": []
+          }
+        },
+        {
+          "id": "invalid-url",
+          "method": "POST",
+          "path": "/bookmarks",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "b3",
+            "title": "Bad",
+            "url": "javascript:alert(1)",
+            "tags": []
+          }
+        },
+        {
+          "id": "filter",
+          "method": "GET",
+          "path": "/bookmarks?tag=work",
+          "status": 200,
+          "assertions": {
+            "/items": [
+              {
+                "id": "b1",
+                "title": "Docs",
+                "url": "https://example.org/docs",
+                "tags": [
+                  "work"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "delete",
+          "method": "DELETE",
+          "path": "/bookmarks/b2",
+          "status": 200,
+          "assertions": {
+            "/deleted": true
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/bookmarks/b1",
+          "status": 200,
+          "assertions": {
+            "/title": "Docs"
+          }
+        },
+        {
+          "id": "deleted",
+          "method": "GET",
+          "path": "/bookmarks/b2",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "typescript-expenses",
+      "language": "typescript",
+      "profile": "typescript-web",
+      "title": "Expense ledger",
+      "requirements": "Record expenses with unique caller id, positive integer amount_cents and nonblank category. Reject invalid amounts with 400 and duplicate ids with 409. GET /summary returns {total_cents,by_category:{category:sum}} using exact integer arithmetic. Persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 201,
+          "assertions": {
+            "/amount_cents": 1250
+          },
+          "body": {
+            "id": "e1",
+            "amount_cents": 1250,
+            "category": "food"
+          }
+        },
+        {
+          "id": "second",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "e2",
+            "amount_cents": 275,
+            "category": "food"
+          }
+        },
+        {
+          "id": "third",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "e3",
+            "amount_cents": 999,
+            "category": "travel"
+          }
+        },
+        {
+          "id": "negative",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "e4",
+            "amount_cents": -1,
+            "category": "food"
+          }
+        },
+        {
+          "id": "fraction",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "e5",
+            "amount_cents": 1.5,
+            "category": "food"
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "POST",
+          "path": "/expenses",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "e1",
+            "amount_cents": 1,
+            "category": "other"
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "summary",
+          "method": "GET",
+          "path": "/summary",
+          "status": 200,
+          "assertions": {
+            "/total_cents": 2524,
+            "/by_category": {
+              "food": 1525,
+              "travel": 999
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "typescript-inventory",
+      "language": "typescript",
+      "profile": "typescript-web",
+      "title": "Inventory adjustments",
+      "requirements": "PUT /items/{id} creates an item with nonnegative integer quantity (201), duplicate id=409. POST /items/{id}/adjust changes quantity by integer delta, returns updated item; rejects a negative resulting quantity with 409 and noninteger delta with 400. Missing item=404. Rejected updates must leave state unchanged; persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "PUT",
+          "path": "/items/sku1",
+          "status": 201,
+          "assertions": {
+            "/id": "sku1",
+            "/quantity": 3
+          },
+          "body": {
+            "quantity": 3
+          }
+        },
+        {
+          "id": "duplicate",
+          "method": "PUT",
+          "path": "/items/sku1",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "quantity": 8
+          }
+        },
+        {
+          "id": "decrement",
+          "method": "POST",
+          "path": "/items/sku1/adjust",
+          "status": 200,
+          "assertions": {
+            "/quantity": 1
+          },
+          "body": {
+            "delta": -2
+          }
+        },
+        {
+          "id": "oversell",
+          "method": "POST",
+          "path": "/items/sku1/adjust",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "delta": -2
+          }
+        },
+        {
+          "id": "fraction",
+          "method": "POST",
+          "path": "/items/sku1/adjust",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "delta": 0.5
+          }
+        },
+        {
+          "id": "missing",
+          "method": "POST",
+          "path": "/items/missing/adjust",
+          "status": 404,
+          "assertions": {},
+          "body": {
+            "delta": 1
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/items/sku1",
+          "status": 200,
+          "assertions": {
+            "/quantity": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "typescript-reservations",
+      "language": "typescript",
+      "profile": "typescript-web",
+      "title": "Resource reservations",
+      "requirements": "POST /reservations accepts unique id, resource, ISO8601 UTC start/end with start<end. Intervals are half-open [start,end); overlap on the same resource is 409, adjacent reservations and different resources are allowed. Invalid interval=400. GET /reservations/{id} returns stored reservation; missing=404. Persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 201,
+          "assertions": {
+            "/id": "r1"
+          },
+          "body": {
+            "id": "r1",
+            "resource": "room1",
+            "start": "2027-01-02T10:00:00Z",
+            "end": "2027-01-02T11:00:00Z"
+          }
+        },
+        {
+          "id": "overlap",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 409,
+          "assertions": {},
+          "body": {
+            "id": "r2",
+            "resource": "room1",
+            "start": "2027-01-02T10:30:00Z",
+            "end": "2027-01-02T11:30:00Z"
+          }
+        },
+        {
+          "id": "adjacent",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "r3",
+            "resource": "room1",
+            "start": "2027-01-02T11:00:00Z",
+            "end": "2027-01-02T12:00:00Z"
+          }
+        },
+        {
+          "id": "other-resource",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 201,
+          "assertions": {},
+          "body": {
+            "id": "r4",
+            "resource": "room2",
+            "start": "2027-01-02T10:00:00Z",
+            "end": "2027-01-02T11:00:00Z"
+          }
+        },
+        {
+          "id": "invalid",
+          "method": "POST",
+          "path": "/reservations",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "id": "r5",
+            "resource": "room1",
+            "start": "2027-01-02T10:00:00Z",
+            "end": "2027-01-02T10:00:00Z"
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "persisted",
+          "method": "GET",
+          "path": "/reservations/r1",
+          "status": 200,
+          "assertions": {
+            "/resource": "room1",
+            "/start": "2027-01-02T10:00:00Z"
+          }
+        },
+        {
+          "id": "rejected-not-saved",
+          "method": "GET",
+          "path": "/reservations/r2",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    },
+    {
+      "id": "typescript-events",
+      "language": "typescript",
+      "profile": "typescript-web",
+      "title": "Idempotent event inbox",
+      "requirements": "POST /events accepts nonblank id/type and object payload. First delivery returns 201 with duplicate=false. Repeated id returns 200 duplicate=true without overwriting the first event, even after restart. Invalid event=400. GET /events/{id} returns original {id,type,payload}; missing=404. Persist across restart.",
+      "checks": [
+        {
+          "id": "ui-surface",
+          "method": "GET",
+          "path": "/",
+          "status": 200,
+          "response_type": "html",
+          "assertions": {
+            "language": true,
+            "title": true,
+            "heading": true,
+            "labelled_controls": true,
+            "submit_button": true,
+            "status_region": true
+          }
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/events",
+          "status": 201,
+          "assertions": {
+            "/duplicate": false
+          },
+          "body": {
+            "id": "ev1",
+            "type": "order.created",
+            "payload": {
+              "order_id": "o1"
+            }
+          }
+        },
+        {
+          "id": "retry",
+          "method": "POST",
+          "path": "/events",
+          "status": 200,
+          "assertions": {
+            "/duplicate": true
+          },
+          "body": {
+            "id": "ev1",
+            "type": "tampered",
+            "payload": {
+              "order_id": "o2"
+            }
+          }
+        },
+        {
+          "id": "invalid",
+          "method": "POST",
+          "path": "/events",
+          "status": 400,
+          "assertions": {},
+          "body": {
+            "type": "missing.id",
+            "payload": {}
+          }
+        },
+        {
+          "id": "durability-restart",
+          "restart": true
+        },
+        {
+          "id": "original",
+          "method": "GET",
+          "path": "/events/ev1",
+          "status": 200,
+          "assertions": {
+            "/id": "ev1",
+            "/type": "order.created",
+            "/payload": {
+              "order_id": "o1"
+            }
+          }
+        },
+        {
+          "id": "retry-after-restart",
+          "method": "POST",
+          "path": "/events",
+          "status": 200,
+          "assertions": {
+            "/duplicate": true
+          },
+          "body": {
+            "id": "ev1",
+            "type": "changed",
+            "payload": {}
+          }
+        },
+        {
+          "id": "missing",
+          "method": "GET",
+          "path": "/events/missing",
+          "status": 404,
+          "assertions": {}
+        }
+      ]
+    }
+  ]
+}

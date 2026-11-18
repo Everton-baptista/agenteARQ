@@ -142,6 +142,8 @@ def create_message(
     module's whole job, and it happens inside the retried closure so that a retry re-sends exactly
     what the first attempt did.
     """
+    from .telemetry import require_model_price
+    require_model_price(model)
     impl = load(provider)
     client = model_client(provider)
     canonical = normalise(messages)

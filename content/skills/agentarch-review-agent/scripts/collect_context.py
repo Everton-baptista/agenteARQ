@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Assemble everything a review needs in one pass.
 
 Twelve separate file reads produce twelve separate partial pictures, and the reviewer forms an
@@ -8,9 +7,13 @@ Usage:  python3 collect_context.py <agent-id> [--root .]
 """
 from __future__ import annotations
 
-import json
+import argparse
 import pathlib
-import subprocess
+import re
+import shutil
+
+# Reviewed use: resolved CLI, fixed argv, no shell, bounded execution below.
+import subprocess  # nosec B404
 import sys
 
 
@@ -19,12 +22,16 @@ def section(title: str) -> None:
 
 
 def main() -> int:
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if not args:
-        print("usage: collect_context.py <agent-id> [--root .]", file=sys.stderr)
-        return 1
-    agent_id = args[0]
-    root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1]) if "--root" in sys.argv else pathlib.Path(".")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("agent_id")
+    parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path("."))
+    parser.add_argument("--agentarch-bin", type=pathlib.Path,
+                        help="Explicit installed CLI executable; otherwise resolve agentarch on PATH")
+    args = parser.parse_args()
+    agent_id = args.agent_id
+    if not re.fullmatch(r"[a-z][a-z0-9_-]*", agent_id):
+        parser.error("agent-id must be a slug, not a filesystem path or command")
+    root = args.root.resolve()
 
     d = root / "agentarch/project/agents" / agent_id
     if not d.exists():
@@ -64,11 +71,17 @@ def main() -> int:
     print(tm.read_text() if tm.exists() else "(none — this is itself a finding)")
 
     section("GATE OUTPUT")
+    selected = str(args.agentarch_bin) if args.agentarch_bin else shutil.which("agentarch")
     try:
-        out = subprocess.run(
-            ["agentarch", "check", "--profile", "standard", "--format", "json",
+        if not selected:
+            raise FileNotFoundError("agentarch")
+        executable = str(pathlib.Path(selected).resolve(strict=True))
+        # Absolute operator-selected CLI; repository paths remain argv data.
+        out = subprocess.run(  # nosec B603
+            [executable, "check", "--profile", "standard", "--format", "json",
              "--agent", agent_id, "--root", str(root)],
-            capture_output=True, text=True, timeout=60)
+            check=False, shell=False, capture_output=True, text=True, timeout=60)
+        print(f"gate exit status: {out.returncode}")
         print(out.stdout or out.stderr)
     except FileNotFoundError:
         print("(agentarch is not on PATH — run the gate yourself before reviewing)")

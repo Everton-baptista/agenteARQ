@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Extract an agent's attack surface from its declared artifacts.
 
 Compiling this by hand is how the tool nobody remembered stays out of the threat model.

@@ -17,7 +17,7 @@ i18n:
 description: >-
   An MCP server contributes text the model treats as authoritative — tool names, descriptions, parameter documentation. Connecting one is closer to importing a dependency that can write your prompt than to configuring a client, and the protocol attaches no version to a description. This blueprint ships the allowlist that closes that gap: exact version pins, an enumerated tool list, and the SHA-256 of each description as it read at review time.
 
-frameworks: [agno, none]
+frameworks: [none]
 
 demonstrates:
   - "An allowlist with default: deny and exact version pins"

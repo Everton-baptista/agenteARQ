@@ -76,6 +76,14 @@ func run(args []string) int {
 		return exitUsage
 	}
 	switch args[0] {
+	case "workflow":
+		return cmdWorkflow(args[1:])
+	case "verify-profile":
+		return cmdVerifyProfile(args[1:])
+	case "plugin":
+		return cmdPlugin(args[1:])
+	case "ui":
+		return cmdUI(args[1:])
 	case "start":
 		return cmdStart(args[1:])
 	case "init":
@@ -180,6 +188,7 @@ func usage() { usageFull(false) }
 var (
 	firstWeekCommands = []string{"start", "blueprint", "new", "check", "conformance", "explain"}
 	extraCommands     = []string{
+		"workflow", "verify-profile", "plugin", "ui",
 		"init", "sync", "validate", "waive", "mcp", "score",
 		"pack", "diff", "upgrade", "aibom", "report", "version",
 	}
@@ -218,6 +227,11 @@ Docs: https://github.com/Everton-baptista/agenteARQ
               --strict-i18n  fail on a stale translation instead of warning
   waive       record a time-boxed, owned exception (max 90 days)
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
+  mcp serve   expose the five bounded local workflow tools over stdio
+  workflow    init|status|next|checkpoint|verify|review|record-pr for products
+  verify-profile  run isolated engineering checks without a workflow or plugin
+  plugin      install|check|remove|list integrations for coding assistants
+  ui          open the read-only local project dashboard
   score       maturity by dimension, declared vs proven; never blocks
   pack        list|verify|add community packs (checksum verified, never executed)
   diff        which revalidation triggers fired since a git ref (--base)

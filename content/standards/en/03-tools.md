@@ -77,9 +77,11 @@ about the task being wrong-shaped.
 **Intent.** Retries are inevitable; their consequences should not be a surprise.
 **Severity** `major`
 
-`idempotency.idempotent` is declared. When it is `false`, `key_field` names the input field
-carrying the idempotency key. Agents retry on timeout, and a non-idempotent tool without a key
-turns one intended refund into three.
+`idempotency.idempotent` is declared. When it is `false`, either `key_field` names an input
+field with implemented deduplication, or `limits.max_retries` is explicitly `0`. Without a
+deduplication key, callers must not automatically retry; reconcile the outcome before a new
+authorized operation. A revision precondition prevents stale writes but is not a deduplication
+key. A timeout alone does not prove the first call failed to change state.
 
 ### control.ai.tool.timeout_declared
 

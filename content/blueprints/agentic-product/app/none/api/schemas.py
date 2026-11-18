@@ -34,6 +34,7 @@ class AskRequest(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "examples": [{"instruction": "close the account for acct-4471"}]
         }
