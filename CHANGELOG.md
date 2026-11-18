@@ -21,6 +21,17 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## Unreleased
+
+`cli` — a security floor in every engineering profile.
+
+- `secrets` (gitleaks) and `dependency-audit` (osv-scanner, offline OSV data) run in
+  `typescript-web`, `python-api` and `universal`. product.yaml cannot remove or redefine them, and
+  the project's own scanner configs are ignored. A missing floor, scanner error, stale database or
+  unauditable manifest is inconclusive and blocks readiness.
+- `verifiers/floor/` installs pinned scanners and the database into every recipe; new
+  `verifiers/universal/` recipe.
+
 ## v0.4.0 — 2026-11-18
 
 `cli` — product workflow, Codex/Claude/Gemini plugins, MCP stdio server and local React dashboard.

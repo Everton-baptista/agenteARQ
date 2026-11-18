@@ -26,6 +26,11 @@ RUN python -m pip install --no-cache-dir --require-hashes --only-binary=:all: -r
     && python -m mypy --version \
     && python -m pytest --version \
     && python -m bandit --version
+# Security floor, required by every profile: pinned gitleaks and osv-scanner, fixed configs,
+# and the offline OSV database. Rebuild at least every 14 days; an older database is refused.
+COPY floor/ /opt/agentarch-floor-src/
+RUN sh /opt/agentarch-floor-src/install.sh && rm -rf /opt/agentarch-floor-src
+
 ENV PIP_NO_INDEX=1
 WORKDIR /workspace
 

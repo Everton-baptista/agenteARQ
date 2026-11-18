@@ -1,0 +1,45 @@
+#!/bin/sh
+# Security floor: known-vulnerability audit of the dependencies declared in /workspace,
+# against the OSV database baked into the image. No network is used or needed.
+#
+# --config replaces any osv-scanner.toml in the source, so the project cannot ignore a
+# vulnerability from inside the code under review. A database older than
+# AGENTARCH_OSV_MAX_AGE_DAYS (default 14) is not trusted to pass anything.
+#
+# Exit codes for the AgenteARQ runner: 0 clean, 1 vulnerable dependency (failed),
+# 125 could not decide (inconclusive).
+set -u
+prefix=/opt/agentarch-floor
+max_days=${AGENTARCH_OSV_MAX_AGE_DAYS:-14}
+
+case $max_days in ''|*[!0-9]*) echo "dependency-audit: invalid AGENTARCH_OSV_MAX_AGE_DAYS"; exit 125 ;; esac
+if ! fetched=$(cat "$prefix/osv/downloaded-at" 2>/dev/null); then
+  echo "dependency-audit: no offline vulnerability database in this image; rebuild it"; exit 125
+fi
+age_days=$(( ($(date -u +%s) - fetched) / 86400 ))
+if [ "$age_days" -gt "$max_days" ]; then
+  echo "dependency-audit: vulnerability database is $age_days days old (limit $max_days); rebuild the image"; exit 125
+fi
+
+OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY="$prefix/osv" osv-scanner scan source \
+  --offline --recursive --config "$prefix/osv-scanner.toml" --format table .
+code=$?
+
+case $code in
+  0) echo "dependency-audit: no known vulnerabilities (database $age_days days old)"; exit 0 ;;
+  1) echo "dependency-audit: vulnerable dependencies found"; exit 1 ;;
+  128)
+    # Nothing to audit is only a pass when the project declares no dependencies at all. A
+    # manifest the scanner cannot read (for example, without a lockfile) cannot be cleared.
+    manifests=$(find . -type f \( -name package.json -o -name 'requirements*.txt' -o -name pyproject.toml \
+      -o -name Pipfile -o -name go.mod -o -name Cargo.toml -o -name Gemfile -o -name composer.json \
+      -o -name pom.xml -o -name 'build.gradle*' -o -name '*.csproj' -o -name pubspec.yaml -o -name mix.exs \) \
+      -not -path '*/node_modules/*' | head -5)
+    if [ -z "$manifests" ]; then
+      echo "dependency-audit: no dependency manifests found; nothing to audit"; exit 0
+    fi
+    echo "dependency-audit: dependency manifests present but none could be audited; commit a lockfile:"
+    printf '  %s\n' $manifests
+    exit 125 ;;
+  *) echo "dependency-audit: scanner error (exit $code); result inconclusive"; exit 125 ;;
+esac

@@ -10,7 +10,7 @@ import (
 func TestProfileMeasurementDoesNotInitializeWorkflow(t *testing.T) {
 	root := repo(t)
 	v, err := verifyProfile(context.Background(), root, "python-api", &fakeRunner{})
-	if err != nil || !v.Passed || len(v.Checks) != 5 {
+	if err != nil || !v.Passed || len(v.Checks) != 5+len(securityFloor) {
 		t.Fatalf("verification = %+v, %v", v, err)
 	}
 	for _, rel := range []string{"agentarch", ".git/agentarch-workflow"} {

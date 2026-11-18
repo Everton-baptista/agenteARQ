@@ -96,6 +96,14 @@ TypeScript web requires npm scripts `lint`, `typecheck`, `test` (non-watch `--ru
 consistency and Bandit. Browser binaries, test databases and dependencies must be provisioned in
 the verifier image or tests; this first version deliberately provides no network access.
 
+Every profile, `universal` included, also runs the **security floor**: `secrets` (gitleaks over
+the staged source) and `dependency-audit` (osv-scanner against an offline OSV database baked into
+the image). Their configuration belongs to the image: a `.gitleaks.toml`, `.gitleaksignore` or
+`osv-scanner.toml` in the project is ignored, and product.yaml cannot remove, rename or redefine
+either check. An image without the floor, a scanner error, a database older than 14 days, or
+dependency manifests without an auditable lockfile all produce `inconclusive`, which blocks
+readiness. A project with no dependency manifests passes the audit with nothing to check.
+
 For another stack, the universal product declares `checks`, each with `id`, `program`, `args`
 and `timeout_seconds` (1–600). Changing these checks changes the source fingerprint. This is a
 reviewed project contract, not executable code inside an imported policy pack.
