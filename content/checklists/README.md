@@ -26,6 +26,7 @@ Paste the relevant one into the conversation, or work through it by hand.
 | `verify-product.md` | `agentarch-verify-product` |
 | `review-change.md` | `agentarch-review-change` |
 | `prepare-pr.md` | `agentarch-prepare-pr` |
+| `release-product.md` | `agentarch-release-product` |
 
 If a checklist and its skill ever disagree, that is a bug — `agentarch validate` reports it as
 `AA-SKL-018`.
