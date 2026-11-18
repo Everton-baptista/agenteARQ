@@ -24,7 +24,7 @@ httpx==0.28.1
 # provider client, a different secrets or storage layer. Swapping the framework changed exactly one
 # file — app/agent/runner.py — which is the claim the layout makes, demonstrated rather than
 # asserted.
-langgraph==0.6.7
+langgraph==1.2.22
 langchain-anthropic==0.3.21
 
 # Tests. In this file rather than a separate requirements-dev.txt, so `pip install -r` gives you a
