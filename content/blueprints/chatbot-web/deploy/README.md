@@ -35,7 +35,7 @@ REGION=us-central1
 
 gcloud secrets create ANTHROPIC_API_KEY --data-file=- <<< "$YOUR_KEY"
 
-gcloud run deploy rag-support \
+gcloud run deploy chatbot-web \
   --source . \
   --region "$REGION" \
   --no-allow-unauthenticated \
@@ -68,7 +68,7 @@ continue after a response; and with more than one instance the in-memory approva
   and the caller sees a connection reset rather than an error
 
 ```bash
-kubectl create secret generic rag-support --from-literal=ANTHROPIC_API_KEY="$YOUR_KEY"
+kubectl create secret generic chatbot-web --from-literal=ANTHROPIC_API_KEY="$YOUR_KEY"
 kubectl apply -f deploy/k8s.yaml
 ```
 

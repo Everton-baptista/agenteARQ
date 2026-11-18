@@ -71,7 +71,7 @@ def _from_environment(name: str) -> str | None:
 #   import boto3
 #   def _from_aws(name: str) -> str | None:
 #       client = boto3.client("secretsmanager")
-#       prefix = os.environ["SECRET_PREFIX"]          # e.g. "prod/rag-support/"
+#       prefix = os.environ["SECRET_PREFIX"]          # e.g. "prod/chatbot-web/"
 #       try:
 #           return client.get_secret_value(SecretId=prefix + name)["SecretString"]
 #       except client.exceptions.ResourceNotFoundException:

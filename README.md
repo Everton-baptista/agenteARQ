@@ -2,9 +2,16 @@
 
 **AgenteARQ: a local product-development workflow and an open, verifiable standard for AI agents.**
 
-Install it into any agent project, in any language, and every AI assistant working on that
-project — Claude Code, Gemini CLI, Cursor, Copilot, Codex, Grok, Kimi, Qwen Code, Windsurf,
-local models — follows the same architecture rules, from a single source of truth.
+What reaches which assistant, precisely:
+
+- **Architecture rules** — generated instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
+  from a single source of truth, in any language.
+- **Product workflow plugin** — skills plus a local MCP server, installed for **Claude Code, Codex
+  and Gemini CLI**. Other clients can use the reference package from `plugin install external`.
+- **Built-in verification profiles** — `typescript-web` and `python-api`. Any other stack uses
+  `universal`, where the project declares and reviews its own checks.
+- **Runnable blueprints** — Python services only.
 
 > Status: **pre-release, under active development.** `spec/1.0` is not frozen yet.
 >
