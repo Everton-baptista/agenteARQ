@@ -811,10 +811,14 @@ jobs:
           npm run test:e2e --prefix web
       - name: real isolated verification, review, stale evidence and timeout cleanup
         env:
-          IMAGE: alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
+          # Fully qualified: Podman does not resolve short names without a configured search registry.
+          IMAGE: docker.io/library/alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
           AGENTARCH_BIN: /tmp/agentarch
         run: |
-          docker pull "$IMAGE"
+          # The verifier prefers Podman when it is installed, and hosted runners ship both. Pulling
+          # with Docker alone left the image missing from the runtime that then ran with --pull=never.
+          if command -v podman >/dev/null 2>&1; then runtime=podman; else runtime=docker; fi
+          "$runtime" pull "$IMAGE"
           bash scripts/test-workflow-live.sh
       - name: benchmark protocol tests and dry matrix (no model calls)
         run: |
