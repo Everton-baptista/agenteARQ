@@ -45,6 +45,8 @@ type AgentEvidence struct {
 	Manifest        map[string]any
 	Results         []Result
 	EvalCompletedAt string
+	EvalStatus      string
+	EvalGatePassed  bool
 	EvalMaxAgeDays  int
 	EvalMetrics     []map[string]any
 	RedTeamExecuted bool
@@ -103,7 +105,7 @@ func Assess(agents []AgentEvidence, gateInCI, shimsInSync bool, now time.Time) C
 	for _, a := range agents {
 		blockers += len(Summarize(a.Results).Blockers)
 	}
-	add(LevelL2, "L2-GATE", "the gate runs in CI with fail_on: [blocker]", gateInCI, "")
+	add(LevelL2, "L2-GATE", "CI contains an unconditional gate command (configuration evidence, not a recorded CI run)", gateInCI, "")
 	add(LevelL2, "L2-CLEAN", "no blocker-severity control is failing", blockers == 0,
 		plural(blockers, "failing blocker"))
 
@@ -130,7 +132,7 @@ func Assess(agents []AgentEvidence, gateInCI, shimsInSync bool, now time.Time) C
 
 	for _, a := range agents {
 		switch {
-		case a.EvalCompletedAt == "":
+		case a.EvalCompletedAt == "" || a.EvalStatus != "measured" || !a.EvalGatePassed:
 			noEval = append(noEval, a.ID)
 		default:
 			d, err := time.Parse("2006-01-02", firstTen(a.EvalCompletedAt))
@@ -138,7 +140,7 @@ func Assess(agents []AgentEvidence, gateInCI, shimsInSync bool, now time.Time) C
 			if maxAge == 0 {
 				maxAge = 30
 			}
-			if err != nil {
+			if err != nil || d.After(now) {
 				staleEval = append(staleEval, a.ID+" (unparseable date)")
 			} else {
 				age := int(now.Sub(d).Hours() / 24)
@@ -251,13 +253,7 @@ func Score(results []Result) []Dimension {
 		}
 		a := byType[t]
 
-		proven := false
-		for _, e := range r.Evidence {
-			if e != "manifest_field" {
-				proven = true
-				break
-			}
-		}
+		proven := r.EvidenceVerified
 		if proven {
 			a.provTotal++
 			if r.Passed {

@@ -11,7 +11,7 @@ control:
     message: "A tool does not declare its idempotency."
   evidence: 
     - "tool_spec"
-  remediation: "Declare idempotent, and when it is false name the input field carrying the idempotency key."
+  remediation: "Declare idempotent; when false, provide a real deduplication key_field or explicitly disable automatic retries with limits.max_retries: 0. Revision preconditions are not deduplication keys."
   standard_ref: "standards/03-tools.md#controlaitoolidempotency_declared"
   references: 
     - "NIST AI RMF MANAGE 2.3"

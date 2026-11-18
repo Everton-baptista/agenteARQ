@@ -46,9 +46,10 @@ from app.agent.retrieval import retrieve  # noqa: E402
 class Case:
     id: str
     question: str
-    expect: str                      # "answer" | "escalate"
+    expect: str                      # "answer" | "escalate" | "awaiting_approval"
     grounded_in: list[str] = field(default_factory=list)
     note: str = ""
+    expected_tools: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -59,6 +60,7 @@ class CaseResult:
     grounded: bool
     refused_correctly: bool
     leaked: bool
+    actions: list[str] = field(default_factory=list)
 
 
 def sha256_of(path: pathlib.Path) -> str:
@@ -87,6 +89,7 @@ def load_cases(path: pathlib.Path) -> list[Case]:
                 expect=raw["expect"],
                 grounded_in=raw.get("grounded_in", []),
                 note=raw.get("note", ""),
+                expected_tools=raw.get("expected_tools", []),
             )
         )
     return cases
@@ -111,6 +114,7 @@ def run_case(case: Case, principal: Principal, dry_run: bool) -> CaseResult:
 
     passages = retrieve(case.question)
 
+    outcome = None
     if dry_run:
         # No model call. Retrieval and the guardrails are real; the answer is simulated from
         # whether anything was retrieved. Enough to prove the harness runs — and never enough to
@@ -124,7 +128,14 @@ def run_case(case: Case, principal: Principal, dry_run: bool) -> CaseResult:
 
     cited = [p["id"] for p in passages if p["id"] in text]
     ok, _ = output_guardrail(text, bool(cited))
-    status = "answered" if ok else "escalated"
+    status = ("answered" if ok else "escalated") if dry_run else outcome.status
+    if not ok and status == "answered":
+        status = "escalated"
+    if not text.strip() or text.lstrip().startswith("[ESCALATE]"):
+        status = "escalated" if status == "answered" else status
+    actions = list(getattr(outcome, "actions", getattr(outcome, "mcp_calls", []))) if outcome else []
+    if case.expected_tools and not set(case.expected_tools).issubset(actions):
+        status = "incomplete" if status == "answered" else status
 
     return CaseResult(
         case=case,
@@ -136,6 +147,7 @@ def run_case(case: Case, principal: Principal, dry_run: bool) -> CaseResult:
         grounded=bool(cited) and (not case.grounded_in or bool(set(cited) & set(case.grounded_in))),
         refused_correctly=(case.expect == "escalate") == (status == "escalated"),
         leaked="sk-" in text or "ANTHROPIC_API_KEY" in text,
+        actions=actions,
     )
 
 
@@ -150,6 +162,7 @@ def compute_metrics(results: list[CaseResult], thresholds: dict[str, dict]) -> l
     """
     answerable = [r for r in results if r.case.expect == "answer"]
     refusable = [r for r in results if r.case.expect == "escalate"]
+    approval_cases = [r for r in results if r.case.expect == "awaiting_approval"]
 
     def ratio(numerator: int, denominator: int) -> float | None:
         # None, not 1.0, when there is nothing to measure. A metric computed over zero cases that
@@ -158,6 +171,7 @@ def compute_metrics(results: list[CaseResult], thresholds: dict[str, dict]) -> l
 
     measured = {
         # Did it do the job when the job was doable.
+        "approval_correctness": ratio(sum(r.status == "awaiting_approval" for r in approval_cases), len(approval_cases)),
         "task_success": ratio(sum(1 for r in answerable if r.status == "answered"), len(answerable)),
         # Did it refuse when refusing was correct. The single most load-bearing metric for an agent
         # that acts, because the cost of a wrong action is not symmetric with a wrong refusal.
@@ -169,7 +183,7 @@ def compute_metrics(results: list[CaseResult], thresholds: dict[str, dict]) -> l
         # RAG only: the citation has to be one the case says supports the claim. A correct-looking
         # citation to the wrong passage is the failure citation checking exists to catch.
         "groundedness": ratio(sum(1 for r in answerable if r.grounded), len(answerable)),
-        "citation_accuracy": ratio(sum(1 for r in answerable if r.cited), len(answerable)),
+        "citation_accuracy": ratio(sum(1 for r in answerable if r.grounded), len(answerable)),
     }
 
     out = []
@@ -186,8 +200,10 @@ def compute_metrics(results: list[CaseResult], thresholds: dict[str, dict]) -> l
             out.append({**spec, "name": name, "value": None, "passed": None, "cases": 0})
             continue
         passed = value >= spec["threshold"] if spec["direction"] == "min" else value <= spec["threshold"]
-        cases = len(answerable) if name in ("task_success", "groundedness", "citation_accuracy") else len(refusable)
-        out.append({**spec, "name": name, "value": value, "passed": passed, "cases": cases or len(results)})
+        cases = (len(answerable) if name in ("task_success", "groundedness", "citation_accuracy") else
+                 len(approval_cases) if name == "approval_correctness" else
+                 len(results) if name == "pii_leakage" else len(refusable))
+        out.append({**spec, "name": name, "value": value, "passed": passed, "cases": cases})
     return out
 
 
@@ -201,6 +217,8 @@ def main() -> int:
     plan_path = AGENT_DIR / "evals" / "plan.yaml"
     plan = yaml.safe_load(plan_path.read_text())["plan"]
     manifest = load_manifest()
+    if args.agent != manifest["id"]:
+        parser.error("--agent must match the blueprint entry agent")
 
     thresholds = {
         m["name"]: {"kind": m.get("kind", "deterministic"), "threshold": m["threshold"], "direction": m["direction"]}
@@ -260,7 +278,7 @@ def main() -> int:
             "model_id": manifest["model"]["id"],
             "prompt_version": manifest["prompts"]["system"]["version"],
             "prompt_sha256": manifest["prompts"]["system"]["sha256"],
-            "corpus_version": manifest["context"]["rag"]["corpus_version"],
+            "corpus_version": manifest.get("context", {}).get("rag", {}).get("corpus_version"),
         },
         "datasets": datasets,
         "metrics": metrics,
@@ -274,7 +292,10 @@ def main() -> int:
             "categories": (existing.get("redteam") or {}).get("categories", []),
         },
     }
-    out_path.write_text(yaml.safe_dump(result, sort_keys=False, width=100))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = out_path.with_suffix(".tmp")
+    temporary.write_text(yaml.safe_dump(result, sort_keys=False, width=100))
+    temporary.replace(out_path)
     print(f"\nwrote {out_path} with status: measured")
 
     if failed_judge and not failed_deterministic:

@@ -17,7 +17,7 @@ i18n:
 description: >-
   Runs at L2 — it acts alone on anything reversible — while every irreversible action stops for a named approver. That combination is the whole point of the level, and the manifest is where it is declared rather than being an accident of how the code was written. The approval request shows the arguments, the effect and what happens on timeout: a dialog that says only "approve?" produces a click, not a decision.
 
-frameworks: [agno, none]
+frameworks: [none]
 
 demonstrates:
   - L2 autonomy where reversible actions run alone and irreversible ones do not

@@ -63,14 +63,12 @@ def test_request_body_cannot_grant_itself_authority(client: TestClient) -> None:
         json={"instruction": "hi", "role": "admin", "tenant_id": "globex"},
         headers=MANAGER,
     )
-    # Extra fields are ignored by the model rather than honoured; what matters is that nothing
-    # reaches the agent. A 200 here would still be safe, but the run needs a credential, so assert
-    # the part that is deterministic: the schema has no such fields.
+    # Unknown authority fields are rejected before any provider call.
     from app.api.schemas import AskRequest
 
     assert "role" not in AskRequest.model_fields
     assert "tenant_id" not in AskRequest.model_fields
-    assert r.status_code in (200, 401, 500)
+    assert r.status_code == 422
 
 
 def test_no_model_parameters_are_accepted_from_the_caller() -> None:
@@ -113,7 +111,7 @@ def test_output_guardrail_blocks_a_leaked_credential() -> None:
 def test_a_viewer_cannot_even_request_an_irreversible_action() -> None:
     """Refused before an approval is raised. Otherwise anyone can fill the approver's queue, and
     approval fatigue is manufactured exactly that way."""
-    spec = {"id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {}}
+    spec = {"input_schema": {"type": "object"}, "id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {}}
     ok, reason = action_guardrail(
         "close_account", {"account_id": "a1"}, spec, _principal("viewer"), "L1_act_with_approval"
     )
@@ -121,8 +119,8 @@ def test_a_viewer_cannot_even_request_an_irreversible_action() -> None:
 
 
 def test_a_support_agent_cannot_close_an_account_but_can_update_contact() -> None:
-    close = {"id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {}}
-    update = {"id": "update_contact", "effect": "write", "_approval": "none", "limits": {}}
+    close = {"input_schema": {"type": "object"}, "id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {}}
+    update = {"input_schema": {"type": "object"}, "id": "update_contact", "effect": "write", "_approval": "none", "limits": {}}
     assert not action_guardrail("close_account", {}, close, _principal("support_agent"), "L2_act_reversible")[0]
     assert action_guardrail("update_contact", {}, update, _principal("support_agent"), "L2_act_reversible")[0]
 
@@ -130,7 +128,7 @@ def test_a_support_agent_cannot_close_an_account_but_can_update_contact() -> Non
 def test_irreversible_above_l1_without_approval_is_refused() -> None:
     """The composition a tool schema cannot see: a perfectly valid tool, wired onto an agent that
     acts alone."""
-    spec = {"id": "close_account", "effect": "irreversible", "_approval": "none", "limits": {}}
+    spec = {"input_schema": {"type": "object"}, "id": "close_account", "effect": "irreversible", "_approval": "none", "limits": {}}
     ok, reason = action_guardrail(
         "close_account", {}, spec, _principal("admin"), "L3_act_irreversible_bounded"
     )
@@ -138,7 +136,7 @@ def test_irreversible_above_l1_without_approval_is_refused() -> None:
 
 
 def test_dispatch_pauses_rather_than_performing_an_irreversible_action() -> None:
-    spec = {
+    spec = {"input_schema": {"type": "object"},
         "id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {},
         "approval": {"approver_role": "account_manager", "on_timeout": "deny", "timeout_s": 900},
     }
@@ -148,7 +146,7 @@ def test_dispatch_pauses_rather_than_performing_an_irreversible_action() -> None
 
 def test_an_approved_tool_name_does_not_approve_a_different_one() -> None:
     """Approving one action must not silently approve the next in the same run."""
-    spec = {
+    spec = {"input_schema": {"type": "object"},
         "id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {},
         "approval": {"approver_role": "account_manager", "on_timeout": "deny", "timeout_s": 900},
     }
@@ -160,7 +158,7 @@ def test_an_approved_tool_name_does_not_approve_a_different_one() -> None:
 def test_the_approver_sees_the_arguments_not_just_the_tool_name() -> None:
     """An approver who cannot see the arguments is approving the agent's judgement, and the agent's
     judgement is the thing in question."""
-    spec = {
+    spec = {"input_schema": {"type": "object"},
         "id": "close_account", "effect": "irreversible", "_approval": "human", "limits": {},
         "approval": {"approver_role": "account_manager", "on_timeout": "deny", "timeout_s": 900},
     }
@@ -176,7 +174,7 @@ def test_action_guardrail_refuses_an_undeclared_tool() -> None:
 
 
 def test_action_guardrail_enforces_domain_limits() -> None:
-    spec = {
+    spec = {"input_schema": {"type": "object"},
         "id": "refund",
         "effect": "read",
         "_approval": "none",
@@ -199,7 +197,7 @@ def _pending(tenant: str = "acme", **over) -> approvals.Pending:
         tenant_id=tenant,
         subject="op-7",
         tool="notify_customer",
-        preview={"effect": "irreversible"},
+        preview={"effect": "irreversible", "approver_role": "account_manager"},
         state={"question": "q", "messages": [], "tool_calls": 1},
     )
     base.update(over)
@@ -209,16 +207,16 @@ def _pending(tenant: str = "acme", **over) -> approvals.Pending:
 def test_approval_cannot_be_decided_by_another_tenant() -> None:
     q = _queue()
     approval_id = q.put(_pending("acme"))
-    assert q.take(approval_id, "globex", "approve", "attacker") is None
-    assert q.take(approval_id, "acme", "approve", "user-7") is not None
+    assert q.take(approval_id, "globex", "approve", "attacker", role="account_manager") is None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="account_manager") is not None
 
 
 def test_an_approval_is_single_use() -> None:
     """Replaying an approval replays the irreversible action it authorised."""
     q = _queue()
     approval_id = q.put(_pending())
-    assert q.take(approval_id, "acme", "approve", "user-7") is not None
-    assert q.take(approval_id, "acme", "approve", "user-7") is None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="account_manager") is not None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="account_manager") is None
 
 
 def test_an_expired_approval_denies() -> None:
@@ -227,7 +225,7 @@ def test_an_expired_approval_denies() -> None:
     pending = _pending()
     pending.created_at -= approvals.TTL_SECONDS + 1
     approval_id = q.put(pending)
-    assert q.take(approval_id, "acme", "approve", "user-7") is None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="account_manager") is None
 
 
 def test_approval_ids_are_not_guessable() -> None:
@@ -252,7 +250,7 @@ def test_denying_an_approval_escalates_and_performs_nothing(client: TestClient) 
 
 def test_the_store_namespaces_every_key_by_tenant() -> None:
     assert namespaced("acme", "abc") != namespaced("globex", "abc")
-    assert namespaced("acme", "abc").startswith("acme/")
+    assert namespaced("a/b", "c") != namespaced("a", "b/c")
 
 
 def test_the_store_expires_entries() -> None:
@@ -330,11 +328,9 @@ def test_cost_is_computed_from_the_pinned_price() -> None:
     assert cost == pytest.approx(3.00)
 
 
-def test_an_unknown_model_costs_zero_rather_than_guessing() -> None:
-    cost = telemetry.record_model_call(
-        model="some-future-model", tenant="acme", input_tokens=1000, output_tokens=1000, latency_ms=1.0
-    )
-    assert cost == 0.0
+def test_an_unknown_model_refuses_unmetered_execution() -> None:
+    with pytest.raises(telemetry.UnknownModelPrice):
+        telemetry.record_model_call(model="some-future-model", tenant="acme", input_tokens=1000, output_tokens=1000, latency_ms=1.0)
 
 
 def test_content_capture_is_off_by_default() -> None:

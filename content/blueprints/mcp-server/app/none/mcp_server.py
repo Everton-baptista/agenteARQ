@@ -77,13 +77,15 @@ def _pending_payload(name: str, spec: dict, args: dict) -> dict:
     """
     approval = spec.get("approval") or {}
     return {
-        "status": "awaiting_approval",
+        "status": "approval_unavailable",
+        "error": "the stdio adapter cannot persist a resumable approval; request this action through the HTTP agent API",
+        "retryable": False,
         "tool": name,
         "effect": spec.get("effect", ""),
         "arguments": args,
         "approver_role": approval.get("approver_role", ""),
         "on_timeout": approval.get("on_timeout", "deny"),
-        "decide_at": "POST /v1/approvals/{approval_id} on this service's HTTP API",
+
     }
 
 
@@ -96,7 +98,7 @@ def build_server() -> tuple[Server, dict[str, dict], dict]:
         "tool-gateway",
         instructions=(
             "Governed tools for the tool-gateway agent. Irreversible tools return "
-            "awaiting_approval and a human decides out of band. Pin tool_descriptions_hash "
+            "approval_unavailable; use the HTTP agent API for a resumable human decision. Pin tool_descriptions_hash "
             f"in your allowlist: {descriptions_hash(specs)} — if it changes, stop and re-review."
         ),
     )

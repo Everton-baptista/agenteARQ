@@ -3,15 +3,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rag-support
-  labels: { app: rag-support }
+  name: chatbot-web
+  labels: { app: chatbot-web }
 spec:
   replicas: 2
   selector:
-    matchLabels: { app: rag-support }
+    matchLabels: { app: chatbot-web }
   template:
     metadata:
-      labels: { app: rag-support }
+      labels: { app: chatbot-web }
     spec:
       securityContext:
         runAsNonRoot: true
@@ -19,7 +19,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: api
-          image: ghcr.io/your-org/rag-support:1.0.0   # by digest in production, not by tag
+          image: ghcr.io/your-org/chatbot-web:1.0.0   # by digest in production, not by tag
           ports: [{ containerPort: 8000 }]
           env:
             - name: ENV
@@ -27,12 +27,12 @@ spec:
             # The credential by reference, never a literal. A value here is a value in git.
             - name: ANTHROPIC_API_KEY
               valueFrom:
-                secretKeyRef: { name: rag-support, key: ANTHROPIC_API_KEY }
+                secretKeyRef: { name: chatbot-web, key: ANTHROPIC_API_KEY }
             # Two replicas means the in-memory approval store is a bug: an approval raised by one
             # pod is a 404 at the other.
             - name: REDIS_URL
               valueFrom:
-                secretKeyRef: { name: rag-support, key: REDIS_URL }
+                secretKeyRef: { name: chatbot-web, key: REDIS_URL }
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector.observability:4318
           # Readiness and liveness are deliberately different checks. When the provider circuit is
@@ -64,17 +64,17 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: rag-support
+  name: chatbot-web
 spec:
-  selector: { app: rag-support }
+  selector: { app: chatbot-web }
   ports: [{ port: 80, targetPort: 8000 }]
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: rag-support
+  name: chatbot-web
 spec:
-  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: rag-support }
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: chatbot-web }
   minReplicas: 2
   # An upper bound is a cost bound. Autoscaling an agent without one turns a traffic spike into an
   # invoice nobody approved.

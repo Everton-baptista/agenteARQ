@@ -36,3 +36,12 @@ __pycache__/
 
 # built wheels
 /dist-pypi/dist/
+
+# local browser QA artifacts
+.playwright-cli/
+output/playwright/
+web/test-results/
+web/playwright-report/
+
+# recorded benchmark runs embed paths from the machine that produced them
+/benchmarks/results/

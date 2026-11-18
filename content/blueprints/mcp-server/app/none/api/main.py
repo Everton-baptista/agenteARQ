@@ -20,27 +20,13 @@ from .routes import router
 
 
 def configure_logging() -> None:
-    """Structured-ish logging with no content in it.
-
-    The format names the fields the access log sets and nothing else. A `%(message)s` catch-all
-    format is how a carefully redacted log line gets undone by the next person who logs an
-    f-string containing the request body.
-    """
-    logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "INFO"),
-        format=(
-            '{"ts":"%(asctime)s","level":"%(levelname)s","event":"%(message)s",'
-            '"request_id":"%(request_id)s","method":"%(method)s","route":"%(route)s",'
-            '"status":%(status)s,"duration_ms":%(duration_ms)s,"tenant":"%(tenant)s"}'
-        ),
-    )
-    # Silence the framework's own access log: it records the full path, which for
-    # /v1/approvals/{id} means the identifier, and identifiers in paths are personal data in a
-    # great many services. Ours logs the route template instead.
-    logging.getLogger("uvicorn.access").disabled = True
+    from ..infra.logging_setup import configure
+    configure()
 
 
 def create_app() -> FastAPI:
+    if os.getenv("ENV", "dev") == "production":
+        raise RuntimeError("production requires implemented identity, domain and shared caller-budget adapters; demo configuration is disabled")
     configure_logging()
 
     app = FastAPI(

@@ -1,0 +1,18 @@
+schema_version: "1.0"
+project:
+  default_profile: standard
+  lang: en
+  jurisdictions: []
+layout:
+  preset: service
+  paths:
+    edge: ["app/api/**"]
+    core: ["app/agent/**"]
+    client: ["web/**"]
+    contract: contracts/openapi.json
+sync:
+  targets: [agents_md, claude, gemini, openapi]
+gates:
+  release:
+    profile: standard
+    fail_on: [blocker]

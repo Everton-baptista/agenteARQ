@@ -13,7 +13,7 @@
 #   pinned base      by digest, not by tag. `python:3.12-slim` changes under you, which is exactly
 #                    what control.ai.supply.model_pinned objects to applied to the base image.
 
-FROM python:3.12-slim AS build
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS build
 
 WORKDIR /build
 COPY app/requirements.txt .
@@ -24,7 +24,7 @@ RUN python -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS runtime
 
 # A named user with no shell and no home. `agent` rather than a numeric id so the process is
 # identifiable in `ps` on the host.

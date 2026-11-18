@@ -10,6 +10,7 @@ supports, and `agentarch version` prints all three lines so a reported result ca
 
 | CLI | Spec majors implemented | Content shipped | Content it can read |
 |---|---|---|---|
+| 0.4.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.3.x | `spec/1` | `content/1.2.0` | `content/1.x` |
 | 0.1.x | `spec/1` | `content/1.0.0` | `content/1.x` |
 
@@ -20,7 +21,26 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
-## Unreleased
+## v0.4.0 — 2026-11-18
+
+`cli` — product workflow, Codex/Claude/Gemini plugins, MCP stdio server and local React dashboard.
+`content/1.3.0` — contextual product skills, truthful blueprint runtime contracts and enforced gates.
+
+- Persistent per-worktree workflow, optimistic revisions, source fingerprints, evidence exports,
+  TS/Python profiles and offline digest-pinned OCI verification; review required before PR readiness.
+- Host configuration transactions preserve unrelated settings and reject collisions or modified files.
+- Evaluation gates compare actual values, cases, current subject and dataset hashes. Future results,
+  missing files and unexecuted tests cannot provide passing evidence.
+- Python blueprints enforce exact-call, single-use approval grants, caller isolation, budgets and
+  tool schemas. Removed duplicate runtimes advertised as Agno; retained the executable LangGraph adapter.
+- Restored positive/negative fixtures; no fabricated measured result in a shipped blueprint.
+- Installer authenticates a Sigstore bundle and exact workflow/tag before checksum and extraction.
+  Releases require reusable CI; dependencies/actions are pinned and security scanning is configured.
+- Comparative 12-scenario benchmark protocol separates model measurements from infrastructure tests.
+- Claude Code's shared `.mcp.json` uses a portable `--root .`; `mcp serve` resolves the nearest
+  project upward and refuses a missing root. `workflow init` adopts a committed product in a clone
+  without repeating its facts, and rejects a conflicting name or profile instead of ignoring it.
+
 
 `content` — the blueprints gain a provider seam; `cli` gains the question that drives it.
 
