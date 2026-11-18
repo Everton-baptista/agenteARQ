@@ -102,6 +102,8 @@ class ResumeTests(unittest.TestCase):
         self.freeze = {name: digest(self.cohort / name) for name in (
             "agentarch", "runner.json", "scripts/benchmark-products.py",
             "scripts/benchmark-host-runner.py", "benchmarks/products.json")}
+        # prepare() requires the cohort's own freeze and the archived copy, and requires them equal.
+        write_json(self.cohort / "freeze.json", self.freeze)
         write_json(self.archive / "freeze.json", self.freeze)
         self.report = {
             "schema_version": "1.0", "mode": "execute", "suite": self.suite["suite"],
