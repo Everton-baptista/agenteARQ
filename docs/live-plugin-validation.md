@@ -131,17 +131,17 @@ Recorded run on 2026-11-16 using this script:
 | Claude Code 2.1.252 | Preflight blocked by missing authentication; no inference attempted |
 | Gemini CLI 0.68.0 | Skills discovered and MCP connected; preflight blocked by missing authentication; no inference attempted |
 
-The [durable summary](../benchmarks/results/2026-11-16/plugins/summary.json) links each
-allowlisted host report. The Codex stream reports token usage but not an authoritative
+The run records are kept locally and are not published in this repository, because they
+embed paths from the machine that produced them. The Codex stream reports token usage but not an authoritative
 backend snapshot identity or cost; those are not inferred. The separate standard policy
 gate exited 4 for all three fixtures, retaining the declared host guardrail gaps.
 
-A separate [Codex checkpoint proof](../benchmarks/results/2026-11-16/plugins-checkpoint-classifier-1.0/codex.json)
+A separate Codex checkpoint proof
 passed on the same date using classifier 1.0 and a newly built AgenteARQ binary. It observed
 `get_workflow` at revision 1, one authorized `record_checkpoint`, and `get_workflow` at
 revision 2; only the local state file changed. Its three MCP calls and two auxiliary messages
 were classified with no unknown or prohibited items. This is a new execution: the earlier
-[checkpoint report's two unclassified items](../benchmarks/results/2026-11-16/plugins-checkpoint-1.0.1/conclusion.json)
+checkpoint report's two unclassified items
 remain unknown, and its recorded outcome is preserved.
 
 Official references: [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive),
