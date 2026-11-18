@@ -60,7 +60,9 @@ verify_case() { # name, dir, expected secrets status, expected dependency-audit 
   git -C "$dir" add --all
   git -C "$dir" -c user.name='Floor fixture' -c user.email='fixture@example.invalid' commit -qm "$name"
   set +e
-  "$AGENTARCH_BIN" workflow verify --root "$dir" --image "$IMAGE" --format json > "$dir.json"
+  # Synthetic public fixtures only, so the redacted output excerpt is safe to keep for debugging.
+  "$AGENTARCH_BIN" workflow verify --root "$dir" --image "$IMAGE" --format json \
+    --diagnostics-reason "security floor live test on synthetic fixtures" > "$dir.json"
   set -e
   python3 - "$dir.json" "$name" "$3" "$4" <<'PY'
 import json, sys
@@ -73,6 +75,8 @@ if got != want:
     print(f"FAIL {name}: got {got}, want {want}")
     for k in got:
         print(f"  {k}: exit {checks[k]['exit_code']} {checks[k].get('message', '')}")
+        for line in (checks[k].get("output_excerpt") or "").splitlines()[-25:]:
+            print(f"    | {line}")
     sys.exit(1)
 if v["state"]["verification"]["passed"] != (want_secrets == want_audit == "passed"):
     print(f"FAIL {name}: passed={v['state']['verification']['passed']}")
