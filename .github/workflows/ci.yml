@@ -138,8 +138,10 @@ jobs:
       - name: --provider agrees across the manifest and the pinned SDK
         run: |
           set -e
-          for combo in "openai:gpt-5.6-terra:openai==" "google:gemini-3.6-flash:google-genai=="; do
-            prov=${combo%%:*}; rest=${combo#*:}; model=${rest%%:*}; pin=${rest#*:}
+          # "|" separates the fields because a Bedrock model id carries its own colon.
+          for combo in "openai|gpt-5.6-terra|openai==" "google|gemini-3.6-flash|google-genai==" \
+                       "bedrock|amazon.nova-micro-v1:0|urllib3=="; do
+            prov=${combo%%|*}; rest=${combo#*|}; model=${rest%%|*}; pin=${rest#*|}
             work=$(mktemp -d) && cd "$work"
             /tmp/agentarch start --root . --new --blueprint rag-support --provider "$prov" --yes >/dev/null
             grep -q "provider: $prov" agentarch/project/agents/*/agent.yaml || {
