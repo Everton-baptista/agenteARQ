@@ -42,3 +42,6 @@ __pycache__/
 output/playwright/
 web/test-results/
 web/playwright-report/
+
+# recorded benchmark runs embed paths from the machine that produced them
+/benchmarks/results/
