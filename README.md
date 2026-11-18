@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hero.svg" alt="AgenteARQ: your AI writes the code, AgenteARQ makes it prove it. Seven steps from idea to a reviewed pull request: discover, specify, plan, build, verify, review, PR ready." width="100%">
+  <img src="docs/assets/hero.png" alt="AgenteARQ: your AI writes the code, AgenteARQ makes it prove it. A pixel-art level map of ten steps from idea to a reviewed pull request: discover, specify, design, plan, build, guardrails, verify, review, evidence and PR ready. Quest rules: sandboxed with no network, fails closed, no self-approval, any edit sends the work back to verify, save and resume anytime." width="100%">
 </p>
 
 <p align="center">
