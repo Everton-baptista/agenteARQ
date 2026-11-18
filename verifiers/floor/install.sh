@@ -62,7 +62,11 @@ esac
 work=$(mktemp -d)
 trap 'rm -rf "$work"' 0
 
-mkdir -p "$prefix/osv/osv-scanner" "$prefix/no-ignore"
+# osv-scanner 2.7.0 matches through osv-scalibr, which reads {dir}/osv-scalibr/{ecosystem}/all.zip
+# (enricher/vulnmatch/osvlocal/matcher.go), not the osv-scanner/ layout its docs still describe.
+# The directory must exist at build time: verification runs on a read-only root filesystem.
+db="$prefix/osv/osv-scalibr"
+mkdir -p "$db" "$prefix/no-ignore"
 
 gl=gitleaks_${GITLEAKS_VERSION}_linux_${gl_arch}.tar.gz
 fetch "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${gl}" "$work/$gl"
@@ -77,9 +81,9 @@ install -m 0755 "$work/$osv" "$bindir/osv-scanner"
 
 : > "$prefix/osv/manifest.txt"
 for eco in $OSV_ECOSYSTEMS; do
-  mkdir -p "$prefix/osv/osv-scanner/$eco"
-  fetch "https://osv-vulnerabilities.storage.googleapis.com/${eco}/all.zip" "$prefix/osv/osv-scanner/$eco/all.zip"
-  printf '%s  %s\n' "$(sha256_of "$prefix/osv/osv-scanner/$eco/all.zip")" "$eco/all.zip" >> "$prefix/osv/manifest.txt"
+  mkdir -p "$db/$eco"
+  fetch "https://osv-vulnerabilities.storage.googleapis.com/${eco}/all.zip" "$db/$eco/all.zip"
+  printf '%s  %s\n' "$(sha256_of "$db/$eco/all.zip")" "$eco/all.zip" >> "$prefix/osv/manifest.txt"
 done
 date -u +%s > "$prefix/osv/downloaded-at"
 
