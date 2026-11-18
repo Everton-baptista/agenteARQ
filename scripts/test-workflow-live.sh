@@ -6,6 +6,14 @@ set -euo pipefail
 : "${AGENTARCH_BIN:?Provide the built agentarch binary path}"
 case "$IMAGE" in *@sha256:*) ;; *) echo "IMAGE must be digest-pinned" >&2; exit 2;; esac
 AGENTARCH_BIN="$(realpath "$AGENTARCH_BIN")"
+# Same preference order as the CLI (podman, then docker), so the image this script expects is the
+# one the verifier will look for and the leak check below inspects the runtime that actually ran.
+runtime=""
+for candidate in podman docker; do
+  if command -v "$candidate" >/dev/null 2>&1; then runtime="$candidate"; break; fi
+done
+[[ -n "$runtime" ]] || { echo "Install Podman or Docker" >&2; exit 2; }
+"$runtime" image inspect "$IMAGE" >/dev/null 2>&1 || { echo "IMAGE is not installed in $runtime; run: $runtime pull $IMAGE" >&2; exit 2; }
 live_root="$(mktemp -d /tmp/agentarch-workflow-live.XXXXXX)"
 cleanup() { if [[ "${KEEP_TMP:-0}" == 1 ]]; then echo "Evidence retained at $live_root"; else rm -rf "$live_root"; fi; }
 trap cleanup EXIT
@@ -71,7 +79,8 @@ done
 git -C "$product_root" add --all
 git -C "$product_root" -c user.name='Workflow smoke fixture' -c user.email='fixture@example.invalid' commit -qm 'Isolated workflow fixture'
 export AGENTARCH_LIVE_SECRET=only-the-host-sees-this-test-value
-"$AGENTARCH_BIN" workflow verify --root "$product_root" --image "$IMAGE" --format json > "$live_root/verified.json"
+"$AGENTARCH_BIN" workflow verify --root "$product_root" --image "$IMAGE" --format json > "$live_root/verified.json" || {
+  code=$?; echo "workflow verify exited $code under $runtime:" >&2; cat "$live_root/verified.json" >&2; exit "$code"; }
 "$AGENTARCH_BIN" workflow review --root "$product_root" --reviewer smoke-independent-reviewer --kind human --verdict approved --summary 'Isolation checks inspected in this infrastructure smoke fixture; no model quality claim.' --format json > "$live_root/reviewed.json"
 python3 - "$live_root/reviewed.json" "$product_root" <<'PY'
 import json,pathlib,sys
@@ -117,7 +126,7 @@ print('PASS timeout is inconclusive and blocks readiness')
 PY
 # Only inspect containers belonging to this unique fixture; never stop existing containers.
 project_hash="$(printf '%s' "$product_root" | sha256sum | cut -d' ' -f1)"
-if [[ -n "$(docker ps -q --filter "label=agentarch.workflow.root=$project_hash")" ]]; then
+if [[ -n "$("$runtime" ps -q --filter "label=agentarch.workflow.root=$project_hash")" ]]; then
   echo 'Unexpected surviving fixture container' >&2
   exit 1
 fi
