@@ -74,6 +74,16 @@ PRICE_PER_MTOK = {
 }
 
 
+class UnknownModelPrice(ValueError):
+    """No verified price exists; the declared cost budget cannot be enforced."""
+
+
+def require_model_price(model: str) -> dict:
+    if model not in PRICE_PER_MTOK:
+        raise UnknownModelPrice(f"no configured price for {model!r}; refusing an unmetered model call")
+    return PRICE_PER_MTOK[model]
+
+
 @contextlib.contextmanager
 def span(name: str, **attributes: Any) -> Iterator[Any]:
     """Start a span, or do nothing at all.
@@ -91,7 +101,7 @@ def span(name: str, **attributes: Any) -> Iterator[Any]:
         try:
             yield current
         except Exception as err:
-            current.record_exception(err)
+            current.add_event("exception", {"exception.type": type(err).__name__})
             current.set_status(trace.Status(trace.StatusCode.ERROR, type(err).__name__))
             raise
 
@@ -105,7 +115,7 @@ def record_model_call(
     budget with the same figure that appears on the dashboard, so the bill and the limit cannot
     disagree.
     """
-    price = PRICE_PER_MTOK.get(model, {"input": 0.0, "output": 0.0})
+    price = require_model_price(model)
     cost = (input_tokens * price["input"] + output_tokens * price["output"]) / 1_000_000
 
     if not ENABLED:
@@ -163,6 +173,12 @@ def configure(service_name: str, service_version: str) -> bool:
     provider = TracerProvider(resource=resource)
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(provider)
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+    metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[
+        PeriodicExportingMetricReader(OTLPMetricExporter())
+    ]))
     return True
 
 

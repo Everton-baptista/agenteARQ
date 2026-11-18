@@ -1,18 +1,12 @@
 # The application — LangGraph variant
 
-**Two files differ from the no-framework variant: `app/agent/runner.py` and
-`app/requirements.txt`.** Not the API, not the guardrails, not the tools, not the domain, not
-secrets, storage, telemetry or resilience. `diff -rq` says so, and that is the claim the layout makes
-demonstrated rather than asserted.
+The LangGraph adapter compiles a real `StateGraph` with a bounded turn node. The node uses the
+same `agent/execution.py` engine as native Python. Provider translation, guardrails, exact approval
+continuation and cumulative limits have one implementation within the generated project; the graph
+does not maintain a competing loop or merge pending tool arguments through message reducers.
 
-What the framework buys: the loop is a graph you can read, each guardrail point is a node, and adding
-a step between two others cannot accidentally skip one. What it does not buy is any of the properties
-in standard 08 — the guardrails are the same functions called from nodes, because a guardrail
-implemented as a framework feature is a guardrail you lose when you change frameworks.
-
-One detail worth copying: `recursion_limit` is set from the manifest's `max_steps` rather than left
-at the framework default. A bound that lives in two places drifts, and the copy in the framework's
-default is the one nobody reviews.
+The adapter and dependency list differ from native Python. `agent/native.py` contains the native
+entrypoint used by the graph. A regression test runs an approval and continuation through the graph.
 
 Three layers, and the dependency direction between them is enforced by `agentarch check`, not by
 convention.
@@ -124,8 +118,8 @@ deliberate. An earlier version of this blueprint shipped plausible numbers — g
 jailbreak rate of 0.03 — that nobody had measured, and `agentarch conformance` read them and
 reported **L3 Proven** for a project one minute old.
 
-So conformance reports L2 until you run the evals, and `agentarch conformance` names this file as
-what stands between you and L3. Only `evals/run.py` can write `status: measured`.
+Conformance is assessed from the installed project and its current evidence. A new blueprint has
+no measured model evaluation. Run `evals/run.py` to produce evidence; do not fill in result values by hand.
 
 ## Make it yours
 
@@ -156,3 +150,7 @@ rather than preferences: the credential comes from a secret store, the container
 `/v1/health` is wired to readiness, and **more than one replica means Redis** — the approval store
 defaults to in-memory, so an approval raised by one replica is a 404 at the other and the run is
 lost. `app/infra/store.py` has the Redis implementation in full.
+
+## Runtime boundary
+
+This is a development blueprint. Production startup refuses demo identity, domain and process-local budget adapters. Replace those adapters before deploying. Agno is unavailable because the previous variant did not implement an Agno adapter.

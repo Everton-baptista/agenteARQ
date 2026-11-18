@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/workflow.tasks.schema.json",
+  "title": "Product tasks and declared acceptance coverage",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "tasks"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "tasks": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "acceptance", "checks"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+          "title": {"type": "string"},
+          "acceptance": {"type": "array", "items": {"type": "string", "pattern": "^AC-[0-9]+$"}},
+          "checks": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"}},
+          "depends_on": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"}}
+        }
+      }
+    }
+  }
+}

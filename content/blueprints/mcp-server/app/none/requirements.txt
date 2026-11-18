@@ -35,3 +35,9 @@ pytest==9.1.1
 #
 # opentelemetry-sdk==1.29.0
 # opentelemetry-exporter-otlp-proto-http==1.29.0
+
+jsonschema==4.26.0
+
+# Optional shared storage and its offline Lua regression test:
+# redis==8.1.0
+# fakeredis[lua]==2.40.0

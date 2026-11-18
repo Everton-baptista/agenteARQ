@@ -25,10 +25,5 @@ def lookup(order_reference: str, tenant_id: str) -> dict:
 
 
 def send_message(conversation_id: str, body: str, tenant_id: str) -> dict:
-    """communication: irreversible once delivered — the recipient has already read it.
-
-    Reachable by the orchestrator, and refused for an agent delegated `read_only` authority. That
-    refusal is the point of the blueprint: authority does not travel with the message.
-    """
-    print(f"[would send to {conversation_id} in tenant {tenant_id}]: {body}")
-    return {"sent": True, "conversation_id": conversation_id}
+    """No messaging provider is configured by the blueprint. Fail without a side effect."""
+    return {"error": "messaging integration is not configured", "retryable": False}

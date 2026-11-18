@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Compare the installed control catalogue with the one a newer CLI carries.
 
 Usage:  python3 diff_controls.py [--root .]
@@ -7,10 +6,14 @@ Run it before `agentarch upgrade`, so the surprises arrive as a list rather than
 """
 from __future__ import annotations
 
-import json
+import argparse
 import pathlib
-import subprocess
+import shutil
+
+# Reviewed use: resolved CLI, fixed argv, no shell, bounded execution below.
+import subprocess  # nosec B404
 import sys
+import tempfile
 
 try:
     import yaml
@@ -35,26 +38,41 @@ def installed_packs(root: pathlib.Path) -> dict:
 
 
 def main() -> int:
-    root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1]) if "--root" in sys.argv else pathlib.Path(".")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path("."))
+    parser.add_argument("--agentarch-bin", type=pathlib.Path,
+                        help="Explicit installed CLI executable; otherwise resolve agentarch on PATH")
+    args = parser.parse_args()
+    root = args.root.resolve()
 
     before = installed_packs(root)
     if not before:
         print("no installed packs found — run `agentarch init` first", file=sys.stderr)
         return 1
 
-    # The new catalogue comes from the binary on PATH, which is the one that would upgrade.
-    tmp = pathlib.Path(".agentarch-upgrade-preview")
+    # The operator selects the installed CLI; no shell interprets repository data.
+    selected = str(args.agentarch_bin) if args.agentarch_bin else shutil.which("agentarch")
     try:
-        subprocess.run(["agentarch", "init", "--root", str(tmp)],
-                       capture_output=True, check=True, timeout=60)
+        if not selected:
+            raise FileNotFoundError("agentarch")
+        executable = str(pathlib.Path(selected).resolve(strict=True))
+        # Never reuse/delete a predictable directory in the user's worktree.
+        with tempfile.TemporaryDirectory(prefix="agentarch-upgrade-preview-") as temp:
+            tmp = pathlib.Path(temp)
+            # Absolute operator-selected CLI; private temporary path is argv data.
+            subprocess.run(  # nosec B603
+                [executable, "init", "--root", str(tmp)],
+                shell=False, capture_output=True, check=True, timeout=60)
+            after = installed_packs(tmp)
     except FileNotFoundError:
         print("agentarch is not on PATH", file=sys.stderr)
         return 1
     except subprocess.CalledProcessError as e:
         print(f"could not stage the new content: {e.stderr.decode()[:300]}", file=sys.stderr)
         return 1
-
-    after = installed_packs(tmp)
+    except subprocess.TimeoutExpired:
+        print("catalogue staging timed out; no upgrade was applied", file=sys.stderr)
+        return 1
 
     added, raised, now_enforced, removed = [], [], [], []
     rank = {"minor": 1, "major": 2, "blocker": 3}
@@ -88,9 +106,6 @@ def main() -> int:
          now_enforced, lambda r: f"{r[0][1]}  ({r[0][0]}, {r[1]['severity']})")
     show("CONTROLS REMOVED",
          removed, lambda r: f"{r[0][1]}  ({r[0][0]})")
-
-    import shutil
-    shutil.rmtree(tmp, ignore_errors=True)
 
     total = len(added) + len(raised) + len(now_enforced) + len(removed)
     print(f"\n{total} change(s). Run `agentarch check` after upgrading; new failures are\n"

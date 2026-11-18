@@ -58,6 +58,9 @@ func LoadAgents(root string, now time.Time) ([]Agent, error) {
 			"agent": agentNode,
 			"now":   now.Format("2006-01-02"),
 		}
+		if err := addFileContext(ctx, root, dir); err != nil {
+			return nil, err
+		}
 
 		// Facts about the repository itself, computed here rather than expressed in a pack.
 		//
@@ -79,6 +82,7 @@ func LoadAgents(root string, now time.Time) ([]Agent, error) {
 			// erroring on an unknown root. A missing config is already reported by validate.
 			ctx["config"] = map[string]any{}
 		}
+		addContractPath(ctx, root, dir)
 
 		// Tools: each entry is the tool document merged with the manifest's per-tool
 		// settings, so a control can reason about both in one expression.
@@ -134,6 +138,19 @@ func LoadAgents(root string, now time.Time) ([]Agent, error) {
 		if _, ok := ctx["evals"]; !ok {
 			ctx["evals"] = map[string]any{}
 		}
+		// Compute the gate from the plan, rather than trusting a self-reported boolean.
+		var evalPlan map[string]any
+		var evalPlanDir string
+		if ev, ok := agentNode["evaluation"].(map[string]any); ok {
+			if ref, _ := ev["plan_ref"].(string); ref != "" {
+				evalPlanDir = filepath.Dir(filepath.Join(dir, ref))
+				if pd, err := readYAML(filepath.Join(dir, ref)); err == nil {
+					evalPlan, _ = pd["plan"].(map[string]any)
+				}
+			}
+		}
+		result, _ := ctx["evals"].(map[string]any)
+		ctx["eval_gate"] = map[string]any{"passed": EvaluationGate(evalPlan, result) && EvaluationMatchesAgent(agentNode, evalPlan, result, evalPlanDir)}
 
 		id, _ := agentNode["id"].(string)
 		out = append(out, Agent{ID: id, Dir: dir, Manifest: doc, Ctx: ctx})

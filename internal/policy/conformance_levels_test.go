@@ -27,6 +27,8 @@ func conformantAgent() policy.AgentEvidence {
 			},
 		}},
 		EvalCompletedAt: "2026-07-20",
+		EvalStatus:      "measured",
+		EvalGatePassed:  true,
 		EvalMaxAgeDays:  30,
 		RedTeamExecuted: true,
 		HasThreatModel:  true,
@@ -86,6 +88,23 @@ func TestMissingEvalBlocksL3(t *testing.T) {
 	a.EvalCompletedAt = ""
 	if c := assess(a); c.Level != policy.LevelL2 {
 		t.Fatalf("level = %s, want L2", c.Level)
+	}
+}
+
+func TestUnmeasuredFailedAndFutureEvidenceCannotReachL3(t *testing.T) {
+	for _, mode := range []string{"unmeasured", "failed", "future"} {
+		a := conformantAgent()
+		switch mode {
+		case "unmeasured":
+			a.EvalStatus = "not_run"
+		case "failed":
+			a.EvalGatePassed = false
+		case "future":
+			a.EvalCompletedAt = "2099-01-01"
+		}
+		if c := assess(a); c.Level == policy.LevelL3 {
+			t.Fatalf("%s evidence reached L3", mode)
+		}
 	}
 }
 

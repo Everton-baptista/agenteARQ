@@ -27,7 +27,7 @@ description: >-
   from the specs rather than from decoration — and the .tool.yaml files, where what the server
   may serve is declared the way a consumer's allowlist declares what it permits.
 
-frameworks: [agno, none]
+frameworks: [none]
 
 demonstrates:
   - Tools served over MCP from the manifest, so an undeclared tool cannot leak onto the wire

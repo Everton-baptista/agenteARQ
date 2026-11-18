@@ -35,19 +35,11 @@ def component_status(component: str) -> dict:
     return {
         "component": component,
         "state": "operational",
-        "verified_at": "2026-07-29T00:00:00Z",
+        "verified_at": None,
+        "simulated": True,
     }
 
 
 def send_email(conversation_id: str, subject: str, body: str, tenant_id: str) -> dict:
-    """Deliver a follow-up email to the visitor. Irreversible once it lands.
-
-    In your implementation this is where the outbound provider is called. Keep it here rather
-    than in the tool: the fact that an email cannot be unsent is a property of the world, and
-    the domain is where properties of the world belong.
-
-    The recipient is resolved from the conversation, server-side. It is deliberately not a
-    parameter: an address the model can choose is an address an injection can choose.
-    """
-    print(f"[would email conversation {conversation_id} in tenant {tenant_id}]: {subject}\n{body}")
-    return {"sent": True, "conversation_id": conversation_id}
+    """The blueprint has no outbound provider; never claim an email was sent."""
+    return {"error": "email integration is not configured", "retryable": False}

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import time
+import threading
 from collections import defaultdict
 
 from fastapi import Depends, Header, HTTPException, status
@@ -25,6 +26,7 @@ from ..agent.principal import Principal
 # Replace with your identity provider. Kept as a dict so the blueprint runs with no external
 # dependency, and named so nobody mistakes it for something to ship.
 _DEMO_TOKENS = {
+    "demo-token-supervisor": Principal(tenant_id="acme", subject="supervisor-1", customer_id="cus-42", role="support_supervisor"),
     "demo-token-acme": Principal(
         tenant_id="acme", subject="user-7", customer_id="cus-42", tier="standard"
     ),
@@ -65,21 +67,23 @@ async def current_principal(authorization: str = Header(default="")) -> Principa
 # In-memory and per-process, which is wrong for more than one replica — say so out loud rather
 # than letting someone discover it in production. Use Redis, or your gateway's rate limiter.
 
+_BUDGET_LOCK = threading.Lock()
 _RUNS: dict[str, list[float]] = defaultdict(list)
 WINDOW_SECONDS = 24 * 60 * 60
 DEFAULT_RUNS_PER_DAY = int(os.getenv("AGENT_RUNS_PER_CALLER_PER_DAY", "200"))
 
 
 def enforce_caller_budget(principal: Principal = Depends(current_principal)) -> Principal:
-    now = time.time()
-    key = principal.memory_scope_key
-    recent = [t for t in _RUNS[key] if now - t < WINDOW_SECONDS]
-    if len(recent) >= DEFAULT_RUNS_PER_DAY:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"daily run budget of {DEFAULT_RUNS_PER_DAY} exhausted for this caller",
-            headers={"Retry-After": str(WINDOW_SECONDS)},
-        )
-    recent.append(now)
-    _RUNS[key] = recent
-    return principal
+    with _BUDGET_LOCK:
+        now = time.time()
+        key = principal.memory_scope_key
+        recent = [t for t in _RUNS[key] if now - t < WINDOW_SECONDS]
+        if len(recent) >= DEFAULT_RUNS_PER_DAY:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"daily run budget of {DEFAULT_RUNS_PER_DAY} exhausted for this caller",
+                headers={"Retry-After": str(WINDOW_SECONDS)},
+            )
+        recent.append(now)
+        _RUNS[key] = recent
+        return principal

@@ -1,0 +1,49 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "support-triage",
+    "version": "1.0.0",
+    "x-agentarch-generated": "DO NOT EDIT \u2014 generated from agent.yaml interface by `agentarch sync`",
+    "x-agentarch-source-sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "paths": {
+    "/v1/ask": {
+      "post": {
+        "operationId": "post_ask",
+        "security": [
+          {
+            "bearer_jwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "get_health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/v1/internal/debug": {
+      "get": {
+        "operationId": "get_internal_debug",
+        "summary": "Added by hand. Unauthenticated, and in no manifest.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    }
+  }
+}

@@ -60,14 +60,12 @@ def test_request_body_cannot_choose_the_customer(client: TestClient) -> None:
         json={"question": "hi", "customer_id": "cus-99", "tenant_id": "globex"},
         headers=ACME,
     )
-    # Extra fields are ignored by the model rather than honoured; what matters is that nothing
-    # reaches the agent. A 200 here would still be safe, but the run needs a credential, so assert
-    # the part that is deterministic: the schema has no such fields.
+    # Unknown authority fields are rejected before any provider call.
     from app.api.schemas import AskRequest
 
     assert "customer_id" not in AskRequest.model_fields
     assert "tenant_id" not in AskRequest.model_fields
-    assert r.status_code in (200, 401, 500)
+    assert r.status_code == 422
 
 
 def test_no_model_parameters_are_accepted_from_the_caller() -> None:
@@ -165,14 +163,14 @@ def test_a_payload_missing_a_required_field_is_refused(tmp_path) -> None:
     schema = tmp_path / "to-billing.schema.json"
     schema.write_text(json.dumps({"required": ["invoice_id"], "properties": {"invoice_id": {"type": "string"}}}))
     ok, reason = validate_payload({}, schema)
-    assert not ok and "invoice_id" in reason
+    assert not ok and "schema" in reason
 
 
 def test_a_payload_with_the_wrong_type_is_refused(tmp_path) -> None:
     schema = tmp_path / "s.json"
     schema.write_text(json.dumps({"properties": {"amount": {"type": "number"}}}))
     ok, reason = validate_payload({"amount": "lots"}, schema)
-    assert not ok and "should be number" in reason
+    assert not ok and "schema" in reason
 
 
 def test_an_undeclared_payload_field_is_refused_not_dropped(tmp_path) -> None:
@@ -180,7 +178,7 @@ def test_an_undeclared_payload_field_is_refused_not_dropped(tmp_path) -> None:
     schema = tmp_path / "s.json"
     schema.write_text(json.dumps({"properties": {"a": {"type": "string"}}, "additionalProperties": False}))
     ok, reason = validate_payload({"a": "x", "authority": "admin"}, schema)
-    assert not ok and "authority" in reason
+    assert not ok and "schema" in reason
 
 
 def test_a_missing_schema_refuses_rather_than_allowing(tmp_path) -> None:
@@ -192,13 +190,13 @@ def test_a_missing_schema_refuses_rather_than_allowing(tmp_path) -> None:
 
 def test_read_only_authority_refuses_a_communication_effect() -> None:
     """An orchestrator that can message customers must not make everything it delegates to able to."""
-    spec = {"id": "notify_customer", "effect": "communication", "_approval": "human", "limits": {}}
+    spec = {"input_schema": {"type": "object"}, "id": "notify_customer", "effect": "communication", "_approval": "human", "limits": {}}
     ok, reason = action_guardrail("notify_customer", {"body": "hi"}, spec, _principal(), "read_only")
     assert not ok and "read_only" in reason
 
 
 def test_read_only_authority_still_allows_a_read() -> None:
-    spec = {"id": "search_orders", "effect": "read", "_approval": "none", "limits": {}}
+    spec = {"input_schema": {"type": "object"}, "id": "search_orders", "effect": "read", "_approval": "none", "limits": {}}
     assert action_guardrail("search_orders", {}, spec, _principal(), "read_only")[0]
 
 
@@ -212,13 +210,13 @@ def test_action_guardrail_refuses_an_undeclared_tool() -> None:
 
 
 def test_action_guardrail_refuses_irreversible_without_approval() -> None:
-    spec = {"id": "notify", "effect": "communication", "_approval": "none", "limits": {}}
+    spec = {"input_schema": {"type": "object"}, "id": "notify", "effect": "communication", "_approval": "none", "limits": {}}
     ok, reason = action_guardrail("notify", {"body": "hi"}, spec, _principal(), "full")
     assert not ok and "without approval" in reason
 
 
 def test_action_guardrail_enforces_domain_limits() -> None:
-    spec = {
+    spec = {"input_schema": {"type": "object"},
         "id": "refund",
         "effect": "read",
         "_approval": "none",
@@ -241,7 +239,7 @@ def _pending(tenant: str = "acme", **over) -> approvals.Pending:
         tenant_id=tenant,
         subject="user-7",
         tool="notify_customer",
-        preview={"effect": "irreversible"},
+        preview={"effect": "irreversible", "approver_role": "support_supervisor"},
         state={"question": "q", "messages": [], "tool_calls": 1},
     )
     base.update(over)
@@ -251,16 +249,16 @@ def _pending(tenant: str = "acme", **over) -> approvals.Pending:
 def test_approval_cannot_be_decided_by_another_tenant() -> None:
     q = _queue()
     approval_id = q.put(_pending("acme"))
-    assert q.take(approval_id, "globex", "approve", "attacker") is None
-    assert q.take(approval_id, "acme", "approve", "user-7") is not None
+    assert q.take(approval_id, "globex", "approve", "attacker", role="support_supervisor") is None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="support_supervisor") is not None
 
 
 def test_an_approval_is_single_use() -> None:
     """Replaying an approval replays the irreversible action it authorised."""
     q = _queue()
     approval_id = q.put(_pending())
-    assert q.take(approval_id, "acme", "approve", "user-7") is not None
-    assert q.take(approval_id, "acme", "approve", "user-7") is None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="support_supervisor") is not None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="support_supervisor") is None
 
 
 def test_an_expired_approval_denies() -> None:
@@ -269,7 +267,7 @@ def test_an_expired_approval_denies() -> None:
     pending = _pending()
     pending.created_at -= approvals.TTL_SECONDS + 1
     approval_id = q.put(pending)
-    assert q.take(approval_id, "acme", "approve", "user-7") is None
+    assert q.take(approval_id, "acme", "approve", "user-7", role="support_supervisor") is None
 
 
 def test_approval_ids_are_not_guessable() -> None:
@@ -286,7 +284,7 @@ def test_deciding_an_unknown_approval_is_404(client: TestClient) -> None:
 
 def test_denying_an_approval_escalates_and_performs_nothing(client: TestClient) -> None:
     approval_id = approvals.queue.put(_pending())
-    r = client.post(f"/v1/approvals/{approval_id}", json={"decision": "deny"}, headers=ACME)
+    r = client.post(f"/v1/approvals/{approval_id}", json={"decision": "deny"}, headers={"Authorization": "Bearer demo-token-supervisor"})
     assert r.status_code == 200
     assert r.json()["status"] == "escalated"
     assert "not approved" in r.json()["answer"]
@@ -294,7 +292,7 @@ def test_denying_an_approval_escalates_and_performs_nothing(client: TestClient) 
 
 def test_the_store_namespaces_every_key_by_tenant() -> None:
     assert namespaced("acme", "abc") != namespaced("globex", "abc")
-    assert namespaced("acme", "abc").startswith("acme/")
+    assert namespaced("a/b", "c") != namespaced("a", "b/c")
 
 
 def test_the_store_expires_entries() -> None:
@@ -372,11 +370,9 @@ def test_cost_is_computed_from_the_pinned_price() -> None:
     assert cost == pytest.approx(3.00)
 
 
-def test_an_unknown_model_costs_zero_rather_than_guessing() -> None:
-    cost = telemetry.record_model_call(
-        model="some-future-model", tenant="acme", input_tokens=1000, output_tokens=1000, latency_ms=1.0
-    )
-    assert cost == 0.0
+def test_an_unknown_model_refuses_unmetered_execution() -> None:
+    with pytest.raises(telemetry.UnknownModelPrice):
+        telemetry.record_model_call(model="some-future-model", tenant="acme", input_tokens=1000, output_tokens=1000, latency_ms=1.0)
 
 
 def test_content_capture_is_off_by_default() -> None:

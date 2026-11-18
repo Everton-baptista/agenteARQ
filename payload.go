@@ -15,6 +15,8 @@ import "embed"
 // all: is required. Without it go:embed silently skips anything beginning with a dot, and the
 // blueprints ship a .github/workflows — so the CI gate never reached the project and a fresh
 // install could not reach conformance L2. Silently, because an absent file looks like a choice.
+// TestEmbeddedContentHasNoPythonBytecode rejects locally generated Python caches
+// in this tree; go build alone does not run that validation.
 //
 //go:embed all:content
 var Content embed.FS

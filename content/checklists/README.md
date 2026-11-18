@@ -18,6 +18,14 @@ Paste the relevant one into the conversation, or work through it by hand.
 | `eval-bootstrap.md` | `agentarch-eval-bootstrap` |
 | `upgrade-review.md` | `agentarch-upgrade-review` |
 | `refactor.md` | `agentarch-refactor` |
+| `discover-product.md` | `agentarch-discover-product` |
+| `specify-product.md` | `agentarch-specify-product` |
+| `design-product.md` | `agentarch-design-product` |
+| `implement-task.md` | `agentarch-implement-task` |
+| `debug-systematically.md` | `agentarch-debug-systematically` |
+| `verify-product.md` | `agentarch-verify-product` |
+| `review-change.md` | `agentarch-review-change` |
+| `prepare-pr.md` | `agentarch-prepare-pr` |
 
 If a checklist and its skill ever disagree, that is a bug — `agentarch validate` reports it as
 `AA-SKL-018`.

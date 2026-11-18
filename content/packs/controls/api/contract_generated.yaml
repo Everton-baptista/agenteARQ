@@ -13,8 +13,8 @@ control:
     declares: [interface]
   check:
     kind: file_exists
-    expr: exists(config.layout.paths.contract)
-    message: No generated interface contract is declared.
+    path_expr: repository.contract_path
+    message: The declared generated interface contract does not exist as a regular file in the project.
   evidence:
   - generated_artifact
   remediation: 'Declare interface.routes in the manifest and layout.paths.contract in agentarch.yaml, then run `agentarch

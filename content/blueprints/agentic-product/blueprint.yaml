@@ -25,7 +25,7 @@ description: >-
   where the same cost figure that enforces the budget is the one the dashboard reads. A second
   number computed separately is a number that disagrees.
 
-frameworks: [agno, none]
+frameworks: [none]
 
 demonstrates:
   - Memory scoped to a tenant the caller cannot set, with a declared retention window

@@ -21,6 +21,7 @@ reports that a decision is required and the transport arranges it.
 from __future__ import annotations
 
 from .principal import Principal
+from .authorization import validate_arguments
 
 INJECTION_MARKERS = (
     "ignore previous", "ignore the above", "disregard your instructions",
@@ -65,6 +66,12 @@ def action_guardrail(
     if spec is None:
         return False, f"tool {name!r} is not declared for this agent"
 
+    if spec.get("id") != name:
+        return False, "tool name does not match its reviewed contract"
+    valid, reason = validate_arguments(args, spec)
+    if not valid:
+        return False, reason
+
     effect = spec["effect"]
 
     if not principal.may_request(effect):
@@ -105,5 +112,5 @@ def render_for_approver(spec: dict, args: dict, principal: Principal) -> dict:
         "approver_role": approval.get("approver_role", "unknown"),
         "timeout_s": approval.get("timeout_s"),
         "on_timeout": approval.get("on_timeout", "deny"),
-        "arguments": {k: (v if len(str(v)) < 500 else str(v)[:500] + "…") for k, v in args.items()},
+        "arguments": dict(args),
     }

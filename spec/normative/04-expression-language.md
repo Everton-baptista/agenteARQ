@@ -55,6 +55,7 @@ manifest under its natural field names, plus:
 | `tools` | the resolved `*.tool.yaml` documents, in manifest order, each under its `tool` key merged with the manifest's per-tool `approval` and `rate_limit` |
 | `mcp_servers` | resolved entries from the MCP allowlist |
 | `evals` | the parsed eval result, when one is referenced and readable |
+| `eval_gate` | computed `passed`: every metric named by the evaluation plan's `gate.block_on` has observations and passes the plan's threshold; at least one is deterministic |
 | `now` | the current date, as `YYYY-MM-DD` |
 
 ---

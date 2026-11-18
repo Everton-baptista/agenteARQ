@@ -47,31 +47,13 @@ def validate_payload(payload: dict, schema_path: pathlib.Path) -> tuple[bool, st
     if not schema_path.exists():
         return False, f"payload schema {schema_path.name} is missing"
 
-    schema = json.loads(schema_path.read_text())
-
-    for name in schema.get("required", []):
-        if name not in payload:
-            return False, f"payload is missing required field {name!r}"
-
-    types = {"string": str, "integer": int, "number": (int, float), "boolean": bool,
-             "array": list, "object": dict}
-    for name, spec in (schema.get("properties") or {}).items():
-        if name not in payload:
-            continue
-        expected = types.get(spec.get("type"))
-        if expected and not isinstance(payload[name], expected):
-            return False, f"payload field {name!r} should be {spec['type']}"
-        if "enum" in spec and payload[name] not in spec["enum"]:
-            return False, f"payload field {name!r} is not one of {spec['enum']}"
-
-    if schema.get("additionalProperties") is False:
-        extra = set(payload) - set(schema.get("properties") or {})
-        if extra:
-            # Extra fields are refused rather than dropped. A field the receiver ignores is a field
-            # the sender believes was delivered.
-            return False, f"payload has undeclared field(s): {', '.join(sorted(extra))}"
-
-    return True, ""
+    from .authorization import validate_arguments
+    try:
+        schema = json.loads(schema_path.read_text())
+    except (ValueError, OSError):
+        return False, "payload schema is invalid"
+    valid, reason = validate_arguments(payload, {"input_schema": schema})
+    return valid, "" if valid else "payload schema rejected required, type or undeclared fields: " + reason
 
 
 def hand_off(
@@ -120,6 +102,8 @@ def hand_off(
                 principal,
                 authority=contract["authority"],
             )
+        except HandoffRefused as err:
+            return {"error": str(err), "retryable": False}
         finally:
             # In a finally block because a specialist that raises must still pop the path. Without
             # this, one failure makes every later delegation to that agent look like a cycle.
