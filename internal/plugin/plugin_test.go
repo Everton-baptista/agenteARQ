@@ -365,3 +365,14 @@ func TestWriteToolContractsDeclareActualWritesAndNoReplay(t *testing.T) {
 		}
 	}
 }
+
+// .mcp.json is committed and shared, so Claude must not receive the installer's absolute path.
+func TestClaudeServerRootIsPortable(t *testing.T) {
+	root := "/home/someone/project"
+	for host, want := range map[string]string{"claude": ".", "codex": root, "gemini": root} {
+		args := serverConfig(root, host, Options{Binary: "agentarch"})["args"].([]string)
+		if got := args[len(args)-1]; got != want {
+			t.Fatalf("%s: --root %q, want %q", host, got, want)
+		}
+	}
+}

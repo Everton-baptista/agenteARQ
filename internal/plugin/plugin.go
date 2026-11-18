@@ -355,8 +355,22 @@ func payload(root string, d Descriptor, o Options) (map[string][]byte, error) {
 	return files, err
 }
 
+// serverRootArg is the --root written into the host configuration. Claude Code's .mcp.json
+// is shared through the repository, so an absolute path would point at the installer's own
+// machine for everyone who clones it. Claude Code starts stdio servers in the directory it
+// was opened in (checked with 2.1.252), and `mcp serve` searches upward from there for the
+// project, so "." resolves correctly from the root or any subfolder. Claude Code does not
+// expand ${CLAUDE_PROJECT_DIR} in server arguments, so that form is not used. The other
+// hosts keep the absolute root until their launch directory has been verified the same way.
+func serverRootArg(root, host string) string {
+	if host == "claude" {
+		return "."
+	}
+	return root
+}
+
 func serverConfig(root, host string, o Options) map[string]any {
-	m := map[string]any{"command": o.Binary, "args": []string{"mcp", "serve", "--root", root}}
+	m := map[string]any{"command": o.Binary, "args": []string{"mcp", "serve", "--root", serverRootArg(root, host)}}
 	if host == "gemini" {
 		m["includeTools"] = toolNames()
 	}

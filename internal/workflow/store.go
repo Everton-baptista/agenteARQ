@@ -137,7 +137,7 @@ func (s *Service) loadState() (State, error) {
 	var st State
 	b, e := os.ReadFile(s.statePath())
 	if e != nil {
-		return st, fmt.Errorf("workflow state missing; run workflow init: %w", e)
+		return st, fmt.Errorf("workflow state missing for this worktree; run `agentarch workflow init` (in a clone or new worktree it adopts the committed product): %w", e)
 	}
 	if e := validateArtifact(b, "workflow.state.schema.json"); e != nil {
 		return st, e

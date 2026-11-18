@@ -67,7 +67,7 @@ func contractFiles(root, host string, o Options) (map[string][]byte, error) {
 	if err = putJSON(files, base+"agent.yaml", map[string]any{"schema_version": "1.0", "agent": agent}); err != nil {
 		return nil, err
 	}
-	server := map[string]any{"name": "agentarch", "transport": "stdio", "command": o.Binary, "args": []string{"mcp", "serve", "--root", root}, "pin": map[string]any{"package": "agentarch-mcp-contract", "version": o.ServerVersion}, "trust": "first_party", "reviewed_at": reviewedDate(root, host), "reviewer": o.Owner, "tools_allow": toolNames(), "tool_description_sha256": hashes, "resources_allow": []string{}, "prompts_allow": []string{}, "env_allow": []string{}, "network_egress": []string{}, "sandbox": "subprocess"}
+	server := map[string]any{"name": "agentarch", "transport": "stdio", "command": o.Binary, "args": []string{"mcp", "serve", "--root", serverRootArg(root, host)}, "pin": map[string]any{"package": "agentarch-mcp-contract", "version": o.ServerVersion}, "trust": "first_party", "reviewed_at": reviewedDate(root, host), "reviewer": o.Owner, "tools_allow": toolNames(), "tool_description_sha256": hashes, "resources_allow": []string{}, "prompts_allow": []string{}, "env_allow": []string{}, "network_egress": []string{}, "sandbox": "subprocess"}
 	if err = putJSON(files, "agentarch/project/plugins/"+host+"/mcp.allowlist.yaml", map[string]any{"schema_version": "1.0", "default": "deny", "servers": []any{server}}); err != nil {
 		return nil, err
 	}

@@ -45,8 +45,14 @@ agentarch plugin remove codex
 Use the project root option supported by the CLI when running elsewhere. The Go API is
 `Install(root, host, Options)`, `Check(root, host)`, and `Remove(root, host, Options)`.
 `Options.Binary` can name an absolute `agentarch` executable. Generated MCP arguments are
-an array containing `mcp`, `serve`, `--root`, and the canonical root; no shell interpolation
-is involved. `ServerVersion` pins the MCP contract version, independently of a development
+an array containing `mcp`, `serve`, `--root`, and a root; no shell interpolation is involved.
+For Claude Code the root is `.`, because `.mcp.json` is committed and shared: Claude Code
+starts the server in the directory it was opened in, and `mcp serve` searches upward for the
+nearest `agentarch/project`, so a clone or a subfolder resolves to the right project. Claude
+Code does not expand `${CLAUDE_PROJECT_DIR}` in server arguments (checked with 2.1.252).
+Codex and Gemini receive the canonical absolute root. `mcp serve` refuses to start when the
+root does not exist or has no project above it. In a fresh clone, run `agentarch workflow init`
+with no flags: it adopts the committed `product.yaml`, since workflow state is per worktree. `ServerVersion` pins the MCP contract version, independently of a development
 CLI build. The installer does not verify a binary's provenance or the provider's model ID.
 
 Dry runs report file actions and backup paths without writing. Installs are idempotent.
