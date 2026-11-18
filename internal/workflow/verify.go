@@ -116,7 +116,7 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	if e = revisionOK(st, o.ExpectedRevision); e != nil {
 		return Snapshot{}, e
 	}
-	if st.Phase != "implementing" && st.Phase != "verifying" && st.Phase != "reviewing" && st.Phase != "pr_ready" {
+	if st.Phase != "implementing" && st.Phase != "verifying" && st.Phase != "reviewing" && st.Phase != "pr_ready" && st.Phase != "released" && st.Phase != "production_verified" {
 		return Snapshot{}, errors.New("implementation and task checkpoints are required before verification")
 	}
 	if missing := s.requirements(p, t.Tasks, "planned"); len(missing) > 0 {
@@ -204,6 +204,7 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	}
 	st.Verification = v
 	st.Review = nil
+	st.Release, st.ProductionCheck = nil, nil // a new verification starts a new release cycle
 	st.Phase = "verifying"
 	if v.Passed {
 		st.Phase = "reviewing"

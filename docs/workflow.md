@@ -46,11 +46,13 @@ initialized before the service is opened, and the root must be a Git worktree ro
 
 ## Checkpoints and truthful completion
 
-The sequence is `draft → specified → planned → implementing → verifying → reviewing → pr_ready`.
+The sequence is `draft → specified → planned → implementing → verifying → reviewing → pr_ready →
+released → production_verified`.
 `blocked` and `cancelled` require a reason. Reopening cancelled work starts at draft.
 The host records task completion during implementation, after dependencies are completed.
 Only the verifier advances to reviewing; only a separate reviewer can advance to pr_ready.
-No checkpoint request can directly claim either result. A review can request changes instead.
+No checkpoint request can directly claim either result, or either production phase. A review can
+request changes instead.
 
 State is private local metadata under the worktree's Git directory, in
 `agentarch-workflow/state.json`; it is neither repository content nor chat history. Atomic replace
@@ -64,6 +66,8 @@ Generated evidence exports under `agentarch/project/evidence/` are excluded from
 so exporting results cannot invalidate itself. Local state remains authoritative; editing an
 exported report cannot grant readiness. A source, commit, branch, profile or worktree change
 invalidates verification and review; Status reports verifying until checks and review run again.
+From `pr_ready` on, only a change of content (source hash or profile) does: a squash or rebase
+merge carries the reviewed tree in a new commit, and that is still the reviewed tree.
 This evidence is local engineering evidence, not cryptographically authenticated certification.
 
 Approval requires an existing HEAD and a clean source worktree (evidence exports excluded).
@@ -74,6 +78,24 @@ The review record requires `reviewer != author`, a human/independent-agent kind,
 an evidence summary. Identity is an explicit attestation from the host/user, not proof that two
 names represent independent people. The adapter must obtain a real separate reviewer; it must
 not fabricate one. There is no automatic merge or production deployment.
+
+## Releasing to production
+
+AgenteARQ never deploys. A person or CI system ships; AgenteARQ requires and records the evidence.
+
+- **Plan before review.** `agentarch/project/release.md` needs filled `## Environment`, `## Owner`,
+  `## Rollback`, `## Post-deploy verification` and `## Signals` sections. It is part of the source,
+  so it is verified and reviewed with the code; adding it later starts a new cycle.
+- **`workflow record-release --url <deployment run> --head <commit> --environment <id>`** advances
+  to `released`. It requires `pr_ready`, a clean worktree checked out at the deployed commit, and
+  that commit's content equal to what was verified and reviewed.
+- **`workflow record-production-check --outcome passed|failed --attester <who> --summary <what was
+  seen> --url <dashboard, log or report>`** records the post-deploy check. It is an attestation:
+  verification has no network, so AgenteARQ does not observe production. `passed` advances to
+  `production_verified`; `failed` stays `released` with a finding that points to the rollback.
+
+Both records are exported to `agentarch/project/evidence/latest.json`. Any later change of content
+returns the work to verifying, and a new verification clears the previous release records.
 
 ## Isolated verification
 
