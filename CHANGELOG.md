@@ -31,6 +31,8 @@ exit 1 rather than read on a best-effort basis.
   unauditable manifest is inconclusive and blocks readiness.
 - `verifiers/floor/` installs pinned scanners and the database into every recipe; new
   `verifiers/universal/` recipe.
+- New `go-service` profile: gofmt, `go vet`, `go build` and `go test -race`, offline against the
+  image's module cache, plus the floor. New `verifiers/go-service/` recipe.
 
 ## v0.4.0 — 2026-11-18
 

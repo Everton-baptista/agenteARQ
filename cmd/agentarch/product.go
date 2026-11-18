@@ -33,7 +33,7 @@ func cmdWorkflow(args []string) int {
 	root := f.String("root", ".", "project Git worktree")
 	format := f.String("format", "text", "text or json")
 	name := f.String("name", "", "product name")
-	profile := f.String("profile", "", "universal (default for a new product), typescript-web or python-api")
+	profile := f.String("profile", "", "universal (default for a new product), typescript-web, python-api or go-service")
 	goal := f.String("goal", "", "observable product goal")
 	author := f.String("author", "", "accountable implementer (never inferred)")
 	ai := f.Bool("has-ai", false, "product contains AI components")

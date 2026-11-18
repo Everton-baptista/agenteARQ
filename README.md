@@ -67,8 +67,8 @@ reports drift and `plugin remove` removes only the files it manages.
 
 - **Product workflow plugin** — skills plus a local MCP server, for **Claude Code, Codex and
   Gemini CLI**. Other clients can use the reference package from `plugin install external`.
-- **Verification profiles** — `typescript-web` and `python-api` with mandatory checks. Any other
-  stack uses `universal`, where the project declares and reviews its own checks.
+- **Verification profiles** — `typescript-web`, `python-api` and `go-service` with mandatory checks.
+  Any other stack uses `universal`, where the project declares and reviews its own checks.
 - **Architecture rules** — generated instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
   `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
   from a single source of truth, in any language.

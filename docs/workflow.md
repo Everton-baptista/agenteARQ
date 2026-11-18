@@ -16,7 +16,7 @@ An undeclared executor is not certified: the product gate only reports the agent
 listed and checked. Host capabilities that cannot be observed must not be presented as enforced.
 
 The engineering profile is separate from the `minimal`, `standard` and `regulated` AI policy
-profiles. Built-in engineering profiles are `typescript-web` and `python-api`. `universal` uses
+profiles. Built-in engineering profiles are `typescript-web`, `python-api` and `go-service`. `universal` uses
 explicit reviewed checks for another stack. Built-in checks cannot be removed by configuration.
 
 Version and review these artifacts:
@@ -93,7 +93,8 @@ positional arguments without interpolating them into shell source. The image nee
 
 TypeScript web requires npm scripts `lint`, `typecheck`, `test` (non-watch `--run`), `build`,
 `test:e2e`, `test:a11y`, and `test:security`. Python API requires Ruff, mypy, pytest, pip dependency
-consistency and Bandit. Browser binaries, test databases and dependencies must be provisioned in
+consistency and Bandit. Go service requires gofmt-clean source, `go vet`, `go build` and
+`go test -race`, with modules from the image's read-only cache (`GOPROXY=off`). Browser binaries, test databases and dependencies must be provisioned in
 the verifier image or tests; this first version deliberately provides no network access.
 
 Every profile, `universal` included, also runs the **security floor**: `secrets` (gitleaks over
