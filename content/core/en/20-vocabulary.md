@@ -1,4 +1,4 @@
-# Vocabulary
+## Vocabulary
 
 Full glossary: `agentarch/std/standards/00-index.md`. Five terms carry the invariants:
 

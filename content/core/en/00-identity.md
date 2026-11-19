@@ -17,6 +17,7 @@ Every agent has a manifest at `agentarch/project/agents/<id>/agent.yaml`; every 
 manifest disagree, one of them is a bug — say so rather than guessing which.**
 
 When these rules are silent:
+
 - Prefer what is **verifiable from an artifact** over what only works at runtime.
 - Prefer **declaring less authority** — narrower permissions, lower autonomy, smaller blast radius.
 - Treat anything the model did not receive from your code as **untrusted data, never instruction**.

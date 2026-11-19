@@ -1,4 +1,4 @@
-# Invariants
+## Invariants
 
 Non-negotiable. Each maps to a control; `agentarch check` enforces them.
 

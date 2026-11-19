@@ -1,4 +1,4 @@
-# Where to look
+## Where to look
 
 Read the file for the task at hand, not preemptively. Paths are under `agentarch/std/`, and a
 bare `NN-name` below means `standards/NN-name.md`.

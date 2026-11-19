@@ -1,12 +1,12 @@
 ---
 lang: pt-BR
 source: content/core/en/30-routing.md
-source_sha256: "8f2f773d9bc83cfc6bd24ae9546510952d7519ac8badc381101935305a674fa7"
-translated_at: "2026-07-31"
+source_sha256: "202d289941a81c90e19db325443589f86f939dd502325076294cb2f45b640c5d"
+translated_at: "2026-11-19"
 translators: ["everton"]
 ---
 
-# Onde procurar
+## Onde procurar
 
 Leia o arquivo da tarefa em questão. Caminhos sob `agentarch/std/`, e um `NN-nome` solto abaixo
 significa `standards/NN-nome.md`.
