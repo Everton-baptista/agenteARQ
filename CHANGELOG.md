@@ -52,6 +52,10 @@ compared choice.
   project, their fake test keys failed the product's secret scan, their pinned SDKs its dependency
   audit and their pages its link check. The product's quality checks (HTML, lint, links, Markdown,
   ruff, mypy, pytest, bandit) leave `agentarch/std` out; the security floor still scans it.
+- `agentarch/std/LOCK.json` records each digest beside `"sha256"` instead of beside the file's path:
+  paths such as `controls/api/secrets_not_committed.yaml` next to a digest were reported as leaked
+  API keys by the product's own secret scan. Locks in the old format are still read; the scanner
+  configuration is unchanged, with no allowlist.
 - The `mcp-server` blueprint pins `mcp==1.30.0`, which fixes GHSA-5h93-6whr-6q8j,
   GHSA-84m7-p3x7-pcfv, GHSA-rwrf-2pqf-9j8j and GHSA-w4fh-qvv9-3v23 in 1.29.0.
 - Blueprint tests that exercise the Anthropic adapter skip when its SDK is not installed, as the
