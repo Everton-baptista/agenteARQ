@@ -1,0 +1,9 @@
+{
+  "root": true,
+  "elements": ["html5"],
+  "extends": ["html-validate:standard", "html-validate:a11y"],
+  "rules": {
+    "missing-doctype": "error",
+    "no-missing-references": "error"
+  }
+}

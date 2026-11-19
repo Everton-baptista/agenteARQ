@@ -37,6 +37,20 @@ var profiles = map[string][]Command{
 		{ID: "build", Program: "go", Args: []string{"build", "./..."}, Timeout: 5 * time.Minute},
 		{ID: "test", Program: "go", Args: []string{"test", "-race", "./..."}, Timeout: 10 * time.Minute},
 	},
+	// HTML, CSS and JavaScript served as-is, with no build step and no package.json. Each program
+	// is a fixed wrapper from verifiers/static-site/ whose configuration is the image's; files in
+	// the project cannot switch rules off. A project without any .html page fails html and links.
+	"static-site": {
+		{ID: "html", Program: "agentarch-html", Timeout: 3 * time.Minute},
+		{ID: "lint", Program: "agentarch-js-lint", Timeout: 3 * time.Minute},
+		{ID: "links", Program: "agentarch-site-links", Timeout: 2 * time.Minute},
+	},
+	// Documentation and content repositories: Markdown, diagrams as text. Fixed wrappers from
+	// verifiers/docs/. A project without any .md file fails both checks.
+	"docs": {
+		{ID: "markdown", Program: "agentarch-markdown", Timeout: 3 * time.Minute},
+		{ID: "links", Program: "agentarch-docs-links", Timeout: 2 * time.Minute},
+	},
 }
 
 // securityFloor runs in every profile, universal included, after the profile's own checks.
@@ -58,7 +72,9 @@ func FloorCheckIDs() []string {
 	return ids
 }
 
-func Profiles() []string { return []string{"universal", "typescript-web", "python-api", "go-service"} }
+func Profiles() []string {
+	return []string{"universal", "typescript-web", "python-api", "go-service", "static-site", "docs"}
+}
 
 // ProfileCommands returns the profile's built-in checks followed by the security floor.
 func ProfileCommands(name string) ([]Command, error) {

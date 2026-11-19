@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+// static-site profile, check `lint`: ESLint over every *.js and *.mjs file in /workspace.
+//
+// The configuration is the image's (/opt/agentarch-static-site/eslint.config.mjs); no config file
+// in the project is looked up. Inline comments that switch rules off or reconfigure them
+// (`eslint-disable*`, `eslint-enable`, `/* eslint rule: off */`) are made inert before linting;
+// `/* global name */` and `/* exported name */` still declare what classic scripts share. A
+// project without JavaScript passes: a static site does not need any.
+//
+// Exit codes for the AgenteARQ runner: 0 clean, 1 lint errors (failed), 125 inconclusive.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { walk, run, htmlRefs, isExternal, resolveTarget } = require('/opt/agentarch-content/agentarch-links.js');
+
+const TOOLS = '/opt/agentarch-static-site';
+
+// Module syntax at the start of a line: import declarations and export statements.
+const ESM = /^[ \t]*(?:import\s*(?:[\w$*{]|["'])|export\s*(?:[\w$*{]|default\b))/m;
+const globEscape = (p) => p.replace(/[*?[\]{}()!+@\\]/g, '\\$&');
+// Same length replacement keeps every reported line and column correct.
+const RULE_DIRECTIVE = /(\/\*|\/\/)(\s*)eslint(?=(?:-disable(?:-next-line|-line)?|-enable)?(?:\s|\*\/|$))/gm;
+
+// Scripts a page loads with <script type="module" src="...">.
+function moduleScripts() {
+  const out = new Set();
+  for (const page of walk('.', (f) => /\.html?$/i.test(f))) {
+    const source = fs.readFileSync(page, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    for (const tag of source.matchAll(/<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi)) {
+      if (!/\btype\s*=\s*["']?module\b/i.test(tag[1])) continue;
+      for (const r of htmlRefs(`<script${tag[1]}>`).refs) {
+        if (isExternal(r.target)) continue;
+        const resolved = resolveTarget(r.target, path.posix.dirname(page));
+        if (resolved) out.add(resolved.path);
+      }
+    }
+  }
+  return out;
+}
+
+run('lint', async () => {
+  const files = walk('.', (f) => /\.m?js$/i.test(f) && !/\.min\.m?js$/i.test(f));
+  if (files.length === 0) {
+    console.log('lint: no JavaScript files');
+    return 0;
+  }
+  const loaded = moduleScripts();
+  const modules = files.filter((f) => /\.js$/i.test(f) && (loaded.has(f) || ESM.test(fs.readFileSync(f, 'utf8'))));
+  const { ESLint } = require(`${TOOLS}/node_modules/eslint`);
+  const eslint = new ESLint({
+    cwd: process.cwd(),
+    overrideConfigFile: `${TOOLS}/eslint.config.mjs`,
+    overrideConfig: modules.length ? [{ files: modules.map(globEscape), languageOptions: { sourceType: 'module' } }] : [],
+    cache: false,
+  });
+  const results = [];
+  let directives = 0;
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8').replace(RULE_DIRECTIVE, (all, open, space) => {
+      directives++;
+      return `${open}${space}inert_`;
+    });
+    results.push(...(await eslint.lintText(source, { filePath: path.resolve(file), warnIgnored: false })));
+  }
+  if (directives) console.log(`lint: ${directives} inline eslint rule directive(s) in the project were not applied`);
+  const errors = results.reduce((n, r) => n + r.errorCount, 0);
+  const warnings = results.reduce((n, r) => n + r.warningCount, 0);
+  const formatter = await eslint.loadFormatter('stylish');
+  const text = await formatter.format(results);
+  if (text.trim()) console.log(text.trimEnd());
+  const scope = `${files.length} JavaScript file${files.length === 1 ? '' : 's'} (${modules.length + files.filter((f) => /\.mjs$/i.test(f)).length} as modules)`;
+  if (errors) {
+    console.log(`lint: ${errors} error(s), ${warnings} warning(s) in ${scope}`);
+    return 1;
+  }
+  console.log(`lint: ${scope} clean${warnings ? ` (${warnings} warning(s))` : ''}`);
+  return 0;
+});

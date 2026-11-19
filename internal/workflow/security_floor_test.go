@@ -12,6 +12,8 @@ func TestSecurityFloorIsInEveryProfileAndCannotBeRedefined(t *testing.T) {
 		{Profile: "typescript-web"},
 		{Profile: "python-api"},
 		{Profile: "go-service"},
+		{Profile: "static-site"},
+		{Profile: "docs"},
 		{Profile: "universal", Checks: []CheckSpec{{ID: "unit", Program: "cargo", Args: []string{"test"}, TimeoutSeconds: 60}}},
 	}
 	for _, p := range products {

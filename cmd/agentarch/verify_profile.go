@@ -18,7 +18,7 @@ import (
 func cmdVerifyProfile(args []string) int {
 	f := flag.NewFlagSet("verify-profile", flag.ContinueOnError)
 	root := f.String("root", ".", "Git worktree to measure without initializing a workflow")
-	profile := f.String("profile", "", "typescript-web, python-api or go-service")
+	profile := f.String("profile", "", "typescript-web, python-api, go-service, static-site or docs")
 	image := f.String("image", "", "prepared OCI image pinned by repository digest")
 	diagnostics := f.String("diagnostics-reason", "", "explicit reason to capture bounded redacted test output; default retains only hashes")
 	format := f.String("format", "text", "text or json")

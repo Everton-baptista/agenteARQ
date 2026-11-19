@@ -100,9 +100,10 @@ reports drift and `plugin remove` removes only the files it manages.
 
 - **Product workflow plugin** — skills plus a local MCP server, for **Claude Code, Codex and
   Gemini CLI**. Other clients can use the reference package from `plugin install external`.
-- **Verification profiles** — built-in checks for common stacks (`agentarch workflow init` lists
-  them with what each verifies). Any other stack uses `universal`, where the project declares and
-  reviews its own checks.
+- **Verification profiles** — `typescript-web`, `python-api`, `go-service`, `static-site` (HTML, CSS
+  and JavaScript with no build step) and `docs` (Markdown documentation), each with mandatory
+  checks; `agentarch workflow init` lists them with what each verifies and lets you choose. Any
+  other stack uses `universal`, where the project declares and reviews its own checks.
 - **Security floor** — secret scanning (gitleaks) and an offline known-vulnerability audit
   (osv-scanner) in every profile, with scanner configuration the project cannot override.
 - **Release evidence** — `record-release` and `record-production-check` record a deployment and its

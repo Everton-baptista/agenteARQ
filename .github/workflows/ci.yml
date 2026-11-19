@@ -854,6 +854,20 @@ jobs:
           image=$(docker inspect --format '{{index .RepoDigests 0}}' localhost:5000/agentarch-go-service:ci)
           if command -v podman >/dev/null 2>&1; then podman pull -q --tls-verify=false "$image"; fi
           IMAGE="$image" bash scripts/test-go-service-live.sh
+      # The static-site and docs images pin their own tooling in verifiers/<profile>/, so the
+      # project directory argument is not read; '.' only satisfies the helper's interface.
+      - name: the static-site and docs profiles verify their fixtures and block invalid HTML, lint errors, broken links, Markdown errors and empty projects
+        env:
+          AGENTARCH_BIN: /tmp/agentarch
+          BASE: docker.io/library/node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+        run: |
+          for profile in static-site docs; do
+            CONTAINER_ENGINE=docker sh verifiers/build.sh "$profile" . "$BASE" "localhost:5000/agentarch-$profile:ci"
+            docker push -q "localhost:5000/agentarch-$profile:ci"
+            image=$(docker inspect --format '{{index .RepoDigests 0}}' "localhost:5000/agentarch-$profile:ci")
+            if command -v podman >/dev/null 2>&1; then podman pull -q --tls-verify=false "$image"; fi
+            PROFILE="$profile" IMAGE="$image" bash scripts/test-content-profiles-live.sh
+          done
       - name: benchmark protocol tests and dry matrix (no model calls)
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_benchmark*.py'
