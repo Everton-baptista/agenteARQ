@@ -16,15 +16,18 @@ An undeclared executor is not certified: the product gate only reports the agent
 listed and checked. Host capabilities that cannot be observed must not be presented as enforced.
 
 The engineering profile is separate from the `minimal`, `standard` and `regulated` AI policy
-profiles. Built-in engineering profiles are `typescript-web`, `python-api` and `go-service`. `universal` uses
-explicit reviewed checks for another stack. Built-in checks cannot be removed by configuration.
+profiles. `agentarch workflow init` lists the built-in engineering profiles with what each checks
+and asks; none is chosen for you. `universal` uses explicit reviewed checks for any other stack. Built-in checks cannot be removed by configuration.
 
 Version and review these artifacts:
 
 - `product.yaml`: name, intended outcome, author, engineering profile and AI subject references.
 - `brief.md`: problem, users, success measures, constraints and exclusions.
 - `spec.md`: observable acceptance criteria named `AC-1`, `AC-2`, etc.
-- `adr/0001-architecture.md`: decision, alternatives, boundaries and consequences.
+- `adr/0001-architecture.md`: `## Context`, `## Options considered` (at least two, each under its
+  own `###` heading with its benefits and costs), `## Decision` naming the option chosen and who
+  chose it, and `## Consequences`. Every ADR in `adr/` is checked before `planned`; headings may
+  be in English, Portuguese or Spanish. The technology is the owner's choice, never assumed.
 - `tasks.yaml`: tasks, dependencies and acceptance-to-check mapping.
 
 A task's `checks` list declares coverage; it is not proof that its test is semantically adequate.

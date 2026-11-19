@@ -11,8 +11,14 @@ before something happens in the world.
 
 from __future__ import annotations
 
+import re
+
 from .principal import Principal
 from .authorization import validate_arguments
+
+# Any provider's credential, not one vendor's: a key name such as OPENAI_API_KEY or
+# AWS_BEARER_TOKEN_BEDROCK_API_KEY, or an "sk-" style secret.
+_CREDENTIAL_RE = re.compile(r"sk-|\b[A-Z][A-Z0-9_]*(?:API_KEY|_TOKEN|SECRET_ACCESS_KEY)\b")
 
 INJECTION_MARKERS = (
     "ignore previous", "ignore the above", "disregard your instructions",
@@ -44,7 +50,7 @@ def output_guardrail(text: str, cited: bool) -> tuple[bool, str]:
     A missing citation degrades to escalation rather than blocking the reply, which is what the
     manifest declares. Blocking there would turn a quality problem into an outage.
     """
-    if "sk-" in text or "ANTHROPIC_API_KEY" in text:
+    if _CREDENTIAL_RE.search(text) is not None:
         return False, "output appears to contain a credential"
     if not cited:
         return False, "no citation — escalating rather than answering ungrounded"

@@ -156,3 +156,36 @@ func TestProviderQuestionAcceptsNumbersAndIDs(t *testing.T) {
 		})
 	}
 }
+
+// Choosing a provider reaches the guides as well as the manifest: the project must not tell the
+// person to create another vendor's secret.
+func TestChosenProviderReachesSetupAndDeployGuides(t *testing.T) {
+	root := t.TempDir()
+	_, stderr, code := capture(t, func() int {
+		return cmdStart([]string{"--root", root, "--new", "--blueprint", "rag-support", "--framework", "none",
+			"--provider", "openai", "--yes"})
+	})
+	if code != exitOK {
+		t.Fatalf("start exited %d: %s", code, stderr)
+	}
+	for _, rel := range []string{".env.example", "app/README.md", "deploy/README.md", "deploy/k8s.yaml"} {
+		b, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("%s: %v", rel, err)
+		}
+		if strings.Contains(string(b), "ANTHROPIC_API_KEY") || !strings.Contains(string(b), "OPENAI_API_KEY") {
+			t.Errorf("%s still names another provider's credential", rel)
+		}
+	}
+}
+
+// Without a terminal there is nobody to choose, so nothing is chosen for them.
+func TestNoProviderIsChosenForAScript(t *testing.T) {
+	root := t.TempDir()
+	_, stderr, code := capture(t, func() int {
+		return cmdStart([]string{"--root", root, "--new", "--blueprint", "rag-support", "--framework", "none", "--yes"})
+	})
+	if code == exitOK || !strings.Contains(stderr, "--provider") {
+		t.Fatalf("start chose a provider silently (exit %d): %s", code, stderr)
+	}
+}

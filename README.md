@@ -14,10 +14,15 @@
 
 Coding assistants are fast, and just as confident when they are wrong: a test that never ran, a
 check that was quietly skipped, a "looks good" from the same agent that wrote the change.
-AgenteARQ is an open-source CLI and plugin for **Claude Code, Codex and Gemini CLI** that turns
-"it works" into evidence you can check, from the first idea to a reviewed pull request and a
-release checked in production.
+AgenteARQ is an open-source CLI and plugin for **Claude Code, Codex and Gemini CLI** that takes
+**any software product** — a website, an API, a mobile or desktop app, a CLI, documentation, a
+data pipeline or an AI agent — from the first idea to a reviewed pull request and a release checked
+in production, turning "it works" into evidence you can check.
 
+- **Technology is your choice, never assumed.** AgenteARQ is not tied to a language, framework,
+  host or vendor. It captures your constraints, and the architecture step must compare at least
+  two options with their benefits and costs before you pick one; the ADR that records it is
+  checked, not trusted.
 - **Nothing passes without evidence.** A missing, interrupted or inconclusive check blocks the work.
   It is never counted as a pass.
 - **Checks run where they cannot cheat.** Each check runs in a container with no network, no
@@ -72,15 +77,22 @@ installs.
 **2. In your project's Git repository** (Docker or Podman is needed for verification):
 
 ```bash
-agentarch workflow init --name my-product --profile typescript-web \
-  --goal "Describe the user outcome" --author "Your name"
-agentarch plugin install claude --owner "Your name" --contact "you@example.com" \
-  --model-provider anthropic --model "YOUR_EXACT_HOST_MODEL_ID"
+agentarch start     # asks what you are building and explains every choice it leaves to you
+```
+
+or, without the interview:
+
+```bash
+agentarch workflow init --name my-product --profile <profile> \
+  --goal "Describe the user outcome" --author "Your name"   # omit --profile to compare them
+agentarch plugin install <claude|codex|gemini> --owner "Your name" --contact "you@example.com" \
+  --model-provider <your-host-provider> --model "YOUR_EXACT_HOST_MODEL_ID"
 agentarch ui        # optional: read-only progress dashboard
 ```
 
-Then open the project in Claude Code and ask it to build what you described. Use `codex` or
-`gemini` instead of `claude` for those hosts. `--model` records the model your host actually
+Then open the project in your assistant and ask it to start the product. It writes the brief with
+you, proposes technology options with their trade-offs instead of picking one, and moves through
+the steps. `--model` records the model your host actually
 uses; it cannot change or enforce it. `--dry-run` previews the installation, `plugin check`
 reports drift and `plugin remove` removes only the files it manages.
 
@@ -88,8 +100,9 @@ reports drift and `plugin remove` removes only the files it manages.
 
 - **Product workflow plugin** — skills plus a local MCP server, for **Claude Code, Codex and
   Gemini CLI**. Other clients can use the reference package from `plugin install external`.
-- **Verification profiles** — `typescript-web`, `python-api` and `go-service` with mandatory checks.
-  Any other stack uses `universal`, where the project declares and reviews its own checks.
+- **Verification profiles** — built-in checks for common stacks (`agentarch workflow init` lists
+  them with what each verifies). Any other stack uses `universal`, where the project declares and
+  reviews its own checks.
 - **Security floor** — secret scanning (gitleaks) and an offline known-vulnerability audit
   (osv-scanner) in every profile, with scanner configuration the project cannot override.
 - **Release evidence** — `record-release` and `record-production-check` record a deployment and its
@@ -98,8 +111,9 @@ reports drift and `plugin remove` removes only the files it manages.
   `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
   from a single source of truth, in any language.
 - **Standard for AI agents** — 16 standards, 46 controls, 10 packs and 12 framework adapters.
-- **Runnable blueprints** — 7 Python services with tests, evals, a Dockerfile and deploy guides;
-  native Python runtimes and a LangGraph variant for RAG; Anthropic, OpenAI, Google and AWS Bedrock.
+- **Runnable agent blueprints** — 7 Python AI-agent services with tests, evals, a Dockerfile and
+  deploy guides. You choose the model provider (Anthropic, AWS Bedrock, Google or OpenAI) and the
+  framework; none is preselected.
 - **Two languages** — `en` and `pt-BR`, from the interview to every generated instruction file.
 
 ## Limits, stated plainly

@@ -275,9 +275,9 @@ function App() {
                     fazê-lo.
                   </p>
                   <code>
-                    agentarch workflow init --name meu-produto --profile
-                    typescript-web --goal "Objetivo do produto" --author "Seu
-                    nome"
+                    agentarch workflow init --name meu-produto --goal
+                    "Objetivo do produto" --author "Seu nome" (sem --profile, ele
+                    compara os perfis e pergunta)
                   </code>
                 </article>
                 <article>

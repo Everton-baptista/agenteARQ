@@ -208,6 +208,13 @@ func setProviderSDK(lines []string, pin string) bool {
 // zero for a non-default provider is a bug worth surfacing: it means the manifest still names one
 // provider while requirements.txt pins another SDK, and the failure would arrive much later as an
 // import error at the first model call.
+// credentialDocs are the text files a blueprint ships that name the provider credential: setup,
+// deploy and CI guidance. Code reads the name from CREDENTIAL_NAMES and is not rewritten.
+var credentialDocs = []string{
+	".env.example", "README.md", "app/README.md", "deploy/README.md", "deploy/k8s.yaml",
+	".github/workflows/agentarch.yml",
+}
+
 func applyProvider(root string, p providerChoice) (int, error) {
 	changed := 0
 
@@ -230,6 +237,28 @@ func applyProvider(root string, p providerChoice) (int, error) {
 			return changed, err
 		}
 		changed++
+	}
+
+	// The setup and deploy guides name the credential to create. Left as the blueprint shipped
+	// them, a project that chose another provider would be told to create the wrong secret.
+	for _, rel := range credentialDocs {
+		path := filepath.Join(root, rel)
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		text := string(raw)
+		for _, other := range providers {
+			if other.Key != p.Key {
+				text = strings.ReplaceAll(text, other.Key, p.Key)
+			}
+		}
+		if text != string(raw) {
+			if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+				return changed, err
+			}
+			changed++
+		}
 	}
 
 	req := filepath.Join(root, "app", "requirements.txt")

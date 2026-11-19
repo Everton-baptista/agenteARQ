@@ -7,8 +7,14 @@ otherwise be asking its own attacker whether the delegation is allowed.
 
 from __future__ import annotations
 
+import re
+
 from .principal import Principal
 from .authorization import validate_arguments
+
+# Any provider's credential, not one vendor's: a key name such as OPENAI_API_KEY or
+# AWS_BEARER_TOKEN_BEDROCK_API_KEY, or an "sk-" style secret.
+_CREDENTIAL_RE = re.compile(r"sk-|\b[A-Z][A-Z0-9_]*(?:API_KEY|_TOKEN|SECRET_ACCESS_KEY)\b")
 
 INJECTION_MARKERS = (
     "ignore previous", "ignore the above", "disregard your instructions",
@@ -39,7 +45,7 @@ def output_guardrail(text: str) -> tuple[bool, str]:
     An intermediate result travels inside a typed payload; the schema is its check. This one runs on
     the reply that reaches the caller.
     """
-    if "sk-" in text or "ANTHROPIC_API_KEY" in text:
+    if _CREDENTIAL_RE.search(text) is not None:
         return False, "output appears to contain a credential"
     return True, ""
 
