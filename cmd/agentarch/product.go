@@ -393,7 +393,8 @@ func askProfile(root string) (string, bool) {
 		if o.Matches {
 			mark = "*"
 		}
-		fmt.Printf("  %d.%s %-15s %s\n        checks: %s\n", i+1, mark, o.ID, o.Fits, o.Checks)
+		fits, checks := profileText(o.ID, o.Fits, o.Checks)
+		fmt.Printf("  %d.%s %-15s %s\n        %s %s\n", i+1, mark, o.ID, fits, t("profile.checks"), checks)
 	}
 	fmt.Println(t("profile.legend"))
 	for attempt := 0; attempt < 3; attempt++ {

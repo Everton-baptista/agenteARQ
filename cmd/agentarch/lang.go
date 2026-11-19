@@ -248,6 +248,19 @@ var catalog = map[string]map[string]string{
 		"profile.legend":   "\n  * = what the files here suggest. Every profile also runs the security floor.\n",
 		"profile.prompt":   "Choose 1–%d, or type the id: ",
 
+		// ---- adopting a project that is not an agent
+		"profile.checks": "checks:",
+		"notagent.head": "\nNo agent here: no model SDK or agent framework is declared or imported, so no\n" +
+			"agent.yaml was written. That is fine. The standards under agentarch/std apply\n" +
+			"to any product, and the product workflow takes it from spec to production with\n" +
+			"isolated verification. Every profile adds the same security floor (secrets and\n" +
+			"known-vulnerable dependencies). Pick the one that fits:\n\n",
+		"notagent.legend": "\n  * = what this project's files suggest; nothing is chosen for you.\n",
+		"notagent.then": "\nThen:  agentarch start --product   (or agentarch workflow init --name <product> --profile <id> \\\n" +
+			"         --goal \"<the user outcome>\" --author \"<your name>\")\n\n" +
+			"If this project does call a model in a way the scan cannot see (a raw HTTP\n" +
+			"call, say), describe it with:  agentarch init --adopt --adopt-id <id> --agent\n",
+
 		// ---- workflow status
 		"workflow.status": "Phase: %s · revision %d\n\nNext step: %s",
 
@@ -344,9 +357,20 @@ var catalog = map[string]map[string]string{
 			"Faça com o seu assistente: agentarch plugin install <claude|codex|gemini> ...\n" +
 			"e peça para ele \"começar o produto\". Ele vai propor opções em vez de escolher\n" +
 			"por você. Ou à mão: agentarch workflow status mostra o próximo passo a qualquer momento.\n",
-		"profile.question":   "\nComo este produto deve ser verificado? Cada perfil roda checks diferentes:\n",
-		"profile.legend":     "\n  * = o que os arquivos daqui sugerem. Todo perfil também roda o piso de segurança.\n",
-		"profile.prompt":     "Escolha 1–%d, ou digite o id: ",
+		"profile.question": "\nComo este produto deve ser verificado? Cada perfil roda checks diferentes:\n",
+		"profile.legend":   "\n  * = o que os arquivos daqui sugerem. Todo perfil também roda o piso de segurança.\n",
+		"profile.prompt":   "Escolha 1–%d, ou digite o id: ",
+		"profile.checks":   "verifica:",
+		"notagent.head": "\nNenhum agente aqui: nenhum SDK de modelo ou framework de agente é declarado ou\n" +
+			"importado, então nenhum agent.yaml foi escrito. Tudo bem. Os padrões em agentarch/std\n" +
+			"valem para qualquer produto, e o fluxo do produto o leva da especificação à produção\n" +
+			"com verificação isolada. Todo perfil traz o mesmo piso de segurança (segredos e\n" +
+			"dependências com vulnerabilidades conhecidas). Escolha o que se encaixa:\n\n",
+		"notagent.legend": "\n  * = o que os arquivos deste projeto sugerem; nada é escolhido por você.\n",
+		"notagent.then": "\nDepois:  agentarch start --product   (ou agentarch workflow init --name <produto> --profile <id> \\\n" +
+			"           --goal \"<o resultado para o usuário>\" --author \"<seu nome>\")\n\n" +
+			"Se este projeto chama um modelo de um jeito que o scan não enxerga (uma chamada\n" +
+			"HTTP direta, por exemplo), descreva-o com:  agentarch init --adopt --adopt-id <id> --agent\n",
 		"workflow.status":    "Fase: %s · revisão %d\n\nPróximo passo: %s",
 		"common.notanoption": "  não é uma das opções",
 		"common.givingup":    "desisti após três tentativas; nada foi escrito",

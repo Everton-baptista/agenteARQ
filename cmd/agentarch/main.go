@@ -387,7 +387,7 @@ gates:
 		return code
 	}
 	if *adopt {
-		return finishAdopt(*root, *adoptID, *forceAgent)
+		return finishAdopt(*root, *adoptID, *forceAgent, *lang)
 	}
 	// start composes init with the steps that follow it and prints one set of next steps at the
 	// end. Two lists of next steps in one flow is how a guided setup stops feeling guided.
@@ -822,7 +822,11 @@ func syncSkills(root string, check bool) (int, int) {
 // The adoption path matters more than it looks. A project with existing agents fails dozens of
 // controls on day one; without a way in that costs nothing on the first day, the gate is
 // switched off and nothing improves. That risk was named in the plan and this is the mitigation.
-func finishAdopt(root, id string, force bool) int {
+func finishAdopt(root, id string, force bool, language string) int {
+	if knownLanguage(language) {
+		defer func(prev string) { lang = prev }(lang)
+		lang = language
+	}
 	if id == "" {
 		abs, err := filepath.Abs(root)
 		if err != nil {

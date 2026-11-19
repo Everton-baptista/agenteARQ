@@ -528,30 +528,37 @@ func productProfileOptions(root string) []profileOption {
 // reportNotAnAgent says plainly that no agent was found and lays out the product workflow's
 // profiles side by side, instead of writing a manifest for an agent that does not exist.
 func reportNotAnAgent(root string) {
-	fmt.Printf(`
-No agent here: no model SDK or agent framework is declared or imported, so no
-agent.yaml was written. That is fine. The standards under agentarch/std apply
-to any product, and the product workflow takes it from spec to production with
-isolated verification. Every profile adds the same security floor (secrets and
-known-vulnerable dependencies). Pick the one that fits:
-
-`)
+	fmt.Print(t("notagent.head"))
 	marked := false
 	for _, o := range productProfileOptions(root) {
 		mark := " "
 		if o.Matches {
 			mark, marked = "*", true
 		}
-		fmt.Printf("  %s %-15s %s\n      checks: %s\n", mark, o.ID, o.Fits, o.Checks)
+		fits, checks := profileText(o.ID, o.Fits, o.Checks)
+		fmt.Printf("  %s %-15s %s\n      %s %s\n", mark, o.ID, fits, t("profile.checks"), checks)
 	}
 	if marked {
-		fmt.Printf("\n  * = what this project's files suggest; nothing is chosen for you.\n")
+		fmt.Print(t("notagent.legend"))
 	}
-	fmt.Printf(`
-Then:  agentarch workflow init --name <product> --profile <one of the above> \
-         --goal "<the user outcome>" --author "<your name>"
+	fmt.Print(t("notagent.then"))
+}
 
-If this project does call a model in a way the scan cannot see (a raw HTTP
-call, say), describe it with:  agentarch init --adopt --adopt-id <id> --agent
-`)
+// profilePT describes each profile in Portuguese; a profile missing here is shown in English.
+var profilePT = map[string][2]string{
+	"typescript-web": {"um app web em TypeScript com scripts npm", "lint, typecheck, testes unitários e e2e, build, acessibilidade, segurança"},
+	"static-site":    {"HTML, CSS e JavaScript servidos como arquivos, sem build", "HTML válido, lint de JavaScript, links locais quebrados"},
+	"python-api":     {"um serviço ou biblioteca em Python", "ruff, mypy, pytest, pip check, bandit"},
+	"go-service":     {"um módulo Go", "gofmt, go vet, build, testes com detector de corrida"},
+	"docs":           {"documentação, padrões ou diagramas em texto", "estrutura do Markdown, links e imagens locais quebrados"},
+	"universal":      {"qualquer outra stack (mobile, Java, .NET, Rust, pipelines de dados…): você define os comandos", "só os checks que você declarar no product.yaml"},
+}
+
+func profileText(id, fits, checks string) (string, string) {
+	if lang == "pt-BR" {
+		if v, ok := profilePT[id]; ok {
+			return v[0], v[1]
+		}
+	}
+	return fits, checks
 }
