@@ -7,6 +7,7 @@ set -euo pipefail
 : "${IMAGE:?Provide a verifier IMAGE that includes verifiers/floor, pinned by @sha256 digest}"
 : "${AGENTARCH_BIN:?Provide the built agentarch binary path}"
 AGENTARCH_BIN="$(realpath "$AGENTARCH_BIN")"
+ADR_FIXTURE="$(cd "$(dirname "$0")" && pwd)/fixtures/adr-0001.md"
 root="$(mktemp -d /tmp/agentarch-floor-live.XXXXXX)"
 trap 'rm -rf "$root"' EXIT
 
@@ -35,10 +36,11 @@ checks:
     args: []
     timeout_seconds: 20
 YAML
-  for file in brief.md spec.md adr/0001-architecture.md; do
+  for file in brief.md spec.md; do
     printf '# Floor acceptance\n\nAC-1: The security floor runs and reports a decisive result.\nDecision: rely on the image floor.\n' \
       > "$dir/agentarch/project/$file"
   done
+  cp "$ADR_FIXTURE" "$dir/agentarch/project/adr/0001-architecture.md"
   cat > "$dir/agentarch/project/tasks.yaml" <<'YAML'
 schema_version: '1.0'
 tasks:

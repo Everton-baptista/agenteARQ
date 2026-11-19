@@ -1,11 +1,20 @@
-<!-- agentarch:generated v=1.3.0 core_sha256=398bc491bfb22dc98b39da4fb4d301f4762c43df1aa4c97569ae00cbaef07cc4 target=gemini lang=en
+<!-- agentarch:generated v=1.3.0 core_sha256=2f7578be13057263cf5a91c1523d91942fb66c7f054f17b37b9681922b8b9b3d target=gemini lang=en
      DO NOT EDIT. Edit agentarch/std/core/en/ and run `agentarch sync`.
      Read by: Gemini CLI -->
 
-# Agent architecture rules
+# AgenteARQ project rules
 
-This project builds AI agents under `agentarch`, an open standard. These rules apply whenever
-you create or modify an agent, a tool, a prompt, or an MCP server connection.
+This project uses `agentarch`, an open standard, to take a software product of any kind and on
+any technology from idea to production in verifiable steps: brief, specification, a compared
+architecture decision, tasks, isolated verification, independent review, release and a
+production check. Run `agentarch workflow status` to see where the product stands.
+
+**Technology is chosen, never assumed.** When a language, framework, host, database, model
+provider or vendor has not been decided, propose options that fit the demand, state each one's
+benefits and costs, label your recommendation, and let the owner choose. Record it in an ADR.
+
+The agent rules below apply whenever you create or modify an AI agent, a tool, a prompt, or an
+MCP server connection. A product with no AI component follows only the workflow.
 
 Every agent has a manifest at `agentarch/project/agents/<id>/agent.yaml`; every tool a
 `agentarch/project/tools/<id>.tool.yaml`. **The manifest is the contract: if behaviour and

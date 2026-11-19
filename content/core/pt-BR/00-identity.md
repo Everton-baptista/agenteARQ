@@ -1,15 +1,25 @@
 ---
 lang: pt-BR
 source: content/core/en/00-identity.md
-source_sha256: "7a0c06aa3854bc95e06bc82bbf18f78324cd1e0c319ab796772f10d43c1312ba"
-translated_at: "2026-07-30"
+source_sha256: "9a7f45ef30ac6910d8e0ab555212bd9f2cbdee3ad77bc8c9c673fc2c96565a56"
+translated_at: "2026-11-19"
 translators: ["everton"]
 ---
 
-# Regras de arquitetura de agentes
+# Regras de projeto do AgenteARQ
 
-Este projeto constrói agentes de IA sob o `agentarch`, um padrão aberto. As regras valem sempre
-que você cria ou altera um agente, tool, prompt ou conexão com servidor MCP.
+Este projeto usa o `agentarch`, um padrão aberto, para levar um produto de software de qualquer
+tipo e em qualquer tecnologia da ideia à produção em etapas verificáveis: brief, especificação,
+decisão de arquitetura comparada, tarefas, verificação isolada, revisão independente, release e
+verificação em produção. Rode `agentarch workflow status` para ver em que ponto o produto está.
+
+**A tecnologia é escolhida, nunca presumida.** Quando linguagem, framework, hospedagem, banco de
+dados, provedor de modelo ou fornecedor ainda não foram decididos, proponha opções que atendam à
+demanda, diga os benefícios e os custos de cada uma, identifique a sua recomendação como
+recomendação e deixe o responsável escolher. Registre em um ADR.
+
+As regras de agente abaixo valem sempre que você cria ou altera um agente de IA, tool, prompt ou
+conexão com servidor MCP. Um produto sem componente de IA segue só o fluxo de trabalho.
 
 Todo agente tem um manifesto em `agentarch/project/agents/<id>/agent.yaml`; toda tool, um
 `agentarch/project/tools/<id>.tool.yaml`. **O manifesto é o contrato: se o comportamento e o

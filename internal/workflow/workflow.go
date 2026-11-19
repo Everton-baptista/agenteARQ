@@ -62,9 +62,9 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 		tb, _ := yaml.Marshal(TaskDocument{SchemaVersion: SchemaVersion, Tasks: []Task{}})
 		files := map[string][]byte{
 			ProductPath: pb, TasksPath: tb,
-			documents[0]: []byte("# Product brief\n\nTODO: describe the problem, users, success metric, constraints and exclusions.\n"),
-			documents[1]: []byte("# Specification\n\nTODO: define observable acceptance criteria with IDs AC-1, AC-2, and link them to tasks.\n"),
-			documents[2]: []byte("# ADR 0001 — Architecture\n\nTODO: record the decision, alternatives, boundaries and consequences.\n"),
+			documents[0]: []byte(BriefTemplate),
+			documents[1]: []byte(SpecTemplate),
+			documents[2]: []byte(ADRTemplate),
 		}
 		for rel := range files {
 			path, err := safePath(s.Root, rel)
@@ -272,11 +272,7 @@ func (s *Service) requirements(p Product, tasks []Task, phase string) []string {
 	if !p.HasAI && len(p.ApplicationAgentIDs) > 0 {
 		missing = append(missing, "application agents contradict has_ai: false")
 	}
-	limit := 2
-	if phaseIndex(phase) >= phaseIndex("planned") {
-		limit = 3
-	}
-	for _, rel := range documents[:limit] {
+	for _, rel := range documents[:2] {
 		path, e := safePath(s.Root, rel)
 		if e != nil {
 			missing = append(missing, e.Error())
@@ -288,6 +284,7 @@ func (s *Service) requirements(p Product, tasks []Task, phase string) []string {
 		}
 	}
 	if phaseIndex(phase) >= phaseIndex("planned") {
+		missing = append(missing, s.architectureGaps()...)
 		commands, e := commandsFor(p)
 		if e != nil {
 			missing = append(missing, e.Error())

@@ -6,6 +6,7 @@ set -euo pipefail
 : "${AGENTARCH_BIN:?Provide the built agentarch binary path}"
 case "$IMAGE" in *@sha256:*) ;; *) echo "IMAGE must be digest-pinned" >&2; exit 2;; esac
 AGENTARCH_BIN="$(realpath "$AGENTARCH_BIN")"
+ADR_FIXTURE="$(cd "$(dirname "$0")" && pwd)/fixtures/adr-0001.md"
 # Same preference order as the CLI (podman, then docker), so the image this script expects is the
 # one the verifier will look for and the leak check below inspects the runtime that actually ran.
 runtime=""
@@ -36,7 +37,7 @@ checks:
     args: [scripts/check.sh]
     timeout_seconds: 20
 YAML
-for file in brief.md spec.md adr/0001-architecture.md; do
+for file in brief.md spec.md; do
   cat > "$product_root/agentarch/project/$file" <<'DOC'
 # Executable isolation acceptance
 
@@ -45,6 +46,7 @@ AC-2: Source and root mounts reject writes; writes within the disposable workspa
 Decision: isolate the source copy in network-disabled OCI with bounded writable tmpfs.
 DOC
 done
+cp "$ADR_FIXTURE" "$product_root/agentarch/project/adr/0001-architecture.md"
 cat > "$product_root/agentarch/project/tasks.yaml" <<'YAML'
 schema_version: '1.0'
 tasks:

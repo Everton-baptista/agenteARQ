@@ -10,9 +10,10 @@ import (
 
 func TestNextSelectsEligibleTaskAndUnblocksDependencies(t *testing.T) {
 	s, _ := fixture(t)
-	for _, rel := range documents {
-		write(t, s.Root, rel, "# Product artifact\n\nAC-1: Only authorized customers can find their orders.\nDecision: scoped API.\n")
+	for _, rel := range documents[:2] {
+		write(t, s.Root, rel, "# Product artifact\n\nAC-1: Only authorized customers can find their orders.\n")
 	}
+	write(t, s.Root, documents[2], testADR)
 	tasks := []Task{
 		{ID: "release", DependsOn: []string{"test", "docs"}},
 		{ID: "test", DependsOn: []string{"build"}},
