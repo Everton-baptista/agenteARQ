@@ -1,0 +1,131 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write     # create the release
+  id-token: write     # keyless signing via OIDC
+  packages: write     # ghcr
+
+jobs:
+  preflight:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  security-preflight:
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+
+  release:
+    needs: [preflight, security-preflight]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }   # goreleaser needs the history for the changelog
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod }
+
+      # cosign v3 publishes bundles, not detached .sig files; installer v3.x looks for .sig and fails.
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with: { cosign-release: v3.1.4 }
+      - uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with: { syft-version: v1.57.2 }
+
+      # The gate runs on its own repository before anything ships. A release that has not
+      # passed the standard it defines would be the clearest possible statement that the
+      # standard is decorative.
+      - name: the standard passes on itself
+        run: |
+          go build -o /tmp/agentarch ./cmd/agentarch
+          /tmp/agentarch sync --check --targets agents_md,claude,gemini
+          /tmp/agentarch validate examples/01-rag-support-agent
+          /tmp/agentarch check --profile standard examples/01-rag-support-agent
+
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: "v2.20.2"
+          args: release --clean --config packaging/goreleaser.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # OCI repository names must be lowercase, and the owner here is not. Computing it rather
+      # than hardcoding keeps a fork working.
+      - name: lowercase the owner
+        id: owner
+        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: packaging/docker/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ github.ref_name }}
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.value }}/agentarch:${{ github.ref_name }}
+            ghcr.io/${{ steps.owner.outputs.value }}/agentarch:latest
+
+  # npm and PyPI need tokens this repository does not have yet. The jobs are here, disabled by
+  # a guard rather than commented out, so that adding the secret is the only step — and so the
+  # intent is reviewable rather than living in someone's notes.
+  npm:
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ vars.PUBLISH_NPM == 'true' }}
+    permissions:
+      contents: read
+      # Two things ride on this. It lets npm authenticate by trusted publishing, so there is no
+      # long-lived token sitting in a repository secret — the standing credential this project's
+      # own 09-security.md argues against. And it signs each tarball with provenance, so anyone
+      # can verify which workflow at which commit produced the binary they are running.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs a recent CLI; the one bundled with the Node image may predate it.
+      - run: npm install -g npm@12.2.2
+      - name: publish the launcher and the platform packages
+        run: bash scripts/publish-npm.sh "${{ github.ref_name }}"
+        env:
+          # Bootstrap only. Trusted publishing is configured per package on npmjs.com, which is
+          # awkward for names that do not exist yet — so the first release may need a granular
+          # token, scoped to these packages and given a short expiry. Configure the trusted
+          # publishers afterwards and delete it: an empty NODE_AUTH_TOKEN is the intended
+          # steady state, not a misconfiguration.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  pypi:
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ vars.PUBLISH_PYPI == 'true' }}
+    permissions:
+      id-token: write   # trusted publishing: no long-lived token to leak
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with: { python-version: "3.12" }
+      - name: build the wheels
+        run: bash scripts/build-wheels.sh "${{ github.ref_name }}"
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with: { packages-dir: packaging/pypi/dist }

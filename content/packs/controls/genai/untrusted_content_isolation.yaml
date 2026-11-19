@@ -1,0 +1,18 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.genai.untrusted_content_isolation"
+  type: "genai"
+  title: "Untrusted content is data, never instruction"
+  intent: "Concatenating retrieved or user content into the system prompt is the mechanism behind indirect prompt injection."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "not exists(agent.context.rag.enabled) or agent.context.rag.enabled == false or agent.context.rag.untrusted == true"
+    message: "RAG is enabled but retrieved content is not marked untrusted."
+  evidence: 
+    - "manifest_field"
+    - "eval_result"
+  remediation: "Keep retrieved content in a delimited block, outside the instruction section, and say in the prompt that instructions inside it are evidence of tampering."
+  standard_ref: "standards/02-prompt-and-context.md#controlaigenaiuntrusted_content_isolation"
+  references: 
+    - "OWASP LLM01"

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/eval.plan.schema.json",
+  "title": "agentarch evaluation plan",
+  "description": "What is measured, against which dataset, at which threshold, and what blocks a release. Evals are the only evidence that distinguishes a declared control from a working one.",
+  "type": "object",
+  "required": ["schema_version", "plan"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "plan": { "$ref": "#/$defs/plan" }
+  },
+
+  "$defs": {
+    "plan": {
+      "type": "object",
+      "required": ["agent_id", "datasets", "metrics"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": { "type": "string" },
+        "cadence": {
+          "enum": ["per_commit", "per_release", "nightly", "weekly"],
+          "description": "How often this runs. A plan that only runs when someone remembers is not a control."
+        },
+
+        "datasets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "path", "sha256", "cases"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "path": { "type": "string" },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "A result is only comparable to another result taken against the same cases. Without a hash, a quietly edited dataset makes a regression look like an improvement."
+              },
+              "cases": { "type": "integer", "minimum": 1 },
+              "kind": { "enum": ["golden", "red_team", "regression", "adversarial"] },
+              "source": { "type": "string" },
+              "contains_personal_data": { "type": "boolean", "default": false }
+            }
+          }
+        },
+
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/metric" }
+        },
+
+        "gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "block_on": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Metric names that block a release when their threshold is missed."
+            },
+            "max_result_age_days": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+
+    "metric": {
+      "type": "object",
+      "required": ["name", "kind", "threshold", "direction"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "kind": {
+          "enum": ["deterministic", "llm_judge", "human"],
+          "description": "How the number is produced. This is the field the judge-not-sole-blocker control reads."
+        },
+        "measures": {
+          "enum": [
+            "groundedness", "faithfulness", "context_recall", "context_precision",
+            "citation_accuracy", "answer_relevance",
+            "hallucination_rate", "pii_leakage", "jailbreak_success_rate",
+            "toxicity", "refusal_correctness", "format_conformance",
+            "task_success", "tool_selection_accuracy", "unauthorized_action_blocked",
+            "loop_rate", "human_intervention_rate", "steps_per_task", "cost_per_task"
+          ],
+          "description": "Closed vocabulary so results are comparable between projects. Different names for the same quantity make a standard's numbers meaningless."
+        },
+        "threshold": { "type": "number" },
+        "direction": {
+          "enum": ["min", "max"],
+          "description": "min: higher is better and the threshold is a floor. max: lower is better and it is a ceiling."
+        },
+        "dataset": { "type": "string" },
+
+        "judge": {
+          "type": "object",
+          "required": ["model", "prompt_path", "prompt_sha256"],
+          "additionalProperties": false,
+          "description": "Required when kind is llm_judge. A judge is a model with a prompt, so it is versioned like any other.",
+          "properties": {
+            "model": { "type": "string" },
+            "prompt_path": { "type": "string" },
+            "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "calibrated_against_human_labels": {
+              "type": "boolean",
+              "description": "Whether the judge's agreement with human labels has been measured. An uncalibrated judge produces a number, not a measurement."
+            },
+            "agreement": { "type": "number", "minimum": 0, "maximum": 1 },
+            "paired_with": {
+              "type": "string",
+              "description": "Name of the deterministic metric this judge accompanies. A judge that blocks alone produces failures nobody can reproduce, and a gate that fails irreproducibly is switched off within a week."
+            }
+          }
+        }
+      },
+
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "llm_judge" } }, "required": ["kind"] },
+          "then": { "required": ["judge"] }
+        }
+      ]
+    }
+  }
+}

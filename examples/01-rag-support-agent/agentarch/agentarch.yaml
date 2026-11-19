@@ -1,0 +1,20 @@
+# Written by `agentarch init`. Never overwritten by `agentarch upgrade`.
+schema_version: "1.0"
+installed_version: "0.1.0-dev"
+
+project:
+  name: rag-support-agent
+  default_profile: standard
+  lang: en
+
+# Which assistant instruction files to generate. These are outputs: never edit them by hand —
+# edit agentarch/std/core/ and run "agentarch sync". CI runs `sync --check`, so a hand edit
+# fails the pull request rather than drifting unnoticed.
+sync:
+  targets: [agents_md, claude, gemini, mcp_json]
+
+gates:
+  release:
+    profile: standard
+    fail_on: [blocker]
+    warn_on: [major]

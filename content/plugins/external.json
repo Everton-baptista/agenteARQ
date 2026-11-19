@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "id": "external",
+  "name": "AgenteARQ reference integration",
+  "version": "1.0.0",
+  "skills_path": "agentarch/integrations/external/skills",
+  "config_path": "agentarch/integrations/external/mcp.json",
+  "config_format": "json",
+  "capabilities": {"skills": true, "mcp_stdio": true, "global_tool_enforcement": false, "sandbox_enforcement": false},
+  "documentation": ["https://agentskills.io/specification", "https://modelcontextprotocol.io/specification"],
+  "notes": "Reference package only: import this configuration into a compatible client. It does not claim automatic discovery or ACP support."
+}

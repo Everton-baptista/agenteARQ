@@ -1,0 +1,84 @@
+schema_version: "1.0"
+pack:
+  id: sec.owasp-llm
+  version: 1.0.0
+  title: Security controls mapped to the OWASP Top 10 for LLM Applications
+  description: >-
+    Controls addressing the failure modes catalogued by OWASP for LLM applications, plus the
+    tool-layer defences those failure modes actually require. This pack maps the risks to
+    agentarch controls; it never reproduces OWASP's text, and the mapping is the part that ages
+    slowly enough to be worth maintaining.
+
+  authority_status: voluntary_standard
+  authority:
+    name: OWASP Top 10 for Large Language Model Applications
+    reference: OWASP Foundation
+    jurisdiction: ["*"]
+    url: https://owasp.org/www-project-top-10-for-large-language-model-applications/
+  reviewed_at: "2026-07-28"
+
+  applies_when:
+    system_type:
+      - generative_chat
+      - generative_rag
+      - agentic_task
+      - agentic_workflow
+      - multi_agent
+
+  requires:
+    # LLM01 Prompt injection. Screening is probabilistic and will be evaded, so it is a major;
+    # the structural defence is isolation, which blocks.
+    - control: control.ai.genai.untrusted_content_isolation
+      severity: blocker
+      required_evidence: [manifest_field, eval_result]
+
+    - control: control.ai.genai.input_guardrail
+      severity: major
+      required_evidence: [manifest_field, eval_result]
+      note: >-
+        Major, not blocker, and deliberately so. Injection detection is a probabilistic filter
+        whose job is to raise cost. Treating it as the defence is how teams end up with one.
+
+    # LLM02 Sensitive information disclosure.
+    - control: control.ai.genai.output_guardrail
+      severity: blocker
+      required_evidence: [manifest_field, eval_result]
+
+    - control: control.ai.agent.secrets_by_reference
+      severity: blocker
+      required_evidence: [tool_spec, scan_result]
+
+    - control: control.ai.privacy.capture_content_default_off
+      severity: major
+      required_evidence: [manifest_field]
+
+    # LLM06 Excessive agency. This is the cluster that actually bounds damage.
+    - control: control.ai.tool.least_privilege
+      severity: blocker
+      required_evidence: [tool_spec, test_result]
+
+    - control: control.ai.tool.exfiltration_guard
+      severity: blocker
+      required_evidence: [tool_spec, test_result]
+
+    - control: control.ai.tool.action_guardrail
+      severity: blocker
+      required_evidence: [manifest_field, test_result]
+
+    # LLM03 Supply chain.
+    - control: control.ai.supply.model_pinned
+      severity: blocker
+      required_evidence: [manifest_field]
+
+    - control: control.ai.mcp.allowlist_enforced
+      severity: blocker
+      required_evidence: [mcp_allowlist]
+
+    # LLM09 Misinformation, for retrieval-grounded systems.
+    - control: control.ai.rag.citation_required
+      severity: major
+      required_evidence: [manifest_field, eval_result]
+
+    - control: control.ai.rag.corpus_versioned
+      severity: major
+      required_evidence: [manifest_field]

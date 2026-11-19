@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.agent.fail_mode_declared"
+  type: "agent"
+  title: "All three guardrail points are declared"
+  intent: "An empty list records that a point was considered and nothing was chosen. A missing key is indistinguishable from never having thought about it."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "exists(agent.guardrails) and (len(agent.guardrails.input) >= 0) and (len(agent.guardrails.output) >= 0) and (len(agent.guardrails.action) >= 0)"
+    message: "One of guardrails.input, guardrails.output or guardrails.action is absent."
+  evidence: 
+    - "manifest_field"
+  remediation: "Declare all three keys. Use an empty list where you deliberately chose no check."
+  standard_ref: "standards/08-guardrails.md#controlaiagentfail_mode_declared"
+  references: 
+    - "OWASP LLM01"

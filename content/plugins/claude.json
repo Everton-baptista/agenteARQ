@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "id": "claude",
+  "name": "AgenteARQ for Claude Code",
+  "version": "1.0.0",
+  "skills_path": ".claude/skills",
+  "config_path": ".mcp.json",
+  "config_format": "json",
+  "capabilities": {"skills": true, "mcp_stdio": true, "global_tool_enforcement": false, "sandbox_enforcement": false},
+  "documentation": ["https://code.claude.com/docs/en/skills", "https://code.claude.com/docs/en/mcp"],
+  "notes": "Project MCP approval is performed in Claude Code. Installation does not auto-approve a server, tool call, or workspace."
+}

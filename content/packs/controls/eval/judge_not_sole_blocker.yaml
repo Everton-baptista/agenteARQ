@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.eval.judge_not_sole_blocker"
+  type: "eval"
+  title: "An LLM judge never blocks a release on its own"
+  intent: "A judge that drifts between releases produces failures nobody can reproduce, and a gate that fails irreproducibly is switched off within a week, taking the deterministic checks with it."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "not exists(evals.judge) or exists(evals.deterministic_metrics)"
+    message: "The eval plan blocks on an LLM judge with no paired deterministic metric."
+  evidence: 
+    - "eval_result"
+  remediation: "Pair every judge with a deterministic threshold, version the judge model and prompt, and calibrate against human labels."
+  standard_ref: "standards/11-evaluation.md#controlaievaljudge_not_sole_blocker"
+  references: 
+    - "NIST AI RMF MEASURE 2.3"

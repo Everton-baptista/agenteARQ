@@ -1,0 +1,43 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    # New golang.org/x/text releases require a go directive above the deliberate 1.22 floor,
+    # which TestGoDirectiveStaysAtTheFloor rejects. Remove this when the floor is raised.
+    ignore:
+      - dependency-name: golang.org/x/text
+  - package-ecosystem: pip
+    directories:
+      - /content/blueprints/*/app/none
+      - /content/blueprints/*/app/langgraph
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      blueprint-runtime:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      # Major SDK releases arrive once for every blueprint, not as one pull request per directory.
+      blueprint-major:
+        patterns: ["*"]
+        update-types: [major]

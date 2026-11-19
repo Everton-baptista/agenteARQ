@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/baseline.schema.json",
+  "title": "agentarch baseline",
+  "description": "The failures a project had when it adopted the standard. A ratchet, not an amnesty: entries are removed as they are fixed and never added on update, and the score counts them the whole time.",
+  "type": "object",
+  "required": ["schema_version", "created_at", "accepted"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "created_at": { "type": "string", "format": "date" },
+    "updated_at": { "type": "string", "format": "date" },
+    "profile": { "type": "string" },
+    "note": { "type": "string" },
+
+    "accepted": {
+      "type": "object",
+      "description": "Keyed by agent and control. A failure absent from here blocks, whatever its severity.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["agent", "control", "severity", "since"],
+        "additionalProperties": false,
+        "properties": {
+          "agent": { "type": "string" },
+          "control": { "type": "string" },
+          "severity": {
+            "enum": ["blocker", "major", "minor", "warn"],
+            "description": "The severity at adoption. A control that later became stricter is no longer covered — adopting a baseline must not grandfather a severity that did not exist yet."
+          },
+          "message": { "type": "string" },
+          "since": { "type": "string", "format": "date" }
+        }
+      }
+    }
+  }
+}

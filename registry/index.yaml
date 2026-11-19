@@ -1,0 +1,38 @@
+# The community registry.
+#
+# Packs, adapters and translations that are not maintained here. The point is that a team can
+# publish rules for their sector, their company or their jurisdiction without a merge to this
+# repository — and that the core is not held hostage to any framework's release cycle.
+#
+# Every entry carries an owner, a licence, a checksum and a review date. `agentarch pack add`
+# verifies the checksum before writing anything, and never executes content from a pack: a pack
+# is data, and the expression language exists so that stays true no matter who wrote it.
+#
+# Listing here is not endorsement. `trust` says what is actually known.
+
+schema_version: "1.0"
+
+trust_levels:
+  first_party: Maintained in this repository.
+  vendor_reviewed: Maintained elsewhere; a named person here has read the current contents.
+  community: Published by someone else. Nobody here has reviewed it. Read it yourself.
+
+entries: []
+# Example of the shape an entry takes. The registry ships empty rather than seeded with
+# plausible-looking placeholders, because a registry whose entries cannot be fetched teaches
+# people that the checksums do not matter.
+#
+#  - id: reg.uk-dpa
+#    kind: pack              # pack | adapter | translation
+#    title: UK Data Protection Act operational controls
+#    version: 1.0.0
+#    url: https://example.org/agentarch/reg.uk-dpa-1.0.0.tar.gz
+#    sha256: "…"             # verified before anything is written to disk
+#    signature: "…"          # optional cosign signature
+#    licence: CC-BY-4.0
+#    owner: someone@example.org
+#    trust: community
+#    reviewed_at: "2026-07-01"
+#    spec_version: "1.0"     # refused if the CLI does not implement this major
+#    authority_status: binding_law
+#    jurisdiction: [GB]

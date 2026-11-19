@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.privacy.capture_content_default_off"
+  type: "privacy"
+  title: "Telemetry does not capture prompt and response content by default"
+  intent: "Content capture turns an observability pipeline into a copy of everything users ever typed, in systems with different retention and access rules."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "not exists(agent.observability.otel) or agent.observability.otel.capture_content == false"
+    message: "Telemetry is configured to capture prompt and response content."
+  evidence: 
+    - "manifest_field"
+  remediation: "Set capture_content: false. Turn it on deliberately, for a bounded period, with a stated reason and a retention limit."
+  standard_ref: "standards/10-privacy.md#controlaiprivacycapture_content_default_off"
+  references: 
+    - "OWASP LLM02"

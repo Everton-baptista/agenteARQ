@@ -1,0 +1,7 @@
+# Language statistics on GitHub should describe AgenteARQ itself, not the starter projects and
+# fixtures it ships for users. These paths stay normal, reviewed source; only linguist ignores them.
+content/blueprints/** linguist-documentation
+content/skills/** linguist-documentation
+examples/** linguist-documentation
+verifiers/**/fixtures/** linguist-documentation
+internal/dashboard/assets/** linguist-generated

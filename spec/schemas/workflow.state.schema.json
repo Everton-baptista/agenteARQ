@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentarch.dev/spec/1.0/workflow.state.schema.json",
+  "title": "Local per-worktree workflow state",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "revision", "phase", "worktree", "completed_tasks", "checkpoints"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "revision": {"type": "integer", "minimum": 1},
+    "phase": {"enum": ["draft", "specified", "planned", "implementing", "verifying", "reviewing", "pr_ready", "released", "production_verified", "blocked", "cancelled"]},
+    "worktree": {"type": "string", "minLength": 1},
+    "completed_tasks": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "checkpoints": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/checkpoint"}},
+    "verification": {"$ref": "#/$defs/verification"},
+    "review": {"$ref": "#/$defs/review"},
+    "pr": {"$ref": "#/$defs/pr"},
+    "release": {"$ref": "#/$defs/release"},
+    "production_check": {"$ref": "#/$defs/production_check"}
+  },
+  "$defs": {
+    "fingerprint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["worktree", "git_dir", "head", "branch", "source_sha256", "profile"],
+      "properties": {
+        "worktree": {"type": "string"}, "git_dir": {"type": "string"},
+        "head": {"type": "string"}, "branch": {"type": "string"},
+        "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "profile": {"enum": ["universal", "typescript-web", "python-api", "go-service"]}
+      }
+    },
+    "checkpoint": {
+      "type": "object", "additionalProperties": false, "required": ["phase", "at"],
+      "properties": {"phase": {"type": "string"}, "task_id": {"type": "string"}, "note": {"type": "string"}, "at": {"type": "string"}}
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "subject", "status", "exit_code", "duration_ms"],
+      "properties": {
+        "agent_id": {"type": "string"}, "id": {"type": "string"}, "subject": {"enum": ["product", "executor", "application_agent"]},
+        "status": {"enum": ["passed", "failed", "inconclusive"]}, "message": {"type": "string"},
+        "exit_code": {"type": "integer"}, "duration_ms": {"type": "integer", "minimum": 0},
+        "output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "output_bytes": {"type": "integer", "minimum": 0},
+        "output_excerpt": {"type": "string", "maxLength": 16384},
+        "output_truncated": {"type": "boolean"}
+      }
+    },
+    "verification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fingerprint", "started_at", "finished_at", "isolation", "checks", "passed"],
+      "properties": {
+        "fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "started_at": {"type": "string"}, "finished_at": {"type": "string"},
+        "isolation": {"type": "string"}, "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}},
+        "passed": {"type": "boolean"},
+        "diagnostics_reason": {"type": "string", "minLength": 1, "maxLength": 500}
+      }
+    },
+    "review": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewer", "kind", "verdict", "summary", "fingerprint", "at"],
+      "properties": {
+        "reviewer": {"type": "string"}, "kind": {"enum": ["human", "independent_agent"]},
+        "verdict": {"enum": ["approved", "changes_requested"]}, "summary": {"type": "string"},
+        "fingerprint": {"$ref": "#/$defs/fingerprint"}, "at": {"type": "string"}
+      }
+    },
+    "pr": {
+      "type": "object", "additionalProperties": false, "required": ["url", "head", "at"],
+      "properties": {"url": {"type": "string", "pattern": "^https://"}, "head": {"type": "string"}, "at": {"type": "string"}}
+    },
+    "release": {
+      "description": "A deployment performed by a person or CI system; AgenteARQ never deploys.",
+      "type": "object", "additionalProperties": false, "required": ["url", "head", "environment", "source_sha256", "at"],
+      "properties": {"url": {"type": "string", "pattern": "^https://"}, "head": {"type": "string", "minLength": 1},
+        "environment": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,62}$"},
+        "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "at": {"type": "string"}}
+    },
+    "production_check": {
+      "description": "An attested post-deploy check; AgenteARQ cannot observe production itself.",
+      "type": "object", "additionalProperties": false, "required": ["url", "outcome", "attester", "summary", "head", "at"],
+      "properties": {"url": {"type": "string", "pattern": "^https://"}, "outcome": {"enum": ["passed", "failed"]},
+        "attester": {"type": "string", "minLength": 1, "maxLength": 120}, "summary": {"type": "string", "minLength": 12, "maxLength": 2000},
+        "head": {"type": "string", "minLength": 1}, "at": {"type": "string"}}
+    }
+  }
+}

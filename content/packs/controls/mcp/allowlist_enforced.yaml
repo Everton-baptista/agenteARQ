@@ -1,0 +1,18 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.mcp.allowlist_enforced"
+  type: "mcp"
+  title: "MCP servers are allowlisted with deny by default"
+  intent: "An MCP server contributes tool descriptions the model treats as authoritative; accepting them implicitly is accepting instructions from a third party."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "not exists(agent.mcp.servers_used) or len(agent.mcp.servers_used) == 0 or exists(agent.mcp.allowlist_ref)"
+    message: "MCP servers are used but no allowlist is referenced."
+  evidence: 
+    - "mcp_allowlist"
+  remediation: "Create agentarch/project/mcp/allowlist.yaml with default: deny, and enumerate servers with pinned versions."
+  standard_ref: "standards/04-mcp.md#controlaimcpallowlist_enforced"
+  references: 
+    - "OWASP LLM01"
+    - "OWASP LLM03"

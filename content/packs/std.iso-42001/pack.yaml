@@ -1,0 +1,41 @@
+schema_version: "1.0"
+pack:
+  id: std.iso-42001
+  version: 1.0.0
+  title: ISO/IEC 42001 — AI management system, engineering evidence
+  description: >-
+    ISO/IEC 42001 certifies a management system, not a repository. Nothing here is sufficient
+    for certification, and no tool can be. These are the artifact-level controls an auditor can
+    point at when asking how a stated policy is actually enforced.
+
+  authority_status: voluntary_standard
+  authority:
+    name: "ISO/IEC 42001:2023 — Information technology, AI management system"
+    reference: "ISO/IEC 42001:2023"
+    jurisdiction: ["*"]
+  reviewed_at: "2026-07-28"
+
+  requires:
+    - control: control.ai.agent.owner_defined
+      severity: blocker
+      required_evidence: [manifest_field]
+      note: Clause 5.3 — roles and responsibilities are assigned to people, not to teams.
+
+    - control: control.ai.lifecycle.revalidation_triggers
+      severity: major
+      required_evidence: [manifest_field]
+      note: Clause 8 — operational planning and control, and what forces a re-check.
+
+    - control: control.ai.privacy.retention_declared
+      severity: major
+      required_evidence: [manifest_field]
+
+    - control: control.ai.supply.aibom_generated
+      severity: major
+      required_evidence: [file_hash]
+      note: Clause 7.5 — documented information that is generated cannot silently go stale.
+
+    - control: control.ai.eval.plan_exists
+      severity: major
+      required_evidence: [eval_result]
+      note: Clause 9 — performance evaluation needs a plan that predates the numbers.

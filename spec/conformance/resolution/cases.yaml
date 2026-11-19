@@ -1,0 +1,372 @@
+# Conformance fixtures for pack resolution (spec/normative/03-resolution.md).
+#
+# These are for OTHER implementations, not only for the reference one. Resolution is the step
+# that turns a profile and a manifest into a set of controls with one severity each, and it is
+# the step where a second implementation can be wrong in a way nobody notices: everything still
+# runs, and the answer is quietly weaker.
+#
+# Each case declares `packs` and `controls` — a self-contained catalogue, so no fixture depends
+# on the content shipped with any implementation — plus the `agent` fields resolution reads, and
+# the `expect` block naming what must come out.
+#
+# Two things are deliberately NOT asserted here:
+#
+#   - the wording of any message. `03` §4 requires that an implementation can explain a
+#     resolution; it does not say how it phrases it.
+#   - the order of the resolved set. `03` §5 says order MUST NOT affect results, so pinning one
+#     would make an implementation that evaluates in parallel non-conforming for no reason.
+
+schema_version: "1.0"
+
+cases:
+  # ---- §1 selection is a union ------------------------------------------
+
+  - id: union-of-profile-and-manifest
+    about: >-
+      An agent may add obligations to its project's profile. Both packs contribute, and neither
+      list is the whole answer on its own.
+    catalogue:
+      controls:
+        - id: control.ai.agent.owner_defined
+        - id: control.ai.tool.least_privilege
+      packs:
+        - id: prof.base
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.agent.owner_defined, severity: blocker }
+        - id: org.extra
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: major }
+    profile_packs: [prof.base]
+    agent:
+      id: a
+      system_type: agentic_task
+      stage: pilot
+      policy: { packs: [org.extra] }
+    expect:
+      resolved:
+        control.ai.agent.owner_defined: blocker
+        control.ai.tool.least_privilege: major
+
+  - id: manifest-cannot-remove-a-profile-pack
+    about: >-
+      §1 — union, never override. A manifest that names a subset does not narrow the profile;
+      the supported way to accept a specific failure is a waiver, which has an owner and a date.
+    catalogue:
+      controls:
+        - id: control.ai.agent.owner_defined
+        - id: control.ai.tool.least_privilege
+      packs:
+        - id: prof.base
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.agent.owner_defined, severity: blocker }
+            - { control: control.ai.tool.least_privilege, severity: blocker }
+        - id: org.extra
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: minor }
+    profile_packs: [prof.base]
+    agent:
+      id: a
+      system_type: agentic_task
+      stage: pilot
+      policy: { packs: [org.extra] }
+    expect:
+      resolved:
+        control.ai.agent.owner_defined: blocker
+        control.ai.tool.least_privilege: blocker
+
+  - id: missing-pack-is-reported-and-resolution-continues
+    about: >-
+      §1 — a missing pack is a configuration problem. Refusing to evaluate anything because of
+      one hides the failures that were already there.
+    catalogue:
+      controls:
+        - id: control.ai.agent.owner_defined
+      packs:
+        - id: prof.base
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.agent.owner_defined, severity: blocker }
+    profile_packs: [prof.base, does.not.exist]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      missing: [does.not.exist]
+      resolved:
+        control.ai.agent.owner_defined: blocker
+
+  # ---- §2 applicability of a pack ---------------------------------------
+
+  - id: absent-applies-when-always-applies
+    catalogue:
+      controls:
+        - id: control.ai.agent.owner_defined
+      packs:
+        - id: p.always
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.agent.owner_defined, severity: major }
+    profile_packs: [p.always]
+    agent: { id: a, system_type: classifier, stage: prototype }
+    expect:
+      resolved:
+        control.ai.agent.owner_defined: major
+
+  - id: applies-when-system-type-excludes
+    catalogue:
+      controls:
+        - id: control.ai.rag.citation_required
+      packs:
+        - id: p.rag
+          version: "1.0.0"
+          authority_status: best_practice
+          applies_when: { system_type: [generative_rag] }
+          requires:
+            - { control: control.ai.rag.citation_required, severity: major }
+    profile_packs: [p.rag]
+    agent: { id: a, system_type: classifier, stage: pilot }
+    expect:
+      resolved: {}
+
+  - id: applies-when-every-condition-must-hold
+    about: §2 — conditions are conjunctive. Matching one is not matching the pack.
+    catalogue:
+      controls:
+        - id: control.ai.privacy.retention_declared
+      packs:
+        - id: p.both
+          version: "1.0.0"
+          authority_status: best_practice
+          applies_when:
+            system_type: [agentic_task]
+            stage: [production]
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: blocker }
+    profile_packs: [p.both]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      resolved: {}
+
+  - id: jurisdiction-matching-is-intersection
+    about: >-
+      §2 — an agent operating in the EU and Brazil picks up both regimes. This is what lets one
+      core serve teams in different countries.
+    catalogue:
+      controls:
+        - id: control.ai.privacy.retention_declared
+        - id: control.ai.privacy.capture_content_default_off
+      packs:
+        - id: reg.eu
+          version: "1.0.0"
+          authority_status: binding_law
+          applies_when: { jurisdictions: [EU] }
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: blocker }
+        - id: reg.br
+          version: "1.0.0"
+          authority_status: binding_law
+          applies_when: { jurisdictions: [BR] }
+          requires:
+            - { control: control.ai.privacy.capture_content_default_off, severity: major }
+    profile_packs: [reg.eu, reg.br]
+    agent:
+      id: a
+      system_type: agentic_task
+      stage: production
+      jurisdictions: [EU, BR]
+    expect:
+      resolved:
+        control.ai.privacy.retention_declared: blocker
+        control.ai.privacy.capture_content_default_off: major
+
+  - id: jurisdiction-not-shared-does-not-apply
+    about: >-
+      The other half of intersection. An implementation that imposed every regional pack on
+      everyone would make the standard un-adoptable outside one jurisdiction.
+    catalogue:
+      controls:
+        - id: control.ai.privacy.retention_declared
+      packs:
+        - id: reg.eu
+          version: "1.0.0"
+          authority_status: binding_law
+          applies_when: { jurisdictions: [EU] }
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: blocker }
+    profile_packs: [reg.eu]
+    agent:
+      id: a
+      system_type: agentic_task
+      stage: production
+      jurisdictions: [US]
+    expect:
+      resolved: {}
+
+  # ---- §3 merging severities --------------------------------------------
+
+  - id: highest-severity-wins
+    about: >-
+      §3.1 — resolving downward would let an organisation pack quietly weaken a security pack it
+      imported, which is a supply-chain problem wearing a configuration hat.
+    catalogue:
+      controls:
+        - id: control.ai.tool.least_privilege
+      packs:
+        - id: p.low
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: minor }
+        - id: p.high
+          version: "1.0.0"
+          authority_status: voluntary_standard
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: blocker }
+    profile_packs: [p.low, p.high]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      resolved:
+        control.ai.tool.least_privilege: blocker
+
+  - id: highest-severity-wins-regardless-of-pack-order
+    about: >-
+      The same catalogue with the packs listed the other way round. §5 — order MUST NOT affect
+      results.
+    catalogue:
+      controls:
+        - id: control.ai.tool.least_privilege
+      packs:
+        - id: p.low
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: minor }
+        - id: p.high
+          version: "1.0.0"
+          authority_status: voluntary_standard
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: blocker }
+    profile_packs: [p.high, p.low]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      resolved:
+        control.ai.tool.least_privilege: blocker
+
+  - id: grace-period-downgrades-to-warn
+    about: >-
+      §3.2 — enforced_from above the pack's own version means the requirement is evaluated at
+      warn. No control is born blocking.
+    catalogue:
+      controls:
+        - id: control.ai.genai.prompt_versioned
+      packs:
+        - id: p.new
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - control: control.ai.genai.prompt_versioned
+              severity: blocker
+              enforced_from: "1.1.0"
+    profile_packs: [p.new]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      resolved:
+        control.ai.genai.prompt_versioned: warn
+
+  - id: grace-period-ends-at-the-declared-version
+    catalogue:
+      controls:
+        - id: control.ai.genai.prompt_versioned
+      packs:
+        - id: p.new
+          version: "1.1.0"
+          authority_status: best_practice
+          requires:
+            - control: control.ai.genai.prompt_versioned
+              severity: blocker
+              enforced_from: "1.1.0"
+    profile_packs: [p.new]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      resolved:
+        control.ai.genai.prompt_versioned: blocker
+
+  - id: grace-period-applies-before-the-highest-severity-rule
+    about: >-
+      §3.2 — the downgrade happens BEFORE step 1, so a warn-mode blocker does not win the merge
+      against a live major. Applying the rules the other way round makes a control block on the
+      day it ships, which is the thing the grace period exists to prevent.
+    catalogue:
+      controls:
+        - id: control.ai.tool.least_privilege
+      packs:
+        - id: p.grace
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - control: control.ai.tool.least_privilege
+              severity: blocker
+              enforced_from: "1.1.0"
+        - id: p.live
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.tool.least_privilege, severity: major }
+    profile_packs: [p.grace, p.live]
+    agent: { id: a, system_type: agentic_task, stage: pilot }
+    expect:
+      resolved:
+        control.ai.tool.least_privilege: major
+
+  - id: binding-law-is-a-floor
+    about: >-
+      §3.3 — a control required by a binding_law pack MUST NOT resolve below the severity that
+      pack declared, whatever another pack says.
+    catalogue:
+      controls:
+        - id: control.ai.privacy.retention_declared
+      packs:
+        - id: reg.law
+          version: "1.0.0"
+          authority_status: binding_law
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: blocker }
+        - id: org.softer
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: minor }
+    profile_packs: [reg.law, org.softer]
+    agent: { id: a, system_type: agentic_task, stage: production }
+    expect:
+      resolved:
+        control.ai.privacy.retention_declared: blocker
+
+  - id: binding-law-floor-holds-when-listed-last
+    catalogue:
+      controls:
+        - id: control.ai.privacy.retention_declared
+      packs:
+        - id: org.softer
+          version: "1.0.0"
+          authority_status: best_practice
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: minor }
+        - id: reg.law
+          version: "1.0.0"
+          authority_status: binding_law
+          requires:
+            - { control: control.ai.privacy.retention_declared, severity: blocker }
+    profile_packs: [org.softer, reg.law]
+    agent: { id: a, system_type: agentic_task, stage: production }
+    expect:
+      resolved:
+        control.ai.privacy.retention_declared: blocker

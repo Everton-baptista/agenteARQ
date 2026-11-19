@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "id": "gemini",
+  "name": "AgenteARQ for Gemini CLI",
+  "version": "1.0.0",
+  "skills_path": ".gemini/skills",
+  "config_path": ".gemini/settings.json",
+  "config_format": "json",
+  "capabilities": {"skills": true, "mcp_stdio": true, "global_tool_enforcement": false, "sandbox_enforcement": false},
+  "documentation": ["https://geminicli.com/docs/cli/skills/", "https://geminicli.com/docs/tools/mcp-server/"],
+  "notes": "Workspace skills require host trust. Native tool inclusion is scoped to the AgenteARQ server; other tools retain the host's policy."
+}

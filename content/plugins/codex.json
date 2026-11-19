@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "id": "codex",
+  "name": "AgenteARQ for Codex",
+  "version": "1.0.0",
+  "skills_path": ".agents/skills",
+  "config_path": ".codex/config.toml",
+  "config_format": "toml",
+  "capabilities": {"skills": true, "mcp_stdio": true, "global_tool_enforcement": false, "sandbox_enforcement": false},
+  "documentation": ["https://developers.openai.com/codex/skills/", "https://developers.openai.com/codex/mcp/"],
+  "notes": "Project configuration remains subject to Codex workspace trust and host policy. This integration does not change approval or sandbox settings."
+}

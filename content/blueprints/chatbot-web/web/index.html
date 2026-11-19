@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support chat</title>
+  <link rel="stylesheet" href="/web/chat.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <h1>Support chat</h1>
+      <!--
+        The demo stand-in for your SSO. The token lives only in this tab's sessionStorage and is
+        sent as a Bearer header to OUR OWN /v1 API — the page holds no provider credential of any
+        kind, because the browser never talks to the model provider. Try `demo-token-acme`.
+      -->
+      <form id="token-form" class="token-form" hidden>
+        <input id="token-input" type="password" autocomplete="off"
+               placeholder="access token (demo: demo-token-acme)" required>
+        <button type="submit">Connect</button>
+      </form>
+      <span id="session-label" class="session-label" hidden></span>
+    </header>
+
+    <ol id="messages" class="messages" aria-live="polite"></ol>
+
+    <form id="ask-form" class="ask-form" hidden>
+      <input id="question-input" type="text" autocomplete="off" maxlength="4000"
+             placeholder="Ask a question, e.g. how much does the Pro plan cost?" required>
+      <button type="submit" id="send-button">Send</button>
+    </form>
+
+    <footer class="statusline">
+      <span id="status-text"></span>
+      <span id="cost-text" class="cost"></span>
+    </footer>
+  </main>
+
+  <template id="approval-template">
+    <section class="approval-card">
+      <h2>Approval required</h2>
+      <p class="approval-why">The agent wants to run an action that cannot be undone.</p>
+      <dl class="approval-detail"></dl>
+      <p class="approval-timeout"></p>
+      <div class="approval-actions">
+        <button type="button" data-decision="approve" class="approve">Approve</button>
+        <button type="button" data-decision="deny" class="deny">Deny</button>
+      </div>
+    </section>
+  </template>
+
+  <script src="/web/chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.obs.slo_declared"
+  type: "obs"
+  title: "The agent declares its service objectives"
+  intent: "Without a target, degradation is only noticed when someone complains."
+  status: "stable"
+  check:
+    kind: "static_manifest"
+    expr: "exists(agent.observability.slo)"
+    message: "No SLO is declared."
+  evidence:
+    - "manifest_field"
+  remediation: "Declare availability, latency p95 and task success rate. Task success is the one that catches a working system giving worse answers."
+  standard_ref: "standards/13-resilience-and-cost.md#controlaiobsslo_declared"
+  references:
+    - "NIST AI RMF MEASURE 2.1"

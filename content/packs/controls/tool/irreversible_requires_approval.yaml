@@ -1,0 +1,28 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.tool.irreversible_requires_approval"
+  type: "tool"
+  title: "Nothing irreversible runs unapproved above L1"
+  intent: "Above L1 the agent acts alone, so a capability that cannot be undone becomes a capability to cause permanent harm with no review anywhere in the path."
+  status: "stable"
+  applies_to:
+    autonomy_min: "L2_act_reversible"
+  check:
+    kind: "static_manifest"
+    # Deliberately an agent-level check rather than a tool-level one. The tool schema already
+    # requires an irreversible tool to declare an approval policy, so re-checking that here
+    # would be a control that can never fail on a schema-valid project — dead weight that
+    # makes the catalogue look stronger than it is.
+    #
+    # What the schema cannot see is the composition: this agent, at this autonomy level,
+    # wiring that tool up with approval set to none.
+    expr: 'all(not (tools[].tool.effect in ["irreversible", "money", "communication"]) or tools[].approval in ["human", "policy"])'
+    message: "An irreversible, money or communication tool is wired up with approval: none while autonomy is L2 or above."
+  evidence:
+    - "manifest_field"
+    - "tool_spec"
+  remediation: "Set that tool's approval to human or policy in the agent manifest, lower the agent's autonomy, or narrow the tool so it writes to a queue a person drains."
+  standard_ref: "standards/03-tools.md#controlaitoolirreversible_requires_approval"
+  references:
+    - "OWASP LLM06"
+    - "NIST AI RMF MANAGE 2.3"

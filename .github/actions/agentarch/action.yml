@@ -1,0 +1,77 @@
+name: agentarch
+description: Validate agent artifacts and run the release gate
+author: Everton Baptista
+
+# This exists so that no project has to know the CLI is written in Go. A team using TypeScript
+# or .NET adds four lines to a workflow; the language is an implementation detail of ours, not
+# a dependency of theirs.
+
+inputs:
+  command:
+    description: 'Command and flags, e.g. "check --profile standard"'
+    required: true
+  version:
+    description: Release to use, or "latest"
+    required: false
+    default: latest
+  working-directory:
+    description: Project root
+    required: false
+    default: "."
+
+outputs:
+  exit-code:
+    description: The exit code, per spec/normative/06-exit-codes.md
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: install agentarch
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="${{ inputs.version }}"
+        if [ "$version" = "latest" ]; then
+          version=$(curl -fsSL https://api.github.com/repos/Everton-baptista/agenteARQ/releases/latest \
+                    | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+        fi
+        os=$(uname -s | tr '[:upper:]' '[:lower:]')
+        arch=$(uname -m); [ "$arch" = "x86_64" ] && arch=amd64; [ "$arch" = "aarch64" ] && arch=arm64
+
+        base="https://github.com/Everton-baptista/agenteARQ/releases/download/${version}"
+        archive="agentarch_${version#v}_${os}_${arch}.tar.gz"
+
+        curl -fsSL -o /tmp/agentarch.tgz "${base}/${archive}"
+        curl -fsSL -o /tmp/checksums.txt "${base}/checksums.txt"
+
+        # Verify before extracting. A checksum checked afterwards is a checksum checked after
+        # the damage.
+        ( cd /tmp && grep " ${archive}\$" checksums.txt | sha256sum -c - )
+
+        tar -xzf /tmp/agentarch.tgz -C /tmp agentarch
+        install -m 0755 /tmp/agentarch /usr/local/bin/agentarch
+        agentarch version
+
+    - name: run
+      id: run
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set +e
+        agentarch ${{ inputs.command }}
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+        # Distinct codes exist so a workflow can route them. Naming them here means the log
+        # says what happened rather than leaving the reader to look the number up.
+        case $code in
+          0) echo "::notice::agentarch passed" ;;
+          2) echo "::error::structural validation failed (exit 2)" ;;
+          3) echo "::error::generated files are out of date — run 'agentarch sync' (exit 3)" ;;
+          4) echo "::error::a blocker-severity control failed (exit 4)" ;;
+          5) echo "::error::a waiver is invalid or has expired (exit 5)" ;;
+          6) echo "::warning::a revalidation trigger fired without revalidation (exit 6)" ;;
+        esac
+        exit $code

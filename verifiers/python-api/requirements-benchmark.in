@@ -1,0 +1,8 @@
+# Benchmark v2 tools. Resolve with hashes for Linux aarch64 / CPython 3.12.
+ruff==0.17.5
+mypy==2.4.1
+pytest==9.1.1
+bandit==1.9.4
+playwright==1.65.1
+PyYAML==6.0.3
+types-PyYAML==6.0.12.20261113

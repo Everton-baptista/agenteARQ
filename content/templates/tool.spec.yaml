@@ -1,0 +1,72 @@
+# Tool contract. Permissions live here, in an artifact, rather than only in code — code cannot
+# be reviewed in a diff, checked by the gate, or reasoned about by someone who does not read
+# that language.
+#
+# Written by `agentarch new tool <id>`.
+
+schema_version: "1.0"
+tool:
+  id: {{ID}}
+
+  # What the model sees. This is part of the attack surface: never build it by interpolating
+  # anything untrusted.
+  description_for_model: TODO
+  description_for_humans: TODO
+
+  input_schema:
+    type: object
+    required: []
+    additionalProperties: false
+    properties: {}
+
+  # Classify this BEFORE writing the implementation. It determines approval, guardrails and
+  # blast radius.
+  #
+  #   read           returns data, changes nothing
+  #   write          changes state, can be undone
+  #   irreversible   cannot be undone
+  #   money          moves value
+  #   communication  reaches a third party — irreversible in the way that matters, because the
+  #                  recipient has already read it
+  effect: read
+
+  idempotency:
+    idempotent: true
+    # Required when idempotent is false. Agents retry on timeout, and a non-idempotent tool
+    # without a key turns one intended action into three.
+    # key_field: request_id
+
+  permissions:
+    scopes: []
+    data_access: []             # the narrowest set of tables or fields that works
+    network:
+      # Assume this tool will be called with attacker-chosen arguments. The only useful question
+      # is what is reachable from here.
+      deny_by_default: true
+      egress: []                # explicit hostnames; a wildcard answers "anything"
+    filesystem:
+      read: []
+      write: []
+    secrets: []                 # NAMES only, e.g. ORDERS_API_TOKEN. Never a value.
+    sandbox: subprocess         # container | subprocess | none
+
+  limits:
+    timeout_ms: 4000            # comfortably below the agent's latency_p95_ms budget
+    max_retries: 2
+    rate_limit_rpm: 60
+    # domain_limits:            # business bounds keep a successful injection cheap
+    #   max_amount: 500
+
+  # Required for effect irreversible, money or communication.
+  # approval:
+  #   required_when: "always"   # or an expression over the input
+  #   approver_role: TODO
+  #   timeout_s: 900
+  #   on_timeout: deny          # never allow — an unanswered request is not consent
+
+  failure:
+    on_timeout: fail_warn
+    on_error: fail_warn
+
+  owner: TODO
+  tests: []

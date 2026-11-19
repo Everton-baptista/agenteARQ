@@ -1,0 +1,18 @@
+schema_version: "1.0"
+control:
+  id: "control.ai.genai.prompt_versioned"
+  type: "genai"
+  title: "The system prompt is versioned and hashed"
+  intent: "Editing a prompt without a version bump is an invisible behaviour change that silently invalidates every eval taken before it."
+  status: "stable"
+  check: 
+    kind: "static_manifest"
+    expr: "exists(agent.prompts.system.version) and exists(agent.prompts.system.sha256)"
+    message: "The system prompt has no version or no recorded hash."
+  evidence: 
+    - "manifest_field"
+    - "file_hash"
+  remediation: "Record a semver and the file's sha256. AA-REF-004 verifies the hash still matches on every run of validate."
+  standard_ref: "standards/02-prompt-and-context.md#controlaigenaiprompt_versioned"
+  references: 
+    - "NIST AI RMF MANAGE 4.1"
