@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	agentarch "github.com/Everton-baptista/agenteARQ"
 	"github.com/Everton-baptista/agenteARQ/internal/application"
 	"github.com/Everton-baptista/agenteARQ/internal/dashboard"
 	"github.com/Everton-baptista/agenteARQ/internal/mcpserver"
@@ -23,11 +24,11 @@ import (
 
 func cmdWorkflow(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format json]")
+		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format json]")
 		return exitUsage
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
+		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
 		return exitOK
 	}
 	command := args[0]
@@ -57,6 +58,8 @@ func cmdWorkflow(args []string) int {
 	environment := f.String("environment", "", "record-release: target environment id, such as production")
 	outcome := f.String("outcome", "", "record-production-check: passed or failed")
 	attester := f.String("attester", "", "record-production-check: who checked production")
+	base := f.String("base", "", "prepare-verifier: base image pinned by @sha256 digest (default: the profile's reviewed base, when it has one)")
+	engine := f.String("engine", "", "prepare-verifier: docker or podman (default: podman if installed, else docker)")
 	common := []string{"root", "format"}
 	allowed := map[string][]string{
 		"init":                    {"name", "profile", "goal", "author", "has-ai", "executors", "application-agents"},
@@ -64,6 +67,7 @@ func cmdWorkflow(args []string) int {
 		"next":                    {},
 		"checkpoint":              {"phase", "task", "note", "expected-revision"},
 		"verify":                  {"image", "expected-revision", "diagnostics-reason"},
+		"prepare-verifier":        {"base", "engine"},
 		"review":                  {"reviewer", "kind", "verdict", "summary", "expected-revision"},
 		"record-pr":               {"url", "head", "expected-revision"},
 		"record-release":          {"url", "head", "environment", "expected-revision"},
@@ -143,6 +147,19 @@ func cmdWorkflow(args []string) int {
 			*profile = chosen
 		}
 		result, err = s.Init(workflow.InitOptions{Name: *name, Profile: *profile, Goal: *goal, Author: *author, HasAI: *ai, ExecutorIDs: csv(*executors), ApplicationAgentIDs: csv(*appAgents)})
+	case "prepare-verifier":
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		var rec workflow.VerifierRecord
+		rec, err = s.PrepareVerifier(ctx, workflow.PrepareOptions{Recipes: agentarch.Verifiers, Base: *base, Engine: *engine, Out: os.Stderr})
+		if err == nil {
+			if *format == "json" {
+				result = rec
+			} else {
+				fmt.Printf("verifier ready for %s: %s\nbuilt from %s; `agentarch workflow verify` now uses it. Rebuild within 14 days to refresh the vulnerability database.\n", rec.Profile, rec.Image, rec.Base)
+				return exitOK
+			}
+		}
 	case "next":
 		result, err = s.Next()
 	case "checkpoint":

@@ -32,8 +32,8 @@ func (r *ContainerRunner) Run(ctx context.Context, root string, c Command) Check
 		result.Message = err.Error()
 		return result
 	}
-	if !imageDigest.MatchString(r.Image) {
-		result.Message = "Configure an installed OCI verifier image pinned by @sha256 digest; local execution is disabled."
+	if !imageDigest.MatchString(r.Image) && !localImageID.MatchString(r.Image) {
+		result.Message = "No verifier image: run `agentarch workflow prepare-verifier` to build one for this profile, or pass --image with an installed image pinned by @sha256 digest. Local execution is disabled."
 		return result
 	}
 	runtime := ""

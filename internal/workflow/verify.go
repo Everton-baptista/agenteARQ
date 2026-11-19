@@ -146,7 +146,14 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	}
 	runner := o.Runner
 	if runner == nil {
-		runner = &ContainerRunner{Image: o.Image, DiagnosticsReason: o.DiagnosticsReason}
+		image := o.Image
+		// The image prepared for this worktree, when it was built for the profile in use.
+		if image == "" {
+			if r, err := s.LoadVerifier(); err == nil && r.Profile == p.Profile {
+				image = r.Image
+			}
+		}
+		runner = &ContainerRunner{Image: image, DiagnosticsReason: o.DiagnosticsReason}
 	}
 	v := &Verification{Fingerprint: fp, StartedAt: now(), Isolation: runner.Isolation(), Checks: []CheckResult{}, DiagnosticsReason: strings.TrimSpace(o.DiagnosticsReason)}
 	// A single bounded verification run. Hosts cannot use this endpoint to start a model.
