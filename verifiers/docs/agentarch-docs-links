@@ -1,0 +1,4 @@
+#!/bin/sh
+# docs profile, check `links`: every relative link and image path in Markdown resolves to a file
+# or directory in the project. External URLs are not fetched. See agentarch-links.js.
+exec node /opt/agentarch-content/agentarch-links.js markdown

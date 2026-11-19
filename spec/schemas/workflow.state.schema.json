@@ -25,7 +25,7 @@
         "worktree": {"type": "string"}, "git_dir": {"type": "string"},
         "head": {"type": "string"}, "branch": {"type": "string"},
         "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-        "profile": {"enum": ["universal", "typescript-web", "python-api", "go-service"]}
+        "profile": {"enum": ["universal", "typescript-web", "python-api", "go-service", "static-site", "docs"]}
       }
     },
     "checkpoint": {

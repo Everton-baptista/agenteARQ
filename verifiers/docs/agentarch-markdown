@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+// docs profile, check `markdown`: markdownlint over every *.md file in /workspace, with the rule
+// engine pinned by markdownlint-cli2 and the image's configuration
+// (/opt/agentarch-docs/markdownlint.json).
+//
+// The markdownlint-cli2 command line is not used on purpose: it merges every .markdownlint*
+// and .markdownlint-cli2.* file it finds in the project over --config, and can load custom rules
+// and plugins (code) from them. The engine is called directly instead, so nothing in the project
+// is read as configuration, and inline `<!-- markdownlint-disable -->` comments are not applied.
+// No Markdown at all fails: there is nothing to verify.
+//
+// Exit codes for the AgenteARQ runner: 0 clean, 1 findings or no Markdown (failed), 125 inconclusive.
+'use strict';
+const fs = require('fs');
+const { createRequire } = require('module');
+const { pathToFileURL } = require('url');
+const { walk, run } = require('/opt/agentarch-content/agentarch-links.js');
+
+const TOOLS = '/opt/agentarch-docs';
+
+run('markdown', async () => {
+  const files = walk('.', (f) => /\.(md|markdown)$/i.test(f));
+  if (files.length === 0) {
+    console.log('markdown: no Markdown (.md) files found; a documentation project needs at least one, so this cannot pass');
+    return 1;
+  }
+  const engine = createRequire(`${TOOLS}/package.json`).resolve('markdownlint-cli2/markdownlint/promise');
+  const { lint } = await import(pathToFileURL(engine).href);
+  const config = JSON.parse(fs.readFileSync(`${TOOLS}/markdownlint.json`, 'utf8'));
+  const results = await lint({ files, config, noInlineConfig: true, handleRuleFailures: true });
+  let errors = 0;
+  for (const file of files) {
+    for (const r of results[file] || []) {
+      errors++;
+      const detail = r.errorDetail ? ` [${r.errorDetail}]` : '';
+      const context = r.errorContext ? ` [Context: "${r.errorContext}"]` : '';
+      console.log(`${file}:${r.lineNumber}: ${r.ruleNames.join('/')} ${r.ruleDescription}${detail}${context}`);
+    }
+  }
+  const scope = `${files.length} Markdown file${files.length === 1 ? '' : 's'}`;
+  if (errors) {
+    console.log(`markdown: ${errors} finding(s) in ${scope}`);
+    return 1;
+  }
+  console.log(`markdown: ${scope} clean`);
+  return 0;
+});

@@ -9,6 +9,8 @@ pulls an image, or falls back to running on the host. These recipes prepare that
 | `typescript-web` | [`verifiers/typescript-web/Dockerfile`](../verifiers/typescript-web/Dockerfile) | `package.json`, `package-lock.json` |
 | `python-api` | [`verifiers/python-api/Dockerfile`](../verifiers/python-api/Dockerfile) | `requirements-verifier.lock` |
 | `go-service` | [`verifiers/go-service/Dockerfile`](../verifiers/go-service/Dockerfile) | `go.mod`, `go.sum` |
+| `static-site` | [`verifiers/static-site/Dockerfile`](../verifiers/static-site/Dockerfile) | none from the project; tooling pinned in `verifiers/static-site/package-lock.json` |
+| `docs` | [`verifiers/docs/Dockerfile`](../verifiers/docs/Dockerfile) | none from the project; tooling pinned in `verifiers/docs/package-lock.json` |
 | `universal` | [`verifiers/universal/Dockerfile`](../verifiers/universal/Dockerfile) | none; the base supplies the project's toolchain |
 
 Every recipe installs the **security floor** from [`verifiers/floor/`](../verifiers/floor/):
@@ -160,6 +162,58 @@ External databases and API services are unreachable; a test can start local proc
 its own container and command. `pip check` checks dependency consistency, not vulnerability data; the floor's
 `dependency-audit` checks vulnerability data.
 
+## Static site and docs
+
+These two profiles check content, not an application build, so their images carry only
+AgenteARQ's own pinned tooling. `build.sh` copies `package.json`, `package-lock.json`, the fixed
+configuration and the wrappers from `verifiers/<profile>/`, plus the shared link checker
+[`verifiers/content/agentarch-links.js`](../verifiers/content/agentarch-links.js) (Node, no
+dependencies); it reads nothing from the project directory. Use a Node base such as
+`node:<version>-bookworm-slim`, pinned by digest; it needs `node`, `npm`, `/bin/sh`, `tar` and
+`grep`, and the floor downloads through `node` when curl and wget are absent.
+
+```sh
+# Run from this AgenteARQ checkout. The project argument is required but not read.
+: "${BASE_IMAGE:?Set a reviewed Node repository@sha256:digest}"
+: "${VERIFIER_TAG:?Set the output image tag you own}"
+sh verifiers/build.sh static-site . "$BASE_IMAGE" "$VERIFIER_TAG"   # or: docs
+```
+
+| Profile | Check | Program | Tool and fixed configuration |
+|---|---|---|---|
+| `static-site` | `html` | `agentarch-html` | html-validate 11.18.0, presets `standard` and `a11y`, plus `missing-doctype` and `no-missing-references` ([`htmlvalidate.json`](../verifiers/static-site/htmlvalidate.json)) |
+| `static-site` | `lint` | `agentarch-js-lint` | ESLint 10.15.0 with `@eslint/js` 10.0.1 recommended rules and `globals` 17.14.0 browser globals ([`eslint.config.mjs`](../verifiers/static-site/eslint.config.mjs)) |
+| `static-site` | `links` | `agentarch-site-links` | `agentarch-links.js html` |
+| `docs` | `markdown` | `agentarch-markdown` | markdownlint 0.42.1 as pinned by markdownlint-cli2 0.24.1; line length and purely stylistic rules off, structural rules on ([`markdownlint.json`](../verifiers/docs/markdownlint.json)) |
+| `docs` | `links` | `agentarch-docs-links` | `agentarch-links.js markdown` |
+
+The wrappers load only the image's configuration. html-validate runs through a static config
+loader, ESLint through an override config file with no lookup, and markdownlint through its rule
+engine rather than the markdownlint-cli2 command line, which would merge the project's
+`.markdownlint*` and `.markdownlint-cli2.*` files over `--config` and can load custom rules (code)
+from them. Inline comments that switch a rule off (`[html-validate-disable-*]`, `eslint-disable*`,
+`/* eslint rule: off */`, `markdownlint-disable`) are not applied; `/* global name */` still
+declares what classic scripts share. ESLint treats `*.mjs` as modules and `*.js` as classic
+scripts, unless the file contains `import`/`export` statements or a page loads it with
+`<script type="module">`. Classic scripts report only unused local variables, since their
+top-level functions may be called from other scripts or `onclick=""`.
+
+`links` never fetches a URL: anything with a scheme (`https:`, `mailto:`, `data:` ...), `//host`
+references, fragment-only links and template placeholders are skipped, and `#fragment` and
+`?query` parts are dropped before resolving. A root-relative path (`/a/b`) resolves against the
+project root, a path that leaves the project is broken, and in HTML a directory link needs an
+`index.html`. Markdown inside fenced code blocks, inline code and HTML comments is not read.
+No `.html` file (static site) or no `.md` file (docs) fails both content checks.
+
+Each profile has fixtures in `verifiers/<profile>/fixtures/` (`pass` and `fail-*`).
+`scripts/test-content-profiles-live.sh` commits each to a throwaway repository and verifies it
+with the real image:
+
+```sh
+PROFILE=static-site IMAGE="$VERIFIER_IMAGE" AGENTARCH_BIN=/path/to/agentarch \
+  bash scripts/test-content-profiles-live.sh
+```
+
 ## Install the final digest, then verify
 
 The helper builds a local tag without publishing it. Inspect the resulting local image first:
@@ -225,7 +279,7 @@ agentarch verify-profile --root "$PRODUCT" --profile typescript-web \
 # Use --profile python-api for the Python checks listed above.
 ```
 
-`PRODUCT` must be a Git worktree root. `verify-profile` accepts `typescript-web` or `python-api`;
+`PRODUCT` must be a Git worktree root. `verify-profile` accepts any built-in profile except `universal`;
 it needs no product manifest, tasks, skills, or workflow state and does not create them. It
 returns the source fingerprint and check results on stdout. Save JSON outside the measured
 worktree to avoid changing its source fingerprint during verification. A source change during

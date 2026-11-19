@@ -1,0 +1,9 @@
+{
+  "name": "agentarch-docs-verifier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned tooling for the docs verifier image; never an application dependency manifest.",
+  "devDependencies": {
+    "markdownlint-cli2": "0.24.1"
+  }
+}

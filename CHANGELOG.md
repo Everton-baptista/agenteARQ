@@ -22,6 +22,23 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## Unreleased
+
+`cli` — two engineering profiles for projects that are not agents or typed web apps.
+
+- New `static-site` profile for HTML, CSS and JavaScript with no build step: `html`
+  (html-validate 11.18.0), `lint` (ESLint 10.15.0, recommended rules, browser globals) and `links`
+  (relative `href`/`src` in HTML and `url()` in CSS resolve), plus the floor. New `docs` profile
+  for Markdown repositories: `markdown` (markdownlint-cli2 0.24.1) and `links`, plus the floor.
+- Each check is a fixed wrapper in its image with the image's configuration; config files and
+  inline disable comments in the project are not applied. External URLs are never fetched. A
+  project with no `.html` (or no `.md`) file fails instead of passing with nothing to check.
+- New `verifiers/static-site/` and `verifiers/docs/` recipes with exact-pinned lockfiles and
+  pass/fail fixtures, a shared dependency-free link checker in `verifiers/content/`, and
+  `scripts/test-content-profiles-live.sh`, run in CI against both images.
+- The floor installer's Node download fallback, used by bases without curl or wget, now streams
+  to disk and retries a dropped connection three times, as the curl path already did.
+
 ## v0.5.0 — 2026-11-18
 
 `cli` — the repository's history was consolidated into a single commit; this is the first release
