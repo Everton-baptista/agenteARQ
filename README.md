@@ -49,7 +49,8 @@ closed until the evidence exists.
 **1. Install the CLI** — pick one:
 
 ```bash
-# Signed release binary (needs curl, tar and cosign; the installer refuses an unverified download)
+# Signed release binary, no Go or sudo needed (curl and tar; the installer verifies the
+# signature and checksum, fetching a pinned cosign if you have none, and refuses anything unverified)
 curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.5.0/scripts/install.sh | sh
 
 # With Go 1.22+

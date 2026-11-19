@@ -120,7 +120,16 @@ reset_fixture; cat "$fixture/checksums.txt" > "$test_root/checksum-copy"; cat "$
 reset_fixture; printf '%s\n' malformed > "$fixture/checksums.txt"; failed_install 'missing archive checksum'
 reset_fixture; version='v1.2.3/../../other'; failed_install 'unsafe version'
 reset_fixture; version=$(printf 'v1.2.3\nv1.2.4'); failed_install 'multiline version'
-reset_fixture; mv "$mockbin/cosign" "$test_root/cosign"; failed_install 'missing cosign'; mv "$test_root/cosign" "$mockbin/cosign"
+# Without cosign on PATH the installer fetches a pinned one; anything but the pinned build is refused
+# before a single release asset is downloaded.
+mv "$mockbin/cosign" "$test_root/cosign"
+reset_fixture; missing="cosign-${os}-${arch}"; failed_install 'cosign unavailable for download'
+reset_fixture; printf '%s\n' not-the-pinned-cosign > "$fixture/cosign-${os}-${arch}"; failed_install 'cosign not matching its pin'
+grep -q 'does not match its pinned SHA-256' "$test_root/output" || { cat "$test_root/output"; printf 'FAIL: pin mismatch not reported\n'; exit 1; }
+[ "$(cat "$test_root/log")" = "download:cosign-${os}-${arch}" ] || { cat "$test_root/log"; printf 'FAIL: downloaded release assets with an unpinned cosign\n'; exit 1; }
+printf 'ok - an unpinned cosign stops the install before any release asset\n'
+rm -f "$fixture/cosign-${os}-${arch}"
+mv "$test_root/cosign" "$mockbin/cosign"
 reset_fixture; mv "$mockbin/sha256sum" "$test_root/sha256sum"; failed_install 'missing checksum tool'; mv "$test_root/sha256sum" "$mockbin/sha256sum"
 
 printf 'installer contract tests passed\n'

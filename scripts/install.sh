@@ -1,5 +1,6 @@
 #!/bin/sh
-# Install an authenticated agentarch release. Requires curl, tar and cosign.
+# Install an authenticated agentarch release. Requires curl, tar and sha256sum (or shasum).
+# Uses cosign from PATH when present; otherwise fetches a SHA-256-pinned Sigstore build for this run.
 # AGENTARCH_VERSION: exact vX.Y.Z release tag (default: latest release).
 # AGENTARCH_BIN_DIR: destination (default: /usr/local/bin or ~/.local/bin).
 set -eu
@@ -11,7 +12,7 @@ need() { command -v "$1" >/dev/null 2>&1 || die "$1 is required and was not foun
 
 case "${1:-}" in
   --help|-h)
-    say "Install an authenticated agentarch release (curl, tar, cosign required)."
+    say "Install an authenticated agentarch release (needs curl, tar and sha256sum; cosign is fetched if missing)."
     say "Usage: AGENTARCH_VERSION=vX.Y.Z AGENTARCH_BIN_DIR=path sh scripts/install.sh"
     say "The release workflow identity and SHA-256 checksum are mandatory checks."
     exit 0 ;;
@@ -34,7 +35,6 @@ case "$arch" in
 esac
 need curl
 need tar
-command -v cosign >/dev/null 2>&1 || die "cosign is required to authenticate the release. Install it from https://docs.sigstore.dev/cosign/system_config/installation/ and retry. No unsigned installation is supported."
 if command -v sha256sum >/dev/null 2>&1; then
   hash_program=sha256sum
 elif command -v shasum >/dev/null 2>&1; then
@@ -55,6 +55,38 @@ trap 'exit 143' TERM
 download() {
   curl --proto '=https' --tlsv1.2 --retry 3 --connect-timeout 15 --max-time 180 -fsSL -o "$2" "$1"
 }
+sha256_of() {
+  if [ "$hash_program" = sha256sum ]; then
+    sha256sum "$1" | cut -d ' ' -f 1
+  else
+    shasum -a 256 "$1" | cut -d ' ' -f 1
+  fi
+}
+
+# Without a local cosign, fetch the official Sigstore build pinned below by SHA-256, use it from
+# the temporary directory for this one verification, and delete it with everything else. The pin
+# lives in this script, so it is exactly as trusted as the installer you are already running.
+COSIGN_VERSION=v3.1.4
+cosign_pin() {
+  case "$1" in
+    linux_amd64) echo 424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa ;;
+    linux_arm64) echo ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2 ;;
+    darwin_amd64) echo 9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f ;;
+    darwin_arm64) echo 9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4 ;;
+    *) return 1 ;;
+  esac
+}
+if command -v cosign >/dev/null 2>&1; then
+  cosign=cosign
+else
+  pin=$(cosign_pin "${os}_${arch}") || die "no pinned cosign for ${os}/${arch}; install cosign and retry"
+  say "cosign not found; fetching the pinned Sigstore cosign $COSIGN_VERSION for this install only…"
+  cosign="$tmp/cosign"
+  download "https://github.com/sigstore/cosign/releases/download/$COSIGN_VERSION/cosign-${os}-${arch}" "$cosign" ||
+    die "could not download cosign; install it from https://docs.sigstore.dev/cosign/system_config/installation/ and retry"
+  [ "$(sha256_of "$cosign")" = "$pin" ] || die "downloaded cosign does not match its pinned SHA-256; nothing was installed"
+  chmod 700 "$cosign"
+fi
 
 version=${AGENTARCH_VERSION:-}
 if [ -z "$version" ]; then
@@ -78,7 +110,7 @@ done
 
 # Authenticate the checksum document before trusting filenames or downloading code.
 # Exact subject prevents a signature from another workflow, branch or release tag.
-cosign verify-blob "$tmp/checksums.txt" \
+"$cosign" verify-blob "$tmp/checksums.txt" \
   --bundle "$tmp/checksums.txt.sigstore.json" \
   --certificate-identity "$identity" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com ||
@@ -88,11 +120,7 @@ want=$(awk -v name="$archive" '$2 == name { count++; digest=$1 } END { if (count
 
 say "downloading $archive…"
 download "$base/$archive" "$tmp/$archive" || die "could not download $archive"
-if [ "$hash_program" = sha256sum ]; then
-  got=$(sha256sum "$tmp/$archive" | cut -d ' ' -f 1)
-else
-  got=$(shasum -a 256 "$tmp/$archive" | cut -d ' ' -f 1)
-fi
+got=$(sha256_of "$tmp/$archive")
 [ "$got" = "$want" ] || die "checksum mismatch for $archive; nothing was installed"
 say "signature identity and archive checksum verified"
 

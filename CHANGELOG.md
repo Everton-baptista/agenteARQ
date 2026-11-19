@@ -22,6 +22,13 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## Unreleased
+
+- The installer no longer requires a local cosign. Without one it downloads the official Sigstore
+  cosign v3.1.4, checks it against a SHA-256 pinned in the script, and uses it for that run only.
+  Signature and checksum verification stay mandatory, so the signed binary installs without Go,
+  sudo or a source build.
+
 ## v0.5.0 — 2026-11-18
 
 `cli` — the repository's history was consolidated into a single commit; this is the first release
