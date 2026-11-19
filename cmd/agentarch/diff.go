@@ -188,7 +188,9 @@ func cmdUpgrade(args []string) int {
 		fmt.Fprintln(os.Stderr, "upgrade:", err)
 		return exitUsage
 	}
-	if code := cmdInit([]string{"--root", *root}); code != exitOK {
+	// Keep the language the project chose: re-installing in the default would silently switch
+	// its instruction files and the workflow's messages to English.
+	if code := cmdInit([]string{"--root", *root, "--lang", projectLanguage(*root)}); code != exitOK {
 		return code
 	}
 	fmt.Printf("upgraded agentarch/std to content %s\n", incomingVersion)

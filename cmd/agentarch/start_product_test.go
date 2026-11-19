@@ -79,3 +79,17 @@ func TestInitLeavesBlueprintsInTheBinary(t *testing.T) {
 		t.Fatal("blueprint add wrote no app")
 	}
 }
+
+// Upgrading the standard keeps the language the project chose.
+func TestUpgradeKeepsTheProjectLanguage(t *testing.T) {
+	root := t.TempDir()
+	if _, stderr, code := capture(t, func() int { return cmdInit([]string{"--root", root, "--lang", "pt-BR"}) }); code != exitOK {
+		t.Fatalf("init: %s", stderr)
+	}
+	if _, stderr, code := capture(t, func() int { return cmdUpgrade([]string{"--root", root}) }); code != exitOK {
+		t.Fatalf("upgrade: %s", stderr)
+	}
+	if got := projectLanguage(root); got != "pt-BR" {
+		t.Fatalf("upgrade switched the project to %q", got)
+	}
+}
