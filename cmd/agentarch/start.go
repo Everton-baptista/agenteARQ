@@ -118,15 +118,19 @@ func cmdStart(args []string) int {
 	root := fs_.String("root", ".", "project root")
 	// Every answer has a flag, so that what the interview does by hand can also be done by a
 	// script — a setup path that only exists interactively cannot be tested or automated.
-	newProject := fs_.Bool("new", false, "skip the first question: this is a new agent")
+	productFlag := fs_.Bool("product", false, "skip the first question: a software product of any kind, built through the guided workflow")
+	productName := fs_.String("name", "", "with --product: the product name (default: the directory name)")
+	productGoal := fs_.String("goal", "", "with --product: what users will be able to do")
+	engProfile := fs_.String("engineering-profile", "", "with --product: how it is verified (omit on a terminal to compare the options)")
+	newProject := fs_.Bool("new", false, "skip the first question: a new AI agent from a blueprint")
 	adopt := fs_.Bool("adopt", false, "skip the first question: the code already exists")
-	refactorFlag := fs_.Bool("refactor", false, "adopt, and install the refactoring workflow")
+	refactorFlag := fs_.Bool("refactor", false, "adopt an existing AI agent, and install the refactoring workflow")
 	forceAgent := fs_.Bool("agent", false, "with --adopt: describe an agent even when no model SDK or framework is found")
 	bpID := fs_.String("blueprint", "", "which starting point to install")
 	framework := fs_.String("framework", "", "which runnable code to write")
 	providerFlag := fs_.String("provider", "", "model provider: "+strings.Join(providerIDs(), ", "))
 	jurisdictions := fs_.String("jurisdictions", "", "comma-separated, e.g. EU,BR")
-	owner := fs_.String("owner", "", "the person accountable for the agent")
+	owner := fs_.String("owner", "", "the person accountable for the product or agent")
 	contact := fs_.String("contact", "", "how to reach them")
 	profile := fs_.String("profile", "standard", "minimal, standard or regulated")
 	// Named langFlag, not lang: `lang` is the package variable the catalogue reads, and a local
@@ -193,23 +197,34 @@ func cmdStart(args []string) int {
 		fmt.Printf("\n%s\n\n%s\n", formatBanner(), bold(t("banner.body")))
 	}
 
-	// ---- Question 1: is the code already written?
+	// ---- Question 1: what are you doing?
 	adoptPath := *adopt || *refactorFlag
 	refactorPath := *refactorFlag
-	if !adoptPath && !*newProject {
+	productPath := *productFlag
+	if !adoptPath && !*newProject && !productPath {
 		if !interactive {
 			fmt.Fprintln(os.Stderr,
-				"not a terminal, so there is nobody to ask.\n"+
-					"Pass --new --blueprint <id>, --adopt for a project that already has agents,\n"+
-					"or --refactor to adopt and install the refactoring workflow.\n"+
-					"Run `agentarch blueprint list` to see the ids.")
+				"not a terminal, so there is nobody to ask. Pass one of:\n"+
+					"  --product --goal \"...\" --owner \"...\" --engineering-profile <id>   any software product\n"+
+					"  --new --blueprint <id> --provider <id>                          a new AI agent\n"+
+					"  --adopt                                                         code that already exists\n"+
+					"  --refactor                                                      an existing AI agent, to the standard\n"+
+					"Run `agentarch blueprint list` for blueprint ids.")
 			return exitUsage
 		}
-		var quit bool
-		var code int
-		if adoptPath, refactorPath, quit, code = askExisting(state); quit || code != exitOK {
+		mode, quit, code := askStartMode(state)
+		if quit || code != exitOK {
 			return code
 		}
+		productPath = mode == modeProduct
+		adoptPath = mode == modeAdopt || mode == modeRefactor
+		refactorPath = mode == modeRefactor
+	}
+	if productPath {
+		return startProduct(startProductOptions{
+			root: *root, lang: *langFlag, name: *productName, goal: *productGoal, owner: *owner,
+			profile: *engProfile, juris: *jurisdictions, interactive: interactive, yes: *yes,
+		})
 	}
 
 	// ---- Question 2 and 3: what are you building, and on what. Only for a new project: an
@@ -264,7 +279,9 @@ func cmdStart(args []string) int {
 				return code
 			}
 		case fw == "":
-			fw = bp.Meta.Frameworks[0]
+			fmt.Fprintf(os.Stderr, "start: blueprint %s ships more than one framework; pass --framework (%s).\n",
+				bp.Meta.ID, frameworkValues(bp.Meta.Frameworks))
+			return exitUsage
 		}
 
 		// ---- Question 3b: which provider. Only for a new project, and only after the blueprint
@@ -284,7 +301,9 @@ func cmdStart(args []string) int {
 				return exitOK
 			}
 		default:
-			prov = providers[0]
+			fmt.Fprintf(os.Stderr, "start: pass --provider when not on a terminal; none is chosen for you (%s).\n",
+				strings.Join(providerIDs(), ", "))
+			return exitUsage
 		}
 	}
 
@@ -429,7 +448,7 @@ func cmdStart(args []string) int {
 		touched, err := applyProvider(*root, prov)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "start:", err)
-		} else if touched > 0 && prov.ID != providers[0].ID {
+		} else if touched > 0 {
 			fmt.Printf("set %s / %s in %d file(s)\n", prov.ID, prov.ModelID, touched)
 		}
 	}
@@ -469,11 +488,11 @@ func printNextSteps(state projectState) {
 		fmt.Printf("  %-25s %s\n\n", formatCmd("agentarch new agent"), dim("scaffold an empty one"))
 
 	default:
-		fmt.Printf("\n%s %s\n", iconWarn(), bold(yellow("agentarch is installed here, and no agent is described yet.")))
-		fmt.Printf("%s\n\n", dim("Every check reads a manifest, so the next step is to have one."))
-		fmt.Printf("  %-25s %s\n", formatCmd("agentarch blueprint"), dim("start from a complete, working project"))
-		fmt.Printf("  %-25s %s\n\n", formatCmd("agentarch new agent"), dim("scaffold an empty one from the templates"))
-		fmt.Printf("Then %s. Full command list: %s\n\n", formatCmd("agentarch check"), cyan("agentarch --help --all"))
+		fmt.Printf("\n%s %s\n\n", iconWarn(), bold(yellow("agentarch is installed here; no product workflow or agent is described yet.")))
+		fmt.Printf("  %-25s %s\n", formatCmd("agentarch start --product"), dim("any software product, step by step"))
+		fmt.Printf("  %-25s %s\n", formatCmd("agentarch workflow status"), dim("where a product already stands"))
+		fmt.Printf("  %-25s %s\n\n", formatCmd("agentarch blueprint"), dim("an AI agent from a complete, working project"))
+		fmt.Printf("Full command list: %s\n\n", cyan("agentarch --help --all"))
 	}
 }
 
@@ -486,45 +505,56 @@ A few questions in plain language; nothing is written until you say so.
 Press Enter to take the default, or q to quit.
 `
 
-// askExisting returns whether to take the adoption path, whether the person asked to stop, and an
-// exit code. The middle value is not decoration: without it, quitting at the first question fell
-// through into the rest of the interview, because "not adopting" and "not continuing" are the
-// same bool.
-func askExisting(state projectState) (adopt, refactor, quit bool, code int) {
-	def := 1
+// startMode is the answer to the first question.
+type startMode int
+
+const (
+	modeProduct startMode = iota + 1
+	modeAgent
+	modeAdopt
+	modeRefactor
+)
+
+// askStartMode asks what the person wants to do. It has no default: the four answers lead to
+// different work, and pressing Enter is not a decision. The last value is an exit code; quitting
+// returns quit=true so the interview stops instead of falling through.
+func askStartMode(state projectState) (mode startMode, quit bool, code int) {
 	hint := t("existing.hint.empty")
 	if state.HasCode {
-		def = 2
 		hint = t("existing.hint.hascode")
 	}
-
 	fmt.Printf("\n%s\n\n", bold(t("existing.question")))
-	fmt.Printf("%s\n", formatStep(1, t("existing.new")))
-	fmt.Printf("%s\n", formatStep(2, t("existing.adopt")))
-	fmt.Printf("%s\n\n", formatStep(3, t("existing.refactor")))
+	fmt.Printf("%s\n", formatStep(1, t("existing.product")))
+	fmt.Printf("%s\n", formatStep(2, t("existing.new")))
+	fmt.Printf("%s\n", formatStep(3, t("existing.adopt")))
+	fmt.Printf("%s\n\n", formatStep(4, t("existing.refactor")))
 	fmt.Printf("%s\n", dim("("+hint+")"))
 
 	for attempt := 0; attempt < 3; attempt++ {
-		in := ask(tf("existing.prompt", def))
-		switch strings.ToLower(in) {
-		case "":
-			return def == 2, false, false, exitOK
-		case "1", "new", "novo":
-			return false, false, false, exitOK
-		case "2", "existing", "adopt", "existe", "continuar":
-			return true, false, false, exitOK
-		case "3", "refactor", "refatorar":
-			// Adoption and refactoring share a path: both describe what is already here.
-			// They differ in what is installed afterwards, so both bools are set.
-			return true, true, false, exitOK
+		switch strings.ToLower(ask(t("existing.prompt"))) {
+		case "1", "product", "produto":
+			return modeProduct, false, exitOK
+		case "2", "agent", "agente", "new", "novo":
+			return modeAgent, false, exitOK
+		case "3", "existing", "adopt", "existe", "continuar":
+			return modeAdopt, false, exitOK
+		case "4", "refactor", "refatorar":
+			return modeRefactor, false, exitOK
 		case "q", "quit", "sair":
 			fmt.Println(t("plan.nothing"))
-			return false, false, true, exitOK
+			return 0, true, exitOK
 		}
 		fmt.Fprintln(os.Stderr, t("common.notanoption"))
 	}
 	fmt.Fprintln(os.Stderr, t("common.givingup"))
-	return false, false, true, exitUsage
+	return 0, true, exitUsage
+}
+
+// askExisting is the adoption view of askStartMode, kept for callers that only distinguish
+// adopting from refactoring.
+func askExisting(state projectState) (adopt, refactor, quit bool, code int) {
+	mode, quit, code := askStartMode(state)
+	return mode == modeAdopt || mode == modeRefactor, mode == modeRefactor, quit, code
 }
 
 // askJurisdictions asks where the users are and returns what --jurisdictions wants.
@@ -745,7 +775,7 @@ func finishStartNew(
 	// Naming the wrong variable in the one command somebody copies is a five-minute detour that
 	// ends in "the credential is not set" while the credential is, in fact, set.
 	if credential == "" {
-		credential = providers[0].Key
+		credential = "<PROVIDER>_API_KEY"
 	}
 	fmt.Printf("\nChecking what you just installed.\n\n")
 

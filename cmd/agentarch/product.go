@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,7 +35,7 @@ func cmdWorkflow(args []string) int {
 	root := f.String("root", ".", "project Git worktree")
 	format := f.String("format", "text", "text or json")
 	name := f.String("name", "", "product name")
-	profile := f.String("profile", "", "universal (default for a new product), typescript-web, python-api or go-service")
+	profile := f.String("profile", "", "engineering profile; omit it on a terminal to compare the options and choose")
 	goal := f.String("goal", "", "observable product goal")
 	author := f.String("author", "", "accountable implementer (never inferred)")
 	ai := f.Bool("has-ai", false, "product contains AI components")
@@ -54,11 +56,50 @@ func cmdWorkflow(args []string) int {
 	environment := f.String("environment", "", "record-release: target environment id, such as production")
 	outcome := f.String("outcome", "", "record-production-check: passed or failed")
 	attester := f.String("attester", "", "record-production-check: who checked production")
+	common := []string{"root", "format"}
+	allowed := map[string][]string{
+		"init":                    {"name", "profile", "goal", "author", "has-ai", "executors", "application-agents"},
+		"status":                  {},
+		"next":                    {},
+		"checkpoint":              {"phase", "task", "note", "expected-revision"},
+		"verify":                  {"image", "expected-revision", "diagnostics-reason"},
+		"review":                  {"reviewer", "kind", "verdict", "summary", "expected-revision"},
+		"record-pr":               {"url", "head", "expected-revision"},
+		"record-release":          {"url", "head", "environment", "expected-revision"},
+		"record-production-check": {"url", "outcome", "attester", "summary", "expected-revision"},
+	}
+	own, knownCommand := allowed[command]
+	permitted := map[string]bool{}
+	for _, n := range append(append([]string{}, common...), own...) {
+		permitted[n] = true
+	}
+	// Each subcommand documents only its own flags; a single shared list made `checkpoint --help`
+	// describe deployment URLs and review verdicts.
+	f.Usage = func() {
+		fmt.Fprintf(f.Output(), "Usage of agentarch workflow %s:\n", command)
+		f.VisitAll(func(fl *flag.Flag) {
+			if !knownCommand || permitted[fl.Name] {
+				fmt.Fprintf(f.Output(), "  --%s\n    \t%s\n", fl.Name, fl.Usage)
+			}
+		})
+	}
 	if err := f.Parse(hoistFlags(args[1:])); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return exitUsage
+	}
+	if knownCommand {
+		var stray []string
+		f.Visit(func(fl *flag.Flag) {
+			if !permitted[fl.Name] {
+				stray = append(stray, "--"+fl.Name)
+			}
+		})
+		if len(stray) > 0 {
+			fmt.Fprintf(os.Stderr, "workflow %s does not take %s (see agentarch workflow %s --help)\n", command, strings.Join(stray, ", "), command)
+			return exitUsage
+		}
 	}
 	if f.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected positional argument; use --root for the project directory")
@@ -92,6 +133,13 @@ func cmdWorkflow(args []string) int {
 	var result any
 	switch command {
 	case "init":
+		if *profile == "" && isTTY() && !productExists(*root) {
+			chosen, ok := askProfile(*root)
+			if !ok {
+				return exitUsage
+			}
+			*profile = chosen
+		}
 		result, err = s.Init(workflow.InitOptions{Name: *name, Profile: *profile, Goal: *goal, Author: *author, HasAI: *ai, ExecutorIDs: csv(*executors), ApplicationAgentIDs: csv(*appAgents)})
 	case "next":
 		result, err = s.Next()
@@ -306,4 +354,38 @@ func cmdUI(args []string) int {
 		return exitUsage
 	}
 	return 0
+}
+
+func productExists(root string) bool {
+	_, err := os.Stat(filepath.Join(root, workflow.ProductPath))
+	return err == nil
+}
+
+// askProfile shows every profile with what it checks, marks the ones this project's files point
+// to, and asks. There is no default: Enter asks again.
+func askProfile(root string) (string, bool) {
+	opts := productProfileOptions(root)
+	fmt.Printf("\nHow should this product be verified? Each profile runs different checks:\n\n")
+	for i, o := range opts {
+		mark := " "
+		if o.Matches {
+			mark = "*"
+		}
+		fmt.Printf("  %d.%s %-15s %s\n        checks: %s\n", i+1, mark, o.ID, o.Fits, o.Checks)
+	}
+	fmt.Printf("\n  * = what the files here suggest. Every profile also runs the security floor.\n\n")
+	for attempt := 0; attempt < 3; attempt++ {
+		in := strings.TrimSpace(ask(fmt.Sprintf("Choose 1–%d, or type the id: ", len(opts))))
+		if n, err := strconv.Atoi(in); err == nil && n >= 1 && n <= len(opts) {
+			return opts[n-1].ID, true
+		}
+		for _, o := range opts {
+			if in == o.ID {
+				return o.ID, true
+			}
+		}
+		fmt.Fprintln(os.Stderr, t("common.notanoption"))
+	}
+	fmt.Fprintln(os.Stderr, t("common.givingup"))
+	return "", false
 }

@@ -186,24 +186,26 @@ func usage() { usageFull(false) }
 // the list it counts, and so a command added to run() without a home in either is a test failure
 // rather than a command nobody can discover.
 var (
-	firstWeekCommands = []string{"start", "blueprint", "new", "check", "conformance", "explain"}
+	firstWeekCommands = []string{"start", "workflow", "plugin", "blueprint", "check", "explain"}
 	extraCommands     = []string{
-		"workflow", "verify-profile", "plugin", "ui",
+		"new", "conformance", "verify-profile", "ui",
 		"init", "sync", "validate", "waive", "mcp", "score",
 		"pack", "diff", "upgrade", "aibom", "report", "version",
 	}
 )
 
 func usageFull(all bool) {
-	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
+	fmt.Fprint(os.Stderr, `agentarch — build any software product from idea to production, in verifiable steps
+              (websites, APIs, apps, CLIs, docs, data — and AI agents, with their own rules)
 
   start       the one command to begin with: asks what you are building
               and does the rest
-  blueprint   start from a complete, working project — run it with no
-              arguments to choose from the catalogue
-  new         scaffold an empty agent, tool or ADR from the templates
-  check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
-  conformance assess L1/L2/L3 and emit a badge that expires
+  workflow    the guided steps for any product: brief, spec, a compared
+              technology decision, tasks, isolated verification, review,
+              release and a production check
+  plugin      connect a coding assistant (Claude Code, Codex, Gemini CLI)
+  blueprint   start an AI agent from a complete, working project
+  check       the release gate for AI agents (exit 4 blocked, 5 waiver)
   explain     why a control exists and how to satisfy it
 `)
 
@@ -219,8 +221,10 @@ Docs: https://github.com/Everton-baptista/agenteARQ
 	}
 
 	fmt.Fprint(os.Stderr, `
+  new         scaffold an empty agent, tool or ADR from the templates
+  conformance assess L1/L2/L3 and emit a badge that expires
   init        install the standard into this project
-              --adopt   scan for agents that already exist and describe them
+              --adopt   describe what already exists (agents, or say it is not one)
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)
@@ -228,9 +232,7 @@ Docs: https://github.com/Everton-baptista/agenteARQ
   waive       record a time-boxed, owned exception (max 90 days)
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
   mcp serve   expose the five bounded local workflow tools over stdio
-  workflow    init|status|next|checkpoint|verify|review|record-pr for products
   verify-profile  run isolated engineering checks without a workflow or plugin
-  plugin      install|check|remove|list integrations for coding assistants
   ui          open the read-only local project dashboard
   score       maturity by dimension, declared vs proven; never blocks
   pack        list|verify|add community packs (checksum verified, never executed)

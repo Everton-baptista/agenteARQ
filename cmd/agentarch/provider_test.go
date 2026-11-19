@@ -131,7 +131,7 @@ func TestProviderQuestionAcceptsNumbersAndIDs(t *testing.T) {
 		want   string
 		quit   bool
 	}{
-		{"\n", "anthropic", false}, // Enter takes the default
+		{"\n2\n", "openai", false}, // Enter is not a choice: it asks again
 		{"1\n", "anthropic", false},
 		{"2\n", "openai", false},
 		{"3\n", "google", false},

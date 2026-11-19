@@ -510,29 +510,17 @@ func productProfileOptions(root string) []profileOption {
 		return nil
 	})
 	ts := has("tsconfig.json") || count[".ts"]+count[".tsx"] > 0
-	all := []profileOption{
-		{ID: "typescript-web", Checks: "lint, typecheck, unit and e2e tests, build, accessibility",
-			Fits: "a TypeScript web app with npm scripts", Matches: has("package.json") && ts},
-		{ID: "static-site", Checks: "HTML validity, JavaScript lint, broken local links",
-			Fits: "HTML/CSS/JS served as files, no build step", Matches: count[".html"] > 0 && !ts},
-		{ID: "python-api", Checks: "ruff, mypy, pytest, pip check, bandit",
-			Fits: "a Python service or library", Matches: has("pyproject.toml", "requirements.txt", "setup.py")},
-		{ID: "go-service", Checks: "gofmt, go vet, build, tests with the race detector",
-			Fits: "a Go module", Matches: has("go.mod")},
-		{ID: "docs", Checks: "Markdown structure, broken local links and images",
-			Fits: "documentation, standards, diagrams as text", Matches: count[".md"] > 0 && count[".md"] >= count[".html"]+count[".py"]+count[".go"]+count[".ts"]+count[".js"]},
-		{ID: "universal", Checks: "only the checks you declare in product.yaml",
-			Fits: "any other stack: you name the commands", Matches: false},
-	}
-	available := map[string]bool{}
-	for _, id := range workflow.Profiles() {
-		available[id] = true
+	code := count[".html"] + count[".py"] + count[".go"] + count[".ts"] + count[".js"]
+	matches := map[string]bool{
+		"typescript-web": has("package.json") && ts,
+		"static-site":    count[".html"] > 0 && !ts,
+		"python-api":     has("pyproject.toml", "requirements.txt", "setup.py"),
+		"go-service":     has("go.mod"),
+		"docs":           count[".md"] > 0 && count[".md"] >= code,
 	}
 	var out []profileOption
-	for _, o := range all {
-		if available[o.ID] {
-			out = append(out, o)
-		}
+	for _, p := range workflow.ProfileOptions() {
+		out = append(out, profileOption{ID: p.ID, Fits: p.Fits, Checks: p.Checks, Matches: matches[p.ID]})
 	}
 	return out
 }

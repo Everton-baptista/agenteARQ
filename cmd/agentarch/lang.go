@@ -148,16 +148,17 @@ var catalog = map[string]map[string]string{
 		// ---- the banner
 		"banner.title": "agentarch — let's get you set up.",
 		"banner.body": "A few questions in plain language; nothing is written until you say so.\n" +
-			"Press Enter to take the default, or q to quit.",
+			"Where a choice is yours, the options are explained and none is picked for you. q quits.",
 
 		// ---- question: does the code already exist
-		"existing.question":     "Is this a new agent, or does the code already exist?",
-		"existing.new":          "New — start me off with a complete project that works, so I can edit it",
-		"existing.adopt":        "Already built — describe what is here and continue from it",
-		"existing.refactor":     "Already built — refactor it to the standard, with tests and review",
+		"existing.question":     "What do you want to do?",
+		"existing.product":      "Build a software product of any kind — site, API, app, CLI, docs, data, or an agent from scratch — step by step, with technology options compared before you choose",
+		"existing.new":          "Start a new AI agent from a complete project that already works, so I can edit it",
+		"existing.adopt":        "Continue something already built — describe what is here (agent or not) and carry on",
+		"existing.refactor":     "Refactor an existing AI agent to the standard, with tests and review",
 		"existing.hint.empty":   "this directory looks empty",
 		"existing.hint.hascode": "there is already code here",
-		"existing.prompt":       "Choose 1–3 [%d]: ",
+		"existing.prompt":       "Choose 1–4: ",
 
 		// ---- question: what are you building
 		"blueprint.question": "What are you building?",
@@ -166,17 +167,17 @@ var catalog = map[string]map[string]string{
 
 		// ---- question: which framework
 		"framework.question":   "This blueprint ships runnable code for:",
-		"framework.none":       "(SDK do provedor direto em Python Nativo)",
-		"framework.label.none": "Python Native (Clean Architecture / Seam Pattern)",
-		"framework.label.agno": "Agno (Agno AI Agent Framework - ex-Phidata)",
-		"framework.prompt":     "Choose 1–%d [1]: ",
+		"framework.none":       "(the provider's SDK called directly from Python: fewest dependencies, you write the loop)",
+		"framework.label.none": "no framework (plain Python)",
+		"framework.prompt":     "Choose 1–%d: ",
 
 		// ---- question: which model provider
 		"provider.question": "Which model provider will it call?",
-		"provider.explain": "All three are wired up already — the agent code is the same either way,\n" +
-			"and only the manifest and one pinned SDK change. The model id is pinned\n" +
-			"rather than left as an alias, so an upgrade is something you decide.",
-		"provider.prompt": "Choose 1–%d [1]: ",
+		"provider.explain": "All of them are wired up — the agent code is the same either way; only the\n" +
+			"manifest and one pinned SDK change. Compare them on what matters to you: answer\n" +
+			"quality on your own examples, price, latency, where data is processed, and which\n" +
+			"account your organisation already has. The model id is pinned, not an alias.",
+		"provider.prompt": "Choose 1–%d: ",
 
 		// ---- question: where are the users
 		"juris.question":    "Where are the people who will use it?",
@@ -219,31 +220,32 @@ var catalog = map[string]map[string]string{
 	"pt-BR": {
 		"banner.title": "agentarch — vamos configurar seu projeto.",
 		"banner.body": "Algumas perguntas em linguagem simples. Nada será escrito até você confirmar.\n" +
-			"Pressione Enter para usar o padrão, ou q para sair.",
+			"Quando a escolha é sua, as opções são explicadas e nenhuma é escolhida por você. q sai.",
 
-		"existing.question":     "Seu projeto já existe?",
-		"existing.new":          "Novo — começar do zero com um projeto completo que funciona",
-		"existing.adopt":        "Já existe — descrever o que há aqui e continuar a partir disso",
-		"existing.refactor":     "Já existe — refatorar seguindo o padrão, com testes e revisão",
+		"existing.question":     "O que você quer fazer?",
+		"existing.product":      "Construir um produto de software de qualquer tipo — site, API, app, CLI, documentação, dados ou um agente do zero — passo a passo, comparando opções de tecnologia antes de você escolher",
+		"existing.new":          "Começar um agente de IA a partir de um projeto completo que já funciona",
+		"existing.adopt":        "Continuar algo que já existe — descrever o que há aqui (agente ou não) e seguir",
+		"existing.refactor":     "Refatorar um agente de IA existente seguindo o padrão, com testes e revisão",
 		"existing.hint.empty":   "este diretório parece vazio",
 		"existing.hint.hascode": "já existe código aqui",
-		"existing.prompt":       "Escolha 1–3 [%d]: ",
+		"existing.prompt":       "Escolha 1–4: ",
 
 		"blueprint.question": "O que você quer construir?",
 		"blueprint.runson":   "roda com %s",
 		"blueprint.prompt":   "Escolha 1–%d (ou q para sair): ",
 
 		"framework.question":   "Este blueprint traz código que roda para:",
-		"framework.none":       "(SDK do provedor direto em Python Nativo)",
-		"framework.label.none": "Python Nativo (Arquitetura Limpa / Padrão Seam)",
-		"framework.label.agno": "Agno (Framework de Agentes Agno - ex-Phidata)",
-		"framework.prompt":     "Escolha 1–%d [1]: ",
+		"framework.none":       "(o SDK do provedor chamado direto do Python: menos dependências, você escreve o laço)",
+		"framework.label.none": "sem framework (Python puro)",
+		"framework.prompt":     "Escolha 1–%d: ",
 
 		"provider.question": "Qual provedor de modelo ele vai chamar?",
-		"provider.explain": "Os três já estão prontos — o código do agente é o mesmo em qualquer um,\n" +
-			"e só mudam o manifesto e um SDK fixado. O id do modelo é fixado em vez de\n" +
-			"ficar num alias, para que atualizar seja uma decisão sua.",
-		"provider.prompt": "Escolha 1–%d [1]: ",
+		"provider.explain": "Todos já estão prontos — o código do agente é o mesmo em qualquer um; só mudam\n" +
+			"o manifesto e um SDK fixado. Compare pelo que importa para você: qualidade nas\n" +
+			"suas próprias perguntas, preço, latência, onde os dados são processados e qual\n" +
+			"conta a sua organização já tem. O id do modelo é fixado, não um alias.",
+		"provider.prompt": "Escolha 1–%d: ",
 
 		"juris.question":    "Onde seu projeto vai ser usado?",
 		"juris.brazil":      "Brasil",

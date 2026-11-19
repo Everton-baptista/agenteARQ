@@ -318,7 +318,7 @@ scripting, adding a second agent, or want to see each step:
 agentarch init --profile standard --jurisdictions BR   # install the standard
 agentarch blueprint list                              # what starting points exist
 agentarch blueprint show rag-support                   # what one demonstrates
-agentarch blueprint add rag-support --framework none --yes
+agentarch blueprint add rag-support --framework none --provider anthropic --yes
 agentarch sync                                        # regenerate the instruction files
 ```
 

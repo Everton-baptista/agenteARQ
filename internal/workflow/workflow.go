@@ -46,7 +46,7 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 			return Snapshot{}, errors.New("product name is required")
 		}
 		if o.Profile == "" {
-			o.Profile = "universal"
+			return Snapshot{}, fmt.Errorf("choose an engineering profile with --profile; none is chosen for you:\n%s", ProfileChoiceText())
 		}
 		if _, ok := profiles[o.Profile]; !ok {
 			return Snapshot{}, fmt.Errorf("unknown engineering profile %q", o.Profile)

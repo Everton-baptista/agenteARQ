@@ -131,6 +131,7 @@ func cmdBlueprintAdd(args []string) int {
 	root := fs_.String("root", ".", "project root")
 	id := fs_.String("id", "", "blueprint id; omit to choose interactively")
 	framework := fs_.String("framework", "", "which runnable code to write")
+	providerFlag := fs_.String("provider", "", "model provider the agent calls: "+strings.Join(providerIDs(), ", "))
 	yes := fs_.Bool("yes", false, "skip the confirmation")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
@@ -193,7 +194,31 @@ func cmdBlueprintAdd(args []string) int {
 			return code
 		}
 	case fw == "":
-		fw = b.Meta.Frameworks[0]
+		fmt.Fprintf(os.Stderr, "blueprint %s ships more than one framework; pass --framework (%s)\n",
+			b.Meta.ID, frameworkValues(b.Meta.Frameworks))
+		return exitUsage
+	}
+
+	// The provider is the owner's decision, never the blueprint's: who holds the data, who bills,
+	// which account the team needs.
+	var prov providerChoice
+	switch {
+	case *providerFlag != "":
+		var ok bool
+		if prov, ok = findProvider(*providerFlag); !ok {
+			fmt.Fprintf(os.Stderr, "--provider %q is not one this project implements (%s)\n",
+				*providerFlag, strings.Join(providerIDs(), ", "))
+			return exitUsage
+		}
+	case interactive:
+		var quit bool
+		if prov, quit = askProvider(); quit {
+			return exitOK
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "pass --provider when not on a terminal; none is chosen for you (%s)\n",
+			strings.Join(providerIDs(), ", "))
+		return exitUsage
 	}
 
 	plan, err := blueprint.Prepare(mustContentFS(*root), b, *root, fw)
@@ -232,6 +257,12 @@ func cmdBlueprintAdd(args []string) int {
 	if err := blueprint.Apply(mustContentFS(*root), b, *root, plan); err != nil {
 		fmt.Fprintln(os.Stderr, "blueprint:", err)
 		return exitUsage
+	}
+	if touched, err := applyProvider(*root, prov); err != nil {
+		fmt.Fprintln(os.Stderr, "blueprint:", err)
+		return exitUsage
+	} else if touched > 0 {
+		fmt.Printf("set %s / %s in %d file(s)\n", prov.ID, prov.ModelID, touched)
 	}
 
 	// A blueprint can bring artifacts that generated files derive from — an MCP allowlist, for
@@ -301,9 +332,6 @@ func confirm(prompt string) bool {
 func frameworkLabel(f string) string {
 	if f == "none" {
 		return t("framework.label.none")
-	}
-	if f == "agno" {
-		return t("framework.label.agno")
 	}
 	return f
 }
@@ -375,9 +403,6 @@ func chooseFramework(b blueprint.Blueprint) (string, int) {
 
 	for attempt := 0; attempt < 3; attempt++ {
 		in := ask(tf("framework.prompt", len(b.Meta.Frameworks)))
-		if in == "" {
-			return b.Meta.Frameworks[0], exitOK
-		}
 		if n, err := strconv.Atoi(in); err == nil && n >= 1 && n <= len(b.Meta.Frameworks) {
 			return b.Meta.Frameworks[n-1], exitOK
 		}
