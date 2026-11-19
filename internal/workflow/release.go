@@ -20,6 +20,15 @@ const ReleasePlanPath = "agentarch/project/release.md"
 // reviewer has read how to roll back before anything ships.
 var releaseSections = []string{"Environment", "Owner", "Rollback", "Post-deploy verification", "Signals"}
 
+// releaseAliases accepts each section in the languages the interview speaks.
+var releaseAliases = map[string][]string{
+	"Environment":              {"environment", "ambiente", "entorno"},
+	"Owner":                    {"owner", "responsável", "responsable"},
+	"Rollback":                 {"rollback", "reversão", "reversión"},
+	"Post-deploy verification": {"post-deploy verification", "verificação pós-deploy", "verificación posterior al despliegue"},
+	"Signals":                  {"signals", "sinais", "señales"},
+}
+
 var environmentID = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}$`)
 
 type ReleaseRequest struct {
@@ -93,7 +102,7 @@ func (s *Service) releasePlanGaps() []string {
 	}
 	var gaps []string
 	for _, name := range releaseSections {
-		body, ok := sections[strings.ToLower(name)]
+		body, ok := findSection(sections, releaseAliases[name])
 		if !ok {
 			gaps = append(gaps, fmt.Sprintf("%s needs a \"## %s\" section", ReleasePlanPath, name))
 		} else if !meaningful(body) {
@@ -233,4 +242,27 @@ TODO: what you check right after deploying, and where (smoke test, page, dashboa
 ## Signals
 
 TODO: what you watch afterwards, and for how long (errors, latency, sign-ups, complaints).
+`
+
+const ReleasePlanTemplatePT = `# Plano de release
+
+## Ambiente
+
+TODO: onde roda em produção (provedor, região, URL) e como é feito o deploy.
+
+## Responsável
+
+TODO: a pessoa responsável por este release e por desfazê-lo.
+
+## Reversão
+
+TODO: os passos exatos para voltar à versão anterior, e como confirmar que funcionou.
+
+## Verificação pós-deploy
+
+TODO: o que você confere logo depois do deploy, e onde (teste rápido, página, painel).
+
+## Sinais
+
+TODO: o que você acompanha depois, e por quanto tempo (erros, lentidão, cadastros, reclamações).
 `

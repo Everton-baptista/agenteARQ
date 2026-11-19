@@ -62,15 +62,15 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 		tb, _ := yaml.Marshal(TaskDocument{SchemaVersion: SchemaVersion, Tasks: []Task{}})
 		files := map[string][]byte{
 			ProductPath: pb, TasksPath: tb,
-			documents[0]: []byte(BriefTemplate),
-			documents[1]: []byte(SpecTemplate),
-			documents[2]: []byte(ADRTemplate),
+			documents[0]: []byte(templateFor(o.Language, BriefTemplate, BriefTemplatePT)),
+			documents[1]: []byte(templateFor(o.Language, SpecTemplate, SpecTemplatePT)),
+			documents[2]: []byte(templateFor(o.Language, ADRTemplate, ADRTemplatePT)),
 		}
 		// The release plan is reviewed with the code, so it has to exist before verification.
 		// Created up front, it is not discovered at release time, after the review it needed.
 		if rp, err := safePath(s.Root, ReleasePlanPath); err == nil {
 			if _, err = os.Stat(rp); os.IsNotExist(err) {
-				files[ReleasePlanPath] = []byte(ReleasePlanTemplate)
+				files[ReleasePlanPath] = []byte(templateFor(o.Language, ReleasePlanTemplate, ReleasePlanTemplatePT))
 			}
 		}
 		for rel := range files {

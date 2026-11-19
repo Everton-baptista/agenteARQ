@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -46,5 +48,30 @@ Se o catálogo passar de 20 páginas, reavaliar o gerador.
 `
 	if gaps := decisionGaps("adr.md", pt); len(gaps) != 0 {
 		t.Fatalf("Portuguese ADR rejected: %v", gaps)
+	}
+}
+
+// A Portuguese project gets Portuguese templates, and its filled-in release plan is accepted.
+func TestPortugueseTemplatesAndReleasePlan(t *testing.T) {
+	root := repo(t)
+	s, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Init(InitOptions{Name: "Loja", Profile: "docs", Goal: "Clientes acham os produtos", Author: "Ana Silva", Language: "pt-BR"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{documents[0], documents[2], ReleasePlanPath} {
+		b, _ := os.ReadFile(filepath.Join(root, rel))
+		if !strings.Contains(string(b), "## ") || strings.Contains(string(b), "## Context\n") || strings.Contains(string(b), "## Environment") {
+			t.Errorf("%s is not the Portuguese template", rel)
+		}
+	}
+	plan := "# Plano\n## Ambiente\nHospedagem compartilhada da loja.\n## Responsável\nAna Silva responde pelo release.\n## Reversão\nReenviar os arquivos da versão anterior.\n## Verificação pós-deploy\nAbrir a página inicial e o contato.\n## Sinais\nLog de erros e mensagens de clientes por uma semana.\n"
+	if err := os.WriteFile(filepath.Join(root, ReleasePlanPath), []byte(plan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if gaps := s.releasePlanGaps(); len(gaps) != 0 {
+		t.Fatalf("Portuguese release plan rejected: %v", gaps)
 	}
 }

@@ -214,6 +214,40 @@ var catalog = map[string]map[string]string{
 		"plan.confirm":         "\nGo ahead?",
 		"plan.nothing":         "nothing written",
 
+		// ---- the product path
+		"product.ask.goal":        "\nWhat will people be able to do with it? One sentence, in your words:\n> ",
+		"product.ask.owner":       "\nWho is accountable for it? A person's name, not a team:\n> ",
+		"product.needflag":        "start --product: pass --%s when not on a terminal",
+		"product.needprofile":     "start --product: pass --engineering-profile; none is chosen for you:",
+		"product.plan.name":       "product",
+		"product.plan.goal":       "goal",
+		"product.plan.owner":      "accountable",
+		"product.plan.profile":    "verified as",
+		"product.plan.tech":       "technology",
+		"product.plan.tech.value": "not chosen yet: options are compared with you in the ADR",
+		"product.notgit":          "The workflow tracks a Git repository: run `git init` here and try again.",
+		"product.done": "\nDone. The standards are in agentarch/std and the product workflow is open.\n\n" +
+			"What happens next, in order — each step leaves a file in agentarch/project/ and the\n" +
+			"next one stays closed until it exists:\n\n" +
+			"  1. brief.md     who it is for, the problem, success, constraints (including any\n" +
+			"                  technology you require or rule out — or \"no preference\")\n" +
+			"  2. spec.md      acceptance criteria AC-1, AC-2… observable from outside\n" +
+			"  3. adr/0001     two or more technology options compared on benefits and costs;\n" +
+			"                  you choose, and the ADR records why\n" +
+			"  4. tasks.yaml   work mapped to acceptance criteria and checks\n" +
+			"  5. release.md   environment, owner, rollback and post-deploy checks, reviewed with the code\n" +
+			"  6. verify       isolated checks plus the security floor (agentarch workflow\n" +
+			"                  prepare-verifier builds the image once), then independent review,\n" +
+			"                  release and a production check\n\n" +
+			"Do it with your assistant: agentarch plugin install <claude|codex|gemini> ...\n" +
+			"then ask it to \"start the product\". It will propose options rather than pick\n" +
+			"them. Or by hand: agentarch workflow status shows the next step at any time.\n",
+
+		// ---- choosing a verification profile
+		"profile.question": "\nHow should this product be verified? Each profile runs different checks:\n",
+		"profile.legend":   "\n  * = what the files here suggest. Every profile also runs the security floor.\n",
+		"profile.prompt":   "Choose 1–%d, or type the id: ",
+
 		// ---- workflow status
 		"workflow.status": "Phase: %s · revision %d\n\nNext step: %s",
 
@@ -283,6 +317,36 @@ var catalog = map[string]map[string]string{
 		"plan.confirm":         "\nPodemos seguir?",
 		"plan.nothing":         "nada foi escrito",
 
+		"product.ask.goal":        "\nO que as pessoas vão conseguir fazer com ele? Uma frase, com as suas palavras:\n> ",
+		"product.ask.owner":       "\nQuem é o responsável? O nome de uma pessoa, não de um time:\n> ",
+		"product.needflag":        "start --product: passe --%s quando não houver terminal",
+		"product.needprofile":     "start --product: passe --engineering-profile; nenhum é escolhido por você:",
+		"product.plan.name":       "produto",
+		"product.plan.goal":       "objetivo",
+		"product.plan.owner":      "responsável",
+		"product.plan.profile":    "verificado como",
+		"product.plan.tech":       "tecnologia",
+		"product.plan.tech.value": "ainda não escolhida: as opções são comparadas com você no ADR",
+		"product.notgit":          "O fluxo acompanha um repositório Git: rode `git init` aqui e tente de novo.",
+		"product.done": "\nPronto. Os padrões estão em agentarch/std e o fluxo do produto está aberto.\n\n" +
+			"O que vem a seguir, em ordem — cada etapa deixa um arquivo em agentarch/project/ e a\n" +
+			"próxima só abre quando ele existe:\n\n" +
+			"  1. brief.md     para quem é, o problema, o sucesso, as restrições (inclusive\n" +
+			"                  tecnologias exigidas ou proibidas — ou \"sem preferência\")\n" +
+			"  2. spec.md      critérios de aceite AC-1, AC-2… observáveis de fora\n" +
+			"  3. adr/0001     duas ou mais opções de tecnologia comparadas por benefícios e custos;\n" +
+			"                  você escolhe, e o ADR registra o porquê\n" +
+			"  4. tasks.yaml   o trabalho ligado aos critérios de aceite e aos checks\n" +
+			"  5. release.md   ambiente, responsável, rollback e checagens pós-deploy, revisados com o código\n" +
+			"  6. verify       checks isolados mais o piso de segurança (agentarch workflow\n" +
+			"                  prepare-verifier constrói a imagem uma vez), depois revisão\n" +
+			"                  independente, release e verificação em produção\n\n" +
+			"Faça com o seu assistente: agentarch plugin install <claude|codex|gemini> ...\n" +
+			"e peça para ele \"começar o produto\". Ele vai propor opções em vez de escolher\n" +
+			"por você. Ou à mão: agentarch workflow status mostra o próximo passo a qualquer momento.\n",
+		"profile.question":   "\nComo este produto deve ser verificado? Cada perfil roda checks diferentes:\n",
+		"profile.legend":     "\n  * = o que os arquivos daqui sugerem. Todo perfil também roda o piso de segurança.\n",
+		"profile.prompt":     "Escolha 1–%d, ou digite o id: ",
 		"workflow.status":    "Fase: %s · revisão %d\n\nPróximo passo: %s",
 		"common.notanoption": "  não é uma das opções",
 		"common.givingup":    "desisti após três tentativas; nada foi escrito",

@@ -146,7 +146,7 @@ func cmdWorkflow(args []string) int {
 			}
 			*profile = chosen
 		}
-		result, err = s.Init(workflow.InitOptions{Name: *name, Profile: *profile, Goal: *goal, Author: *author, HasAI: *ai, ExecutorIDs: csv(*executors), ApplicationAgentIDs: csv(*appAgents)})
+		result, err = s.Init(workflow.InitOptions{Name: *name, Profile: *profile, Goal: *goal, Author: *author, HasAI: *ai, ExecutorIDs: csv(*executors), ApplicationAgentIDs: csv(*appAgents), Language: lang})
 	case "prepare-verifier":
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
@@ -387,7 +387,7 @@ func productExists(root string) bool {
 // to, and asks. There is no default: Enter asks again.
 func askProfile(root string) (string, bool) {
 	opts := productProfileOptions(root)
-	fmt.Printf("\nHow should this product be verified? Each profile runs different checks:\n\n")
+	fmt.Println(t("profile.question"))
 	for i, o := range opts {
 		mark := " "
 		if o.Matches {
@@ -395,9 +395,9 @@ func askProfile(root string) (string, bool) {
 		}
 		fmt.Printf("  %d.%s %-15s %s\n        checks: %s\n", i+1, mark, o.ID, o.Fits, o.Checks)
 	}
-	fmt.Printf("\n  * = what the files here suggest. Every profile also runs the security floor.\n\n")
+	fmt.Println(t("profile.legend"))
 	for attempt := 0; attempt < 3; attempt++ {
-		in := strings.TrimSpace(ask(fmt.Sprintf("Choose 1–%d, or type the id: ", len(opts))))
+		in := strings.TrimSpace(ask(tf("profile.prompt", len(opts))))
 		if n, err := strconv.Atoi(in); err == nil && n >= 1 && n <= len(opts) {
 			return opts[n-1].ID, true
 		}

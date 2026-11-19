@@ -139,6 +139,8 @@ type InitOptions struct {
 	HasAI               bool     `json:"has_ai"`
 	ExecutorIDs         []string `json:"executor_ids"`
 	ApplicationAgentIDs []string `json:"application_agent_ids"`
+	// Language of the document templates written for a new product: "en" (default) or "pt-BR".
+	Language string `json:"language,omitempty"`
 }
 
 type CheckpointRequest struct {

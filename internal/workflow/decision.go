@@ -212,3 +212,75 @@ Each acceptance criterion is observable from outside the code and has an id that
 - AC-1: TODO
 - AC-2: TODO
 `
+
+func templateFor(language, en, pt string) string {
+	if language == "pt-BR" {
+		return pt
+	}
+	return en
+}
+
+const BriefTemplatePT = `# Brief do produto
+
+## Usuários
+
+TODO: quem usa, e em que situação.
+
+## Problema
+
+TODO: o que essas pessoas não conseguem fazer hoje, nas palavras delas.
+
+## Medida de sucesso
+
+TODO: um resultado observável que mostre que funcionou (por exemplo, uma tarefa feita em um passo).
+
+## Restrições
+
+TODO: prazo, orçamento, hospedagem, regras de dados e privacidade, acessibilidade e o que a equipe
+já sabe. Preferências ou exigências de tecnologia entram aqui como restrição (por exemplo "precisa
+rodar na hospedagem PHP atual" ou "sem preferência"); a tecnologia em si é escolhida no ADR, depois
+de comparar opções.
+
+## Fora do escopo
+
+TODO: o que este produto deliberadamente não vai fazer.
+`
+
+const SpecTemplatePT = `# Especificação
+
+Cada critério de aceite é observável de fora do código e tem um id que as tarefas usam.
+
+- AC-1: TODO
+- AC-2: TODO
+`
+
+const ADRTemplatePT = `# ADR 0001 — Arquitetura
+
+## Contexto
+
+TODO: o que o produto precisa fazer (do brief e da especificação), as restrições que importam
+(conhecimento da equipe, orçamento, hospedagem, dados, conformidade, prazo) e o que já existe aqui.
+
+## Opções consideradas
+
+Compare pelo menos duas opções que realmente atendam à demanda. Para cada uma, diga o que ela traz e
+o que ela custa, nos termos das restrições acima. Se já existe uma stack, mantê-la é uma das opções.
+
+### TODO primeira opção
+
+- Benefícios: TODO
+- Custos: TODO
+
+### TODO segunda opção
+
+- Benefícios: TODO
+- Custos: TODO
+
+## Decisão
+
+TODO: a opção escolhida, quem escolheu, e por que ela vence para este produto.
+
+## Consequências
+
+TODO: o que fica mais fácil, o que fica mais difícil, e o que faria você rever esta decisão.
+`
