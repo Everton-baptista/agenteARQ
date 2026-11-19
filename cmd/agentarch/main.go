@@ -263,6 +263,8 @@ func cmdInit(args []string) int {
 	adopt := fs_.Bool("adopt", false,
 		"scan for agents that already exist and scaffold manifests describing them")
 	adoptID := fs_.String("adopt-id", "", "id for the adopted agent (default: the directory name)")
+	forceAgent := fs_.Bool("agent", false,
+		"with --adopt: describe an agent even when the scan finds no model SDK or framework")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
@@ -379,7 +381,7 @@ gates:
 		return code
 	}
 	if *adopt {
-		return finishAdopt(*root, *adoptID)
+		return finishAdopt(*root, *adoptID, *forceAgent)
 	}
 	// start composes init with the steps that follow it and prints one set of next steps at the
 	// end. Two lists of next steps in one flow is how a guided setup stops feeling guided.
@@ -808,7 +810,7 @@ func syncSkills(root string, check bool) (int, int) {
 // The adoption path matters more than it looks. A project with existing agents fails dozens of
 // controls on day one; without a way in that costs nothing on the first day, the gate is
 // switched off and nothing improves. That risk was named in the plan and this is the mitigation.
-func finishAdopt(root, id string) int {
+func finishAdopt(root, id string, force bool) int {
 	if id == "" {
 		abs, err := filepath.Abs(root)
 		if err != nil {
@@ -823,6 +825,10 @@ func finishAdopt(root, id string) int {
 
 	fmt.Printf("\nscanning for an agent that already exists…\n")
 	scan := scanForAgents(root)
+	if !scan.IsAgent() && !force {
+		reportNotAnAgent(root)
+		return exitOK
+	}
 
 	if err := writeAdoptedManifest(root, id, scan); err != nil {
 		fmt.Fprintln(os.Stderr, "adopt:", err)
@@ -836,22 +842,7 @@ func finishAdopt(root, id string) int {
 	case len(scan.Providers) == 0 && len(scan.Models) == 0:
 		fmt.Printf("Nothing recognisable was found, so almost everything is `unknown`.\n")
 	default:
-		if len(scan.Providers) > 0 {
-			fmt.Printf("  providers   %s\n", strings.Join(scan.Providers, ", "))
-		}
-		if len(scan.Models) > 0 {
-			shown := scan.Models
-			if len(shown) > 5 {
-				shown = shown[:5]
-			}
-			fmt.Printf("  models      %s\n", strings.Join(shown, ", "))
-		}
-		if len(scan.Frameworks) > 0 {
-			fmt.Printf("  frameworks  %s\n", strings.Join(scan.Frameworks, ", "))
-		}
-		if len(scan.Prompts) > 0 {
-			fmt.Printf("  prompts?    %s\n", strings.Join(scan.Prompts[:min(3, len(scan.Prompts))], ", "))
-		}
+		reportScan(scan)
 	}
 
 	fmt.Printf(`

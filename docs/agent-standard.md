@@ -209,7 +209,8 @@ to validate its agents.
 | `docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start` | needs nothing but Docker |
 | [Releases](https://github.com/Everton-baptista/agenteARQ/releases) | signed binaries, verified by hand |
 
-The installer requires Cosign, verifies the Sigstore bundle for `checksums.txt` against the exact
+The installer uses Cosign from your `PATH`, or, if you have none, downloads the official Sigstore
+build pinned by SHA-256 in the script and uses it for that run only. It verifies the Sigstore bundle for `checksums.txt` against the exact
 release workflow and tag, then verifies the binary checksum. Missing or invalid signature bundles
 are errors, including for old releases without the required bundle. It never uses `sudo` on your
 behalf — without write access to `/usr/local/bin` it installs to `~/.local/bin` and tells you how

@@ -72,6 +72,13 @@ jobs:
           sh -n scripts/install.sh
           shellcheck --shell=sh scripts/install.sh
           sh scripts/test-install.sh
+      # The real path a new user takes: hosted runners have no cosign, so this exercises the pinned
+      # cosign bootstrap and a real Sigstore verification of the latest published release.
+      - name: the installer authenticates a real release without a local cosign
+        run: |
+          ! command -v cosign
+          AGENTARCH_BIN_DIR="$RUNNER_TEMP/agentarch-bin" sh scripts/install.sh
+          "$RUNNER_TEMP/agentarch-bin/agentarch" version
 
   # The blueprints ship a service and a test suite. Until this job existed, neither was executed by
   # anything: the Go tests check the payload's shape, and a Python file that imports a name that does

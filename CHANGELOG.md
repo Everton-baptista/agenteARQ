@@ -22,6 +22,25 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## Unreleased
+
+- The installer no longer requires a local cosign. Without one it downloads the official Sigstore
+  cosign v3.1.4, checks it against a SHA-256 pinned in the script, and uses it for that run only.
+  Signature and checksum verification stay mandatory, so the signed binary installs without Go,
+  sudo or a source build.
+- The installer resolves the latest release through the `releases/latest` redirect instead of the
+  REST API, whose anonymous rate limit returned 403 on shared networks.
+- `init --adopt` and `start --adopt` no longer report libraries a project does not use. Detection
+  counts only declared dependencies and imports (it read "diagnostic" as agno and any "agents" as
+  the OpenAI Agents SDK), skips virtual environments under any name, and prints the file behind
+  every finding. A model string found in the code is listed as a candidate and never written to
+  `model.id`.
+- Adoption also requires a model to match a provider the project uses, and ignores model names
+  and "you are" text in files that call no model (interface copy, pricing tables, locales).
+- A project with no model SDK or agent framework is not described as an agent. `init --adopt` and
+  `start --adopt` say so, write no `agent.yaml`, and list the product workflow's profiles side by
+  side, marking the ones the files suggest. `--agent` describes an agent anyway.
+
 ## v0.5.0 — 2026-11-18
 
 `cli` — the repository's history was consolidated into a single commit; this is the first release
