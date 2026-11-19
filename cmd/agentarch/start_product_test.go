@@ -93,3 +93,32 @@ func TestUpgradeKeepsTheProjectLanguage(t *testing.T) {
 		t.Fatalf("upgrade switched the project to %q", got)
 	}
 }
+
+// Every next-step sentence the workflow can produce has a Portuguese translation.
+func TestEveryWorkflowActionIsTranslated(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "internal", "workflow", "workflow.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prev := lang
+	defer func() { lang = prev }()
+	lang = "pt-BR"
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, `action = "`) || strings.Contains(line, "+") {
+			continue
+		}
+		action := strings.TrimSuffix(strings.TrimPrefix(line, `action = "`), `"`)
+		if translateAction(action) == action {
+			t.Errorf("no Portuguese for %q", action)
+		}
+	}
+	for _, a := range []string{
+		"Run the post-deploy verification from agentarch/project/release.md and record it with record-production-check.",
+		"Shipped and checked in production. Keep watching the signals in agentarch/project/release.md; new work starts at implementing.",
+	} {
+		if translateAction(a) == a {
+			t.Errorf("no Portuguese for %q", a)
+		}
+	}
+}
