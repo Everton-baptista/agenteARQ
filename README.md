@@ -58,7 +58,16 @@ go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.5.0
 
 # As a container
 docker run --rm ghcr.io/everton-baptista/agentarch:v0.5.0 version
+
+# Docker, but on your PATH: copy the binary out of the image (no Go, sudo or cosign download)
+mkdir -p ~/.local/bin && id=$(docker create ghcr.io/everton-baptista/agentarch:v0.5.0) \
+  && docker cp "$id":/agentarch ~/.local/bin/agentarch && docker rm "$id" >/dev/null
+agentarch version    # if not found, add ~/.local/bin to your PATH
 ```
+
+The installer downloads cosign (about 100 MB) when it is not already installed, so the first run
+can take a few minutes on a slow link. Set `AGENTARCH_BIN_DIR=~/.local/bin` to choose where it
+installs.
 
 **2. In your project's Git repository** (Docker or Podman is needed for verification):
 

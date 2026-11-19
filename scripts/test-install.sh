@@ -23,9 +23,11 @@ cat > "$mockbin/curl" <<'EOF'
 #!/bin/sh
 set -eu
 out=''
+write=''
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -o) out=$2; shift 2 ;;
+    -w) write=$2; shift 2 ;;
     --proto|--tlsv1.2|--retry|--connect-timeout|--max-time)
       if [ "$1" = --tlsv1.2 ]; then shift; else shift 2; fi ;;
     -fsSL) shift ;;
@@ -34,7 +36,12 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 asset=${url##*/}
-if [ "$asset" = latest ]; then asset=latest.json; fi
+if [ "$url" = https://github.com/Everton-baptista/agenteARQ/releases/latest ]; then
+  [ "$write" = '%{url_effective}' ] || exit 98
+  printf '%s\n' download:latest >> "$MOCK_LOG"
+  printf 'https://github.com/Everton-baptista/agenteARQ/releases/tag/%s' "$(cat "$MOCK_FIXTURE/latest-tag")"
+  exit 0
+fi
 printf '%s\n' "download:$asset" >> "$MOCK_LOG"
 [ "$asset" != "${MOCK_MISSING:-}" ] || exit 22
 cp "$MOCK_FIXTURE/$asset" "$out"
@@ -79,7 +86,7 @@ reset_fixture() {
   printf '%s  %s\n' "$digest" "$archive" > "$fixture/checksums.txt"
   # The mock's two-line bundle models signature + identity; no cryptography is mocked as real.
   printf '%s\n%s\n' valid-signature "$identity" > "$fixture/checksums.txt.sigstore.json"
-  printf '%s\n' '{"tag_name":"v1.2.3"}' > "$fixture/latest.json"
+  printf '%s' v1.2.3 > "$fixture/latest-tag"
   mkdir -p "$test_root/install"
   printf '%s\n' previous-binary > "$test_root/install/agentarch"
   : > "$test_root/log"
@@ -111,6 +118,7 @@ printf 'ok - authenticates before downloading/extracting, replaces binary withou
 
 reset_fixture; version=''; run_installer
 printf 'ok - resolves and authenticates exact latest tag\n'
+reset_fixture; version=''; printf '%s' 'v1.2.3/../../evil' > "$fixture/latest-tag"; failed_install 'unsafe latest tag from the redirect'
 reset_fixture; missing=checksums.txt.sigstore.json; failed_install 'missing Sigstore bundle'
 reset_fixture; printf invalid > "$fixture/checksums.txt.sigstore.json"; failed_install 'invalid signature'
 reset_fixture; printf '%s\n%s\n' valid-signature "${identity%v1.2.3}v1.2.2" > "$fixture/checksums.txt.sigstore.json"; failed_install 'signature from another release'

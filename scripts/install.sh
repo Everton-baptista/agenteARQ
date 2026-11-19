@@ -91,8 +91,14 @@ fi
 version=${AGENTARCH_VERSION:-}
 if [ -z "$version" ]; then
   say "resolving the latest release…"
-  download "https://api.github.com/repos/$REPO/releases/latest" "$tmp/latest.json" || die "could not resolve latest release; set AGENTARCH_VERSION=vX.Y.Z"
-  version=$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$tmp/latest.json")
+  # The releases/latest page redirects to the tag. Unlike the REST API it has no anonymous rate
+  # limit, which shared CI runners and office NATs exhaust. The tag is validated below either way.
+  latest=$(curl --proto '=https' --tlsv1.2 --retry 3 --connect-timeout 15 --max-time 60 -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest") ||
+    die "could not resolve latest release; set AGENTARCH_VERSION=vX.Y.Z"
+  case "$latest" in
+    "https://github.com/$REPO/releases/tag/"*) version=${latest#"https://github.com/$REPO/releases/tag/"} ;;
+    *) die "could not resolve latest release; set AGENTARCH_VERSION=vX.Y.Z" ;;
+  esac
 fi
 # Restrict filenames, URLs and certificate subjects to a single release tag.
 printf '%s\n' "$version" | LC_ALL=C grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?(\+[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$' || die "release tag must be vX.Y.Z (optionally with a prerelease/build suffix)"
