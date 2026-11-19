@@ -1,4 +1,4 @@
-<!-- agentarch:generated v=1.3.0 core_sha256=2f7578be13057263cf5a91c1523d91942fb66c7f054f17b37b9681922b8b9b3d target=agents_md lang=en
+<!-- agentarch:generated v=1.4.0 core_sha256=2f7578be13057263cf5a91c1523d91942fb66c7f054f17b37b9681922b8b9b3d target=agents_md lang=en
      DO NOT EDIT. Edit agentarch/std/core/en/ and run `agentarch sync`.
      Read by: the AGENTS.md convention — Codex, Cursor agent mode, Gemini CLI, Grok, Kimi, opencode, Amp, Zed, Aider, Jules -->
 

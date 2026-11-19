@@ -10,6 +10,7 @@ supports, and `agentarch version` prints all three lines so a reported result ca
 
 | CLI | Spec majors implemented | Content shipped | Content it can read |
 |---|---|---|---|
+| unreleased | `spec/1` | `content/1.4.0` | `content/1.x` |
 | 0.5.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.4.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.3.x | `spec/1` | `content/1.2.0` | `content/1.x` |
@@ -24,6 +25,30 @@ exit 1 rather than read on a best-effort basis.
 
 ## Unreleased
 
+`cli` and `content` 1.4.0 — AgenteARQ is for any software product, and technology is the owner's
+compared choice.
+
+- **Technology decisions are compared, then chosen by the owner.** Before `planned`, every ADR in
+  `agentarch/project/adr/` must have `## Context`, `## Options considered` with at least two options
+  under their own `###` headings, each stating benefits and costs, a `## Decision` that names one of
+  the compared options, and `## Consequences`. Headings may be English, Portuguese or Spanish. The
+  design and discovery skills, their checklists, the ADR template and the plugin prompt (1.1.0) say
+  to propose options with trade-offs, label a recommendation, and let the owner choose.
+- **Any product, from the first command.** `agentarch start` asks whether this is any software
+  product, a new AI agent, existing code or an agent to refactor, with no default. The product path
+  (`start --product`) opens the guided workflow and chooses no stack. The rules synced into every
+  project no longer say the project builds AI agents; the top-level help leads with the workflow.
+- **Nothing technical is chosen silently.** `workflow init` no longer falls back to `universal`: on a
+  terminal it compares the profiles and asks, otherwise it lists them and asks for `--profile`.
+  `start` and `blueprint add` require a provider and, where a blueprint ships several, a framework;
+  each provider says what choosing it means. Choosing a provider also rewrites the credential named
+  in the setup, deploy and CI guides, and the blueprints' leak checks detect any provider's key.
+- **Verification works without this repository.** `agentarch workflow prepare-verifier` builds the
+  profile's verifier image locally from recipes embedded in the binary, with a reviewed
+  digest-pinned base (or an explained choice where the base depends on the project), and records
+  it so `workflow verify` uses it. A content-addressed local image id is accepted.
+- Structured brief, spec and ADR templates; each `workflow` subcommand documents and accepts only its
+  own flags; workflow status speaks the project's language.
 - The installer no longer requires a local cosign. Without one it downloads the official Sigstore
   cosign v3.1.4, checks it against a SHA-256 pinned in the script, and uses it for that run only.
   Signature and checksum verification stay mandatory, so the signed binary installs without Go,
