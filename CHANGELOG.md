@@ -47,6 +47,17 @@ compared choice.
   profile's verifier image locally from recipes embedded in the binary, with a reviewed
   digest-pinned base (or an explained choice where the base depends on the project), and records
   it so `workflow verify` uses it. A content-addressed local image id is accepted.
+- **A product is verified as itself.** `agentarch init` no longer copies the agent blueprints into
+  `agentarch/std`; `blueprint add` and `start` read them from the binary. Copied into every
+  project, their fake test keys failed the product's secret scan, their pinned SDKs its dependency
+  audit and their pages its link check. The product's quality checks (HTML, lint, links, Markdown,
+  ruff, mypy, pytest, bandit) leave `agentarch/std` out; the security floor still scans it.
+- The `mcp-server` blueprint pins `mcp==1.30.0`, which fixes GHSA-5h93-6whr-6q8j,
+  GHSA-84m7-p3x7-pcfv, GHSA-rwrf-2pqf-9j8j and GHSA-w4fh-qvv9-3v23 in 1.29.0.
+- Blueprint tests that exercise the Anthropic adapter skip when its SDK is not installed, as the
+  OpenAI and Google ones already did, so a project that chose another provider passes its suite.
+- `workflow init` creates `release.md` with the product, and the next step advises completing it
+  before verification so it is reviewed with the code. Templates follow the project's language.
 - Structured brief, spec and ADR templates; each `workflow` subcommand documents and accepts only its
   own flags; workflow status speaks the project's language.
 - The installer no longer requires a local cosign. Without one it downloads the official Sigstore
@@ -90,7 +101,7 @@ v0.5.0 or later. The entries below still describe what each of those versions co
   the repository layout to `.github/CONTRIBUTING.md`. GitHub language statistics now describe
   AgenteARQ itself rather than the starter projects it ships.
 - Dependencies: `github.com/santhosh-tekuri/jsonschema/v6` 6.0.3. The `mcp-server` blueprint stays on
-  `mcp==1.29.0`: the 2.x SDK removed the server decorator API it uses, so moving needs a migration.
+  `mcp` 1.x: the 2.x SDK removed the server decorator API it uses, so moving needs a migration.
 
 ## v0.4.1 — 2026-11-18
 

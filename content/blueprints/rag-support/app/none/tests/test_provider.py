@@ -111,6 +111,7 @@ def _anthropic_client(captured: dict):
 
 
 def test_anthropic_declares_tools_with_input_schema_and_reads_blocks():
+    pytest.importorskip("anthropic")
     from app.infra.providers import anthropic as impl
 
     captured: dict = {}

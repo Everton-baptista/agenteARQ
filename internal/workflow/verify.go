@@ -19,14 +19,16 @@ var profiles = map[string][]Command{
 		{ID: "accessibility", Program: "npm", Args: []string{"run", "test:a11y"}, Timeout: 3 * time.Minute},
 		{ID: "security", Program: "npm", Args: []string{"run", "test:security"}, Timeout: 3 * time.Minute},
 	},
+	// agentarch/std is the installed standard, not the product: the checks below leave it out.
+	// The security floor that follows still scans it.
 	"python-api": {
-		{ID: "lint", Program: "python", Args: []string{"-m", "ruff", "check", "."}, Timeout: 2 * time.Minute},
-		{ID: "typecheck", Program: "python", Args: []string{"-m", "mypy", "."}, Timeout: 2 * time.Minute},
-		{ID: "test", Program: "python", Args: []string{"-m", "pytest", "-q"}, Timeout: 5 * time.Minute},
+		{ID: "lint", Program: "python", Args: []string{"-m", "ruff", "check", ".", "--extend-exclude", "agentarch/std"}, Timeout: 2 * time.Minute},
+		{ID: "typecheck", Program: "python", Args: []string{"-m", "mypy", ".", "--exclude", "^agentarch/std/"}, Timeout: 2 * time.Minute},
+		{ID: "test", Program: "python", Args: []string{"-m", "pytest", "-q", "--ignore=agentarch/std"}, Timeout: 5 * time.Minute},
 		{ID: "dependencies", Program: "python", Args: []string{"-m", "pip", "check"}, Timeout: time.Minute},
 		// Bandit scans '.' as './path'; explicit root globs match that prefix and
 		// do not accidentally exclude application paths such as src/tests/.
-		{ID: "security", Program: "python", Args: []string{"-m", "bandit", "-r", ".", "-q", "-x", "./.venv/*,./tests/*"}, Timeout: 3 * time.Minute},
+		{ID: "security", Program: "python", Args: []string{"-m", "bandit", "-r", ".", "-q", "-x", "./.venv/*,./tests/*,./agentarch/std/*"}, Timeout: 3 * time.Minute},
 	},
 	// Go services. Modules come from the image's read-only cache (GOPROXY=off); known
 	// vulnerabilities in go.mod are covered by the security floor's dependency-audit.

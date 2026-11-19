@@ -58,3 +58,24 @@ func TestStartProductChoosesNoProfileForAScript(t *testing.T) {
 		}
 	}
 }
+
+// The standard installed into a project carries no blueprints: they were verified as the
+// product's own code. Installing one still works, from the binary.
+func TestInitLeavesBlueprintsInTheBinary(t *testing.T) {
+	root := t.TempDir()
+	if _, stderr, code := capture(t, func() int { return cmdInit([]string{"--root", root}) }); code != exitOK {
+		t.Fatalf("init: %s", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(root, "agentarch", "std", "blueprints")); err == nil {
+		t.Fatal("init copied the blueprints into agentarch/std")
+	}
+	_, stderr, code := capture(t, func() int {
+		return cmdBlueprintAdd([]string{"--root", root, "--id", "tool-approval", "--provider", "google", "--yes"})
+	})
+	if code != exitOK {
+		t.Fatalf("blueprint add after init: %s", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(root, "app", "requirements.txt")); err != nil {
+		t.Fatal("blueprint add wrote no app")
+	}
+}

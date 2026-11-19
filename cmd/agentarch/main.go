@@ -286,7 +286,11 @@ func cmdInit(args []string) int {
 	}
 
 	stdDir := filepath.Join(*root, "agentarch", "std")
-	if err := copyEmbedded(agentarch.Content, "content", stdDir); err != nil {
+	// Blueprints stay in the binary. Copied into every project they were judged as the product's
+	// own code: their fake test keys read as leaked secrets, their pinned SDKs as the product's
+	// dependencies and their pages as the product's broken links. `blueprint add` reads them from
+	// the binary.
+	if err := copyEmbeddedExcept(agentarch.Content, "content", stdDir, "content/blueprints"); err != nil {
 		fmt.Fprintln(os.Stderr, "init:", err)
 		return exitUsage
 	}
@@ -401,10 +405,16 @@ gates:
 	return exitOK
 }
 
-func copyEmbedded(src fs.FS, from, to string) error {
+func copyEmbedded(src fs.FS, from, to string) error { return copyEmbeddedExcept(src, from, to, "") }
+
+// copyEmbeddedExcept copies the tree under from, leaving out the subtree skip.
+func copyEmbeddedExcept(src fs.FS, from, to, skip string) error {
 	return fs.WalkDir(src, from, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if skip != "" && p == skip {
+			return fs.SkipDir
 		}
 		rel, err := filepath.Rel(from, p)
 		if err != nil {

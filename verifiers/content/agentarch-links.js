@@ -17,6 +17,9 @@ const fs = require('fs');
 const path = require('path');
 
 const SKIP_DIRS = new Set(['.git', 'node_modules']);
+// agentarch/std is the standard installed by `agentarch init`, not the product's own content.
+// The security floor still scans it; the product's quality checks do not judge it.
+const SKIP_PATHS = new Set(['agentarch/std']);
 
 // Project files below root, as sorted POSIX paths. Symlinked directories are not followed;
 // a symlink to a regular file counts as that file.
@@ -28,7 +31,7 @@ function walk(root, accept) {
     for (const e of entries) {
       const r = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {
-        if (!SKIP_DIRS.has(e.name)) visit(r);
+        if (!SKIP_DIRS.has(e.name) && !SKIP_PATHS.has(r)) visit(r);
       } else if (accept(r)) {
         if (e.isFile()) out.push(r);
         else if (e.isSymbolicLink()) {

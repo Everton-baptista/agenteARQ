@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	agentarch "github.com/Everton-baptista/agenteARQ"
 	"github.com/Everton-baptista/agenteARQ/internal/blueprint"
 )
 
@@ -33,8 +35,17 @@ func cmdBlueprint(args []string) int {
 	}
 }
 
+// blueprintFS is where blueprints are read from: a project's own agentarch/std when it still
+// carries them (installed by an older release), otherwise the binary.
+func blueprintFS(root string) (fs.FS, error) {
+	if _, err := os.Stat(filepath.Join(root, "agentarch", "std", "blueprints")); err == nil {
+		return contentFS(root)
+	}
+	return fs.Sub(agentarch.Content, "content")
+}
+
 func loadBlueprints(root string) ([]blueprint.Blueprint, error) {
-	src, err := contentFS(root)
+	src, err := blueprintFS(root)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +431,7 @@ func chooseFramework(b blueprint.Blueprint) (string, int) {
 }
 
 func mustContentFS(root string) fs.FS {
-	src, err := contentFS(root)
+	src, err := blueprintFS(root)
 	if err != nil {
 		return nil
 	}
