@@ -28,6 +28,13 @@ exit 1 rather than read on a best-effort basis.
   cosign v3.1.4, checks it against a SHA-256 pinned in the script, and uses it for that run only.
   Signature and checksum verification stay mandatory, so the signed binary installs without Go,
   sudo or a source build.
+- The installer resolves the latest release through the `releases/latest` redirect instead of the
+  REST API, whose anonymous rate limit returned 403 on shared networks.
+- `init --adopt` and `start --adopt` no longer report libraries a project does not use. Detection
+  counts only declared dependencies and imports (it read "diagnostic" as agno and any "agents" as
+  the OpenAI Agents SDK), skips virtual environments under any name, and prints the file behind
+  every finding. A model string found in the code is listed as a candidate and never written to
+  `model.id`.
 
 ## v0.5.0 — 2026-11-18
 

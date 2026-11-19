@@ -16,42 +16,121 @@ type adoptScan struct {
 	Prompts    []string
 	Frameworks []string
 	MCPFiles   []string
+	// Where reports the first file each provider, model and framework was seen in, so a person
+	// can check a finding instead of taking it on trust.
+	Where map[string]string
 }
+
+// pkgHint maps a package as a project declares or imports it to what it implies.
+type pkgHint struct{ kind, value string }
 
 var (
 	// Model identifiers, deliberately narrow. A wrong guess that looks confident is worse than
 	// a field left `unknown`, because nobody re-examines a field that is already filled in.
-	modelRe = regexp.MustCompile(`["']((?:claude|gpt|gemini|llama|mistral|command|deepseek|qwen)[a-zA-Z0-9._-]{2,60})["']`)
+	modelRe = regexp.MustCompile(`["']((?:claude|gpt|gemini|llama|mistral|command|deepseek|qwen)(?:-|\d)[a-zA-Z0-9._:-]{0,60})["']`)
 
-	providerHints = map[string]string{
-		"anthropic":           "anthropic",
-		"openai":              "openai",
-		"google.generativeai": "google",
-		"google-genai":        "google",
-		"bedrock":             "bedrock",
-		"boto3":               "bedrock",
-		"vertexai":            "google",
-		"ollama":              "local",
+	// Only declared dependencies and imports count as evidence. Matching substrings anywhere
+	// reported "agno" for every file that said "diagnostic" and the OpenAI Agents SDK for every
+	// file that said "agents".
+	packages = map[string]pkgHint{
+		"anthropic": {"provider", "anthropic"}, "@anthropic-ai/sdk": {"provider", "anthropic"},
+		"github.com/anthropics/anthropic-sdk-go": {"provider", "anthropic"},
+		"openai":                                 {"provider", "openai"}, "github.com/openai/openai-go": {"provider", "openai"},
+		"google-generativeai": {"provider", "google"}, "google-genai": {"provider", "google"},
+		"@google/genai": {"provider", "google"}, "@google/generative-ai": {"provider", "google"},
+		"google.golang.org/genai": {"provider", "google"}, "google-cloud-aiplatform": {"provider", "google"},
+		"ollama":    {"provider", "local"},
+		"langgraph": {"framework", "langgraph"}, "@langchain/langgraph": {"framework", "langgraph"},
+		"langchain":   {"framework", "langgraph"},
+		"llama-index": {"framework", "llamaindex"}, "llamaindex": {"framework", "llamaindex"},
+		"crewai": {"framework", "crewai"}, "agno": {"framework", "agno"},
+		"semantic-kernel": {"framework", "semantic-kernel"}, "pydantic-ai": {"framework", "pydantic-ai"},
+		"openai-agents": {"framework", "openai-agents-sdk"}, "@openai/agents": {"framework", "openai-agents-sdk"},
+		"claude-agent-sdk":               {"framework", "claude-agent-sdk"},
+		"@anthropic-ai/claude-agent-sdk": {"framework", "claude-agent-sdk"},
+		"google-adk":                     {"framework", "google-adk"}, "ai": {"framework", "vercel-ai-sdk"},
 	}
 
-	frameworkHints = map[string]string{
-		"langgraph": "langgraph", "langchain": "langgraph",
-		"llama_index": "llamaindex", "llamaindex": "llamaindex",
-		"crewai": "crewai", "agno": "agno",
-		"semantic_kernel":  "semantic-kernel",
-		"pydantic_ai":      "pydantic-ai",
-		"agents":           "openai-agents-sdk",
-		"claude_agent_sdk": "claude-agent-sdk",
-		"google.adk":       "google-adk",
-		"ai/react":         "vercel-ai-sdk",
+	// Python imports by top-level module. `agents` is left out: it is the OpenAI Agents SDK's
+	// module name and also the most common name for a project's own package.
+	pyModules = map[string]string{
+		"anthropic": "anthropic", "openai": "openai", "google.generativeai": "google-generativeai",
+		"google.genai": "google-genai", "vertexai": "google-cloud-aiplatform", "ollama": "ollama",
+		"langgraph": "langgraph", "langchain": "langchain", "llama_index": "llama-index",
+		"crewai": "crewai", "agno": "agno", "semantic_kernel": "semantic-kernel",
+		"pydantic_ai": "pydantic-ai", "claude_agent_sdk": "claude-agent-sdk", "google.adk": "google-adk",
+	}
+	pyImportRe = regexp.MustCompile(`(?m)^\s*(?:from|import)\s+([A-Za-z_][\w.]*)`)
+	jsImportRe = regexp.MustCompile(`(?:\bfrom\s+|\brequire\(\s*|\bimport\(\s*|^\s*import\s+)["']([^"']+)["']`)
+
+	manifestFiles = map[string]bool{
+		"package.json": true, "pyproject.toml": true, "Pipfile": true, "go.mod": true,
+		"setup.py": true, "setup.cfg": true, "environment.yml": true,
 	}
 
 	skipDirs = map[string]bool{
-		".git": true, "node_modules": true, ".venv": true, "venv": true,
-		"vendor": true, "dist": true, "build": true, "__pycache__": true,
-		"agentarch": true, ".claude": true,
+		".git": true, "node_modules": true, ".venv": true, "venv": true, "site-packages": true,
+		"vendor": true, "dist": true, "build": true, "out": true, "target": true, "coverage": true,
+		"__pycache__": true, "agentarch": true, ".claude": true,
 	}
 )
+
+// isRequirements matches requirements.txt and variants such as requirements-dev.txt.
+func isRequirements(name string) bool {
+	return strings.HasPrefix(name, "requirements") && strings.HasSuffix(name, ".txt")
+}
+
+// declared reports the packages a dependency manifest names, as whole package names.
+func declared(name, body string) []string {
+	var out []string
+	for pkg := range packages {
+		var re *regexp.Regexp
+		q := regexp.QuoteMeta(pkg)
+		switch {
+		case name == "package.json":
+			re = regexp.MustCompile(`"` + q + `"\s*:`)
+		case name == "go.mod":
+			re = regexp.MustCompile(`(?m)^\s*(?:require\s+)?` + q + `(?:/v\d+)?\s+v`)
+		case isRequirements(name):
+			re = regexp.MustCompile(`(?mi)^\s*` + q + `\s*(?:\[[^\]]*\])?\s*(?:[=<>~!;@]|$)`)
+		default: // pyproject, Pipfile, setup.*, environment.yml: a quoted or line-leading name
+			re = regexp.MustCompile(`(?mi)(?:^|["'\s,\[])` + q + `\s*(?:\[[^\]]*\])?\s*(?:[=<>~!;"',\]]|$)`)
+		}
+		if pkg == "ai" && name != "package.json" {
+			continue // too short to trust outside package.json
+		}
+		if re.MatchString(body) {
+			out = append(out, pkg)
+		}
+	}
+	return out
+}
+
+// imported reports the known packages a source file imports.
+func imported(ext, body string) []string {
+	var out []string
+	switch ext {
+	case ".py":
+		for _, m := range pyImportRe.FindAllStringSubmatch(body, -1) {
+			mod := m[1]
+			for prefix, pkg := range pyModules {
+				if mod == prefix || strings.HasPrefix(mod, prefix+".") {
+					out = append(out, pkg)
+				}
+			}
+		}
+	case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs":
+		for _, m := range jsImportRe.FindAllStringSubmatch(body, -1) {
+			spec := m[1]
+			for pkg := range packages {
+				if spec == pkg || strings.HasPrefix(spec, pkg+"/") {
+					out = append(out, pkg)
+				}
+			}
+		}
+	}
+	return out
+}
 
 // scanForAgents looks for evidence of an existing agent.
 //
@@ -59,14 +138,25 @@ var (
 // as `unknown` in the manifest, because a plausible-looking wrong value is worse than a blank
 // one: nobody re-examines a field that is already filled in.
 func scanForAgents(root string) adoptScan {
-	var s adoptScan
+	s := adoptScan{Where: map[string]string{}}
 	seen := map[string]bool{}
-	add := func(dst *[]string, v string) {
-		if v == "" || seen[v] {
+	add := func(dst *[]string, kind, v, rel string) {
+		if v == "" || seen[kind+":"+v] {
 			return
 		}
-		seen[v] = true
+		seen[kind+":"+v] = true
 		*dst = append(*dst, v)
+		if kind != "prompt" && kind != "mcp" {
+			s.Where[kind+":"+v] = rel
+		}
+	}
+	hint := func(pkg, rel string) {
+		h := packages[pkg]
+		if h.kind == "provider" {
+			add(&s.Providers, "provider", h.value, rel)
+		} else {
+			add(&s.Frameworks, "framework", h.value, rel)
+		}
 	}
 
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
@@ -74,7 +164,11 @@ func scanForAgents(root string) adoptScan {
 			return nil
 		}
 		if d.IsDir() {
-			if skipDirs[d.Name()] || strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			if p != root && (skipDirs[d.Name()] || strings.HasPrefix(d.Name(), ".")) {
+				return filepath.SkipDir
+			}
+			// A virtual environment under any name holds other people's code, full of model names.
+			if _, e := os.Stat(filepath.Join(p, "pyvenv.cfg")); e == nil {
 				return filepath.SkipDir
 			}
 			return nil
@@ -82,10 +176,19 @@ func scanForAgents(root string) adoptScan {
 
 		name := d.Name()
 		ext := filepath.Ext(name)
+		manifest := manifestFiles[name] || isRequirements(name)
+		mcp := name == ".mcp.json" || strings.Contains(name, "mcp") && ext == ".json"
+		source := false
 		switch ext {
-		case ".py", ".ts", ".js", ".go", ".rb", ".java", ".cs", ".yaml", ".yml", ".toml", ".txt":
-		default:
+		case ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".go", ".rb", ".java", ".cs", ".yaml", ".yml", ".toml":
+			source = !strings.HasSuffix(name, "-lock.yaml") && !strings.HasSuffix(name, ".lock.yaml") && !strings.HasSuffix(name, ".min.js")
+		}
+		if !manifest && !source && !mcp {
 			return nil
+		}
+		rel, _ := filepath.Rel(root, p)
+		if mcp {
+			add(&s.MCPFiles, "mcp", rel, rel)
 		}
 
 		info, err := d.Info()
@@ -97,29 +200,24 @@ func scanForAgents(root string) adoptScan {
 			return nil
 		}
 		body := string(raw)
-		lower := strings.ToLower(body)
 
-		for hint, provider := range providerHints {
-			if strings.Contains(lower, hint) {
-				add(&s.Providers, provider)
+		if manifest {
+			for _, pkg := range declared(name, body) {
+				hint(pkg, rel)
 			}
 		}
-		for hint, fw := range frameworkHints {
-			if strings.Contains(lower, hint) {
-				add(&s.Frameworks, fw)
-			}
+		if !source {
+			return nil
+		}
+		for _, pkg := range imported(ext, body) {
+			hint(pkg, rel)
 		}
 		for _, m := range modelRe.FindAllStringSubmatch(body, -1) {
-			add(&s.Models, m[1])
-		}
-		if name == ".mcp.json" || strings.Contains(name, "mcp") && ext == ".json" {
-			rel, _ := filepath.Rel(root, p)
-			add(&s.MCPFiles, rel)
+			add(&s.Models, "model", m[1], rel)
 		}
 		// A long triple-quoted string mentioning "you are" is usually a system prompt.
-		if strings.Contains(lower, "you are ") && len(body) > 200 {
-			rel, _ := filepath.Rel(root, p)
-			add(&s.Prompts, rel)
+		if strings.Contains(strings.ToLower(body), "you are ") && len(body) > 200 {
+			add(&s.Prompts, "prompt", rel, rel)
 		}
 		return nil
 	})
@@ -128,7 +226,23 @@ func scanForAgents(root string) adoptScan {
 	sort.Strings(s.Models)
 	sort.Strings(s.Frameworks)
 	sort.Strings(s.Prompts)
+	sort.Strings(s.MCPFiles)
 	return s
+}
+
+// withWhere renders found values with the file each was first seen in.
+func (s adoptScan) withWhere(kind string, values []string, limit int) string {
+	if len(values) > limit {
+		values = values[:limit]
+	}
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = v
+		if w := s.Where[kind+":"+v]; w != "" {
+			out[i] = fmt.Sprintf("%s (%s)", v, w)
+		}
+	}
+	return strings.Join(out, ", ")
 }
 
 // writeAdoptedManifest produces a manifest that is honest about what is not yet known.
@@ -138,28 +252,23 @@ func writeAdoptedManifest(root, id string, s adoptScan) error {
 		return err
 	}
 
+	// A provider is filled in only when exactly one is declared or imported. A model never is:
+	// a string in the code says what someone typed, not what runs in production.
 	provider, model := "unknown", "unknown"
 	if len(s.Providers) == 1 {
 		provider = s.Providers[0]
 	}
-	if len(s.Models) == 1 {
-		model = s.Models[0]
-	}
 
 	var found strings.Builder
 	if len(s.Providers) > 0 {
-		fmt.Fprintf(&found, "#   providers seen:  %s\n", strings.Join(s.Providers, ", "))
+		fmt.Fprintf(&found, "#   providers seen:  %s\n", s.withWhere("provider", s.Providers, 5))
 	}
 	if len(s.Models) > 0 {
-		shown := s.Models
-		if len(shown) > 5 {
-			shown = shown[:5]
-		}
-		fmt.Fprintf(&found, "#   models seen:     %s\n", strings.Join(shown, ", "))
+		fmt.Fprintf(&found, "#   models seen:     %s  (confirm model.id yourself)\n", s.withWhere("model", s.Models, 5))
 	}
 	if len(s.Frameworks) > 0 {
 		fmt.Fprintf(&found, "#   frameworks seen: %s  (see agentarch/std/adapters/)\n",
-			strings.Join(s.Frameworks, ", "))
+			s.withWhere("framework", s.Frameworks, 5))
 	}
 	if len(s.Prompts) > 0 {
 		shown := s.Prompts

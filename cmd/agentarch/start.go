@@ -896,13 +896,13 @@ func reportScan(s adoptScan) {
 		return
 	}
 	if len(s.Providers) > 0 {
-		fmt.Printf("  providers   %s\n", strings.Join(s.Providers, ", "))
+		fmt.Printf("  providers   %s\n", s.withWhere("provider", s.Providers, 5))
 	}
 	if len(s.Models) > 0 {
-		fmt.Printf("  models      %s\n", strings.Join(s.Models[:min(5, len(s.Models))], ", "))
+		fmt.Printf("  models      %s  (not written to model.id; confirm it yourself)\n", s.withWhere("model", s.Models, 5))
 	}
 	if len(s.Frameworks) > 0 {
-		fmt.Printf("  frameworks  %s\n", strings.Join(s.Frameworks, ", "))
+		fmt.Printf("  frameworks  %s\n", s.withWhere("framework", s.Frameworks, 5))
 	}
 	if len(s.Prompts) > 0 {
 		fmt.Printf("  prompts?    %s\n", strings.Join(s.Prompts[:min(3, len(s.Prompts))], ", "))

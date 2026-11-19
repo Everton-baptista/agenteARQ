@@ -836,22 +836,7 @@ func finishAdopt(root, id string) int {
 	case len(scan.Providers) == 0 && len(scan.Models) == 0:
 		fmt.Printf("Nothing recognisable was found, so almost everything is `unknown`.\n")
 	default:
-		if len(scan.Providers) > 0 {
-			fmt.Printf("  providers   %s\n", strings.Join(scan.Providers, ", "))
-		}
-		if len(scan.Models) > 0 {
-			shown := scan.Models
-			if len(shown) > 5 {
-				shown = shown[:5]
-			}
-			fmt.Printf("  models      %s\n", strings.Join(shown, ", "))
-		}
-		if len(scan.Frameworks) > 0 {
-			fmt.Printf("  frameworks  %s\n", strings.Join(scan.Frameworks, ", "))
-		}
-		if len(scan.Prompts) > 0 {
-			fmt.Printf("  prompts?    %s\n", strings.Join(scan.Prompts[:min(3, len(scan.Prompts))], ", "))
-		}
+		reportScan(scan)
 	}
 
 	fmt.Printf(`
