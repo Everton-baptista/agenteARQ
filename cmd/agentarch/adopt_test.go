@@ -88,3 +88,47 @@ func TestAdoptedManifestNeverFillsTheModelFromAScan(t *testing.T) {
 		}
 	}
 }
+
+func TestScanDropsModelsThatDoNotMatchAProviderOrSitInInterfaceCopy(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"requirements.txt":    "anthropic==0.40.0\n",
+		"app/llm.py":          "import anthropic\nMODEL = \"claude-sonnet-4-5\"\nCOMPARE = [\"gpt-4.1\", \"gemini-2.5-pro\"]\n",
+		"web/src/Pricing.tsx": "export const plans = [\"gpt-4o\", \"claude-opus-4\"];\n",
+		"app/locales/en.yaml": "banner: \"gpt-4.1\"\n",
+		"config/models.yaml":  "default: \"claude-haiku-4-5\"\n",
+		"cmd/svc/main.go":     "package main\n\nimport (\n\t\"github.com/anthropics/anthropic-sdk-go\"\n)\n\nvar m = \"claude-3-7-sonnet\"\n",
+		"app/ui/messages.py":  "WELCOME = \"\"\"" + strings.Repeat("x", 200) + " you are logged in\"\"\"\n",
+	})
+	s := scanForAgents(root)
+	if want := []string{"claude-3-7-sonnet", "claude-haiku-4-5", "claude-sonnet-4-5"}; !reflect.DeepEqual(s.Models, want) {
+		t.Errorf("models %v, want %v", s.Models, want)
+	}
+	if len(s.Prompts) != 0 {
+		t.Errorf("interface copy taken for a prompt: %v", s.Prompts)
+	}
+}
+
+// A project without any model call is not an agent: adoption says so, writes no agent.yaml,
+// and lays out the product profiles instead of choosing one.
+func TestAdoptingAProjectWithoutAModelWritesNoAgent(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"index.html":   "<!doctype html><title>x</title>\n",
+		"js/app.js":    "document.title = 'diagnostics for agents';\n",
+		"docs/guia.md": "# Guia\n",
+	})
+	out, _, _ := capture(t, func() int { return cmdInit([]string{"--root", root, "--adopt"}) })
+	if _, err := os.Stat(filepath.Join(root, "agentarch", "project", "agents")); err == nil {
+		entries, _ := os.ReadDir(filepath.Join(root, "agentarch", "project", "agents"))
+		if len(entries) > 0 {
+			t.Fatalf("wrote an agent for a project without one: %v", entries)
+		}
+	}
+	if !strings.Contains(out, "No agent here") || !strings.Contains(out, "universal") {
+		t.Fatalf("did not explain or offer the product profiles:\n%s", out)
+	}
+	if strings.Count(out, "checks:") < 3 {
+		t.Fatalf("offered fewer than three profiles to compare:\n%s", out)
+	}
+}

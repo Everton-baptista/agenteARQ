@@ -121,6 +121,7 @@ func cmdStart(args []string) int {
 	newProject := fs_.Bool("new", false, "skip the first question: this is a new agent")
 	adopt := fs_.Bool("adopt", false, "skip the first question: the code already exists")
 	refactorFlag := fs_.Bool("refactor", false, "adopt, and install the refactoring workflow")
+	forceAgent := fs_.Bool("agent", false, "with --adopt: describe an agent even when no model SDK or framework is found")
 	bpID := fs_.String("blueprint", "", "which starting point to install")
 	framework := fs_.String("framework", "", "which runnable code to write")
 	providerFlag := fs_.String("provider", "", "model provider: "+strings.Join(providerIDs(), ", "))
@@ -398,6 +399,10 @@ func cmdStart(args []string) int {
 			id = "adopted-agent"
 		}
 		scan := scanForAgents(*root)
+		if !scan.IsAgent() && !*forceAgent {
+			reportNotAnAgent(*root)
+			return exitOK
+		}
 		if err := writeAdoptedManifest(*root, id, scan); err != nil {
 			fmt.Fprintln(os.Stderr, "start:", err)
 			return exitUsage

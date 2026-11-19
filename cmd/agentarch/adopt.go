@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Everton-baptista/agenteARQ/internal/workflow"
 )
 
 // adoptScan is what could be inferred from a project that already has agents in it.
@@ -61,6 +63,7 @@ var (
 		"pydantic_ai": "pydantic-ai", "claude_agent_sdk": "claude-agent-sdk", "google.adk": "google-adk",
 	}
 	pyImportRe = regexp.MustCompile(`(?m)^\s*(?:from|import)\s+([A-Za-z_][\w.]*)`)
+	goImportRe = regexp.MustCompile(`(?m)^\s*(?:import\s+)?(?:[A-Za-z_.]+\s+)?"([a-z0-9.-]+\.[a-z]+/[^"]+)"\s*$`)
 	jsImportRe = regexp.MustCompile(`(?:\bfrom\s+|\brequire\(\s*|\bimport\(\s*|^\s*import\s+)["']([^"']+)["']`)
 
 	manifestFiles = map[string]bool{
@@ -115,6 +118,14 @@ func imported(ext, body string) []string {
 			mod := m[1]
 			for prefix, pkg := range pyModules {
 				if mod == prefix || strings.HasPrefix(mod, prefix+".") {
+					out = append(out, pkg)
+				}
+			}
+		}
+	case ".go":
+		for _, m := range goImportRe.FindAllStringSubmatch(body, -1) {
+			for pkg := range packages {
+				if strings.Contains(pkg, ".") && strings.Contains(pkg, "/") && (m[1] == pkg || strings.HasPrefix(m[1], pkg+"/")) {
 					out = append(out, pkg)
 				}
 			}
@@ -209,18 +220,46 @@ func scanForAgents(root string) adoptScan {
 		if !source {
 			return nil
 		}
-		for _, pkg := range imported(ext, body) {
+		imports := imported(ext, body)
+		for _, pkg := range imports {
 			hint(pkg, rel)
+		}
+		// Model names and prompts count only where a model is plausibly called: a file that
+		// imports a model library, or a configuration file outside interface copy. A dropdown
+		// label, a pricing page or a "you are logged in" banner is not evidence of an agent.
+		config := (ext == ".yaml" || ext == ".yml" || ext == ".toml") && !inUIDir(rel)
+		if len(imports) == 0 && !config {
+			return nil
 		}
 		for _, m := range modelRe.FindAllStringSubmatch(body, -1) {
 			add(&s.Models, "model", m[1], rel)
 		}
 		// A long triple-quoted string mentioning "you are" is usually a system prompt.
-		if strings.Contains(strings.ToLower(body), "you are ") && len(body) > 200 {
+		if len(imports) > 0 && strings.Contains(strings.ToLower(body), "you are ") && len(body) > 200 {
 			add(&s.Prompts, "prompt", rel, rel)
 		}
 		return nil
 	})
+
+	// A model has to belong to a provider the project actually uses. "gpt-4.1" in a project that
+	// only declares anthropic is a comparison table or a leftover, not what runs.
+	providers := map[string]bool{}
+	for _, p := range s.Providers {
+		providers[p] = true
+	}
+	kept := s.Models[:0]
+	for _, m := range s.Models {
+		if want, known := modelProvider(m); known && !providers[want] {
+			delete(s.Where, "model:"+m)
+			continue
+		}
+		if len(s.Providers) == 0 && len(s.Frameworks) == 0 {
+			delete(s.Where, "model:"+m)
+			continue
+		}
+		kept = append(kept, m)
+	}
+	s.Models = kept
 
 	sort.Strings(s.Providers)
 	sort.Strings(s.Models)
@@ -228,6 +267,38 @@ func scanForAgents(root string) adoptScan {
 	sort.Strings(s.Prompts)
 	sort.Strings(s.MCPFiles)
 	return s
+}
+
+// IsAgent reports whether the project calls a model at all: a declared or imported model SDK or
+// agent framework. Without one there is no agent to describe, and writing a manifest for it
+// would be the confident wrong guess the scan exists to avoid.
+func (s adoptScan) IsAgent() bool { return len(s.Providers)+len(s.Frameworks) > 0 }
+
+// modelProvider names the provider a model family belongs to, when the family has exactly one.
+func modelProvider(model string) (string, bool) {
+	switch {
+	case strings.HasPrefix(model, "claude"):
+		return "anthropic", true
+	case strings.HasPrefix(model, "gpt"):
+		return "openai", true
+	case strings.HasPrefix(model, "gemini"):
+		return "google", true
+	}
+	return "", false // open-weight families run on many providers
+}
+
+var uiDirs = map[string]bool{
+	"locales": true, "locale": true, "i18n": true, "translations": true, "lang": true,
+	"public": true, "static": true, "assets": true, "content": true, "docs": true,
+}
+
+func inUIDir(rel string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(filepath.Dir(rel)), "/") {
+		if uiDirs[strings.ToLower(part)] {
+			return true
+		}
+	}
+	return false
 }
 
 // withWhere renders found values with the file each was first seen in.
@@ -404,4 +475,95 @@ agent:
 		}
 	}
 	return nil
+}
+
+// profileOption is one engineering profile a non-agent product could be verified with.
+type profileOption struct {
+	ID, Checks, Fits string
+	Matches          bool
+}
+
+// productProfileOptions lists every available profile with what it checks and what it suits,
+// marking the ones the project's files point to. It proposes; the person chooses. Profiles this
+// build does not ship are left out rather than suggested.
+func productProfileOptions(root string) []profileOption {
+	has := func(names ...string) bool {
+		for _, n := range names {
+			if _, e := os.Stat(filepath.Join(root, n)); e == nil {
+				return true
+			}
+		}
+		return false
+	}
+	count := map[string]int{}
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if p != root && (skipDirs[d.Name()] || strings.HasPrefix(d.Name(), ".")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		count[strings.ToLower(filepath.Ext(d.Name()))]++
+		return nil
+	})
+	ts := has("tsconfig.json") || count[".ts"]+count[".tsx"] > 0
+	all := []profileOption{
+		{ID: "typescript-web", Checks: "lint, typecheck, unit and e2e tests, build, accessibility",
+			Fits: "a TypeScript web app with npm scripts", Matches: has("package.json") && ts},
+		{ID: "static-site", Checks: "HTML validity, JavaScript lint, broken local links",
+			Fits: "HTML/CSS/JS served as files, no build step", Matches: count[".html"] > 0 && !ts},
+		{ID: "python-api", Checks: "ruff, mypy, pytest, pip check, bandit",
+			Fits: "a Python service or library", Matches: has("pyproject.toml", "requirements.txt", "setup.py")},
+		{ID: "go-service", Checks: "gofmt, go vet, build, tests with the race detector",
+			Fits: "a Go module", Matches: has("go.mod")},
+		{ID: "docs", Checks: "Markdown structure, broken local links and images",
+			Fits: "documentation, standards, diagrams as text", Matches: count[".md"] > 0 && count[".md"] >= count[".html"]+count[".py"]+count[".go"]+count[".ts"]+count[".js"]},
+		{ID: "universal", Checks: "only the checks you declare in product.yaml",
+			Fits: "any other stack: you name the commands", Matches: false},
+	}
+	available := map[string]bool{}
+	for _, id := range workflow.Profiles() {
+		available[id] = true
+	}
+	var out []profileOption
+	for _, o := range all {
+		if available[o.ID] {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// reportNotAnAgent says plainly that no agent was found and lays out the product workflow's
+// profiles side by side, instead of writing a manifest for an agent that does not exist.
+func reportNotAnAgent(root string) {
+	fmt.Printf(`
+No agent here: no model SDK or agent framework is declared or imported, so no
+agent.yaml was written. That is fine. The standards under agentarch/std apply
+to any product, and the product workflow takes it from spec to production with
+isolated verification. Every profile adds the same security floor (secrets and
+known-vulnerable dependencies). Pick the one that fits:
+
+`)
+	marked := false
+	for _, o := range productProfileOptions(root) {
+		mark := " "
+		if o.Matches {
+			mark, marked = "*", true
+		}
+		fmt.Printf("  %s %-15s %s\n      checks: %s\n", mark, o.ID, o.Fits, o.Checks)
+	}
+	if marked {
+		fmt.Printf("\n  * = what this project's files suggest; nothing is chosen for you.\n")
+	}
+	fmt.Printf(`
+Then:  agentarch workflow init --name <product> --profile <one of the above> \
+         --goal "<the user outcome>" --author "<your name>"
+
+If this project does call a model in a way the scan cannot see (a raw HTTP
+call, say), describe it with:  agentarch init --adopt --adopt-id <id> --agent
+`)
 }

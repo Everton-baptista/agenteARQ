@@ -35,6 +35,11 @@ exit 1 rather than read on a best-effort basis.
   the OpenAI Agents SDK), skips virtual environments under any name, and prints the file behind
   every finding. A model string found in the code is listed as a candidate and never written to
   `model.id`.
+- Adoption also requires a model to match a provider the project uses, and ignores model names
+  and "you are" text in files that call no model (interface copy, pricing tables, locales).
+- A project with no model SDK or agent framework is not described as an agent. `init --adopt` and
+  `start --adopt` say so, write no `agent.yaml`, and list the product workflow's profiles side by
+  side, marking the ones the files suggest. `--agent` describes an agent anyway.
 
 ## v0.5.0 — 2026-11-18
 

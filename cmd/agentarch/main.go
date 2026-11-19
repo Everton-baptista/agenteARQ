@@ -263,6 +263,8 @@ func cmdInit(args []string) int {
 	adopt := fs_.Bool("adopt", false,
 		"scan for agents that already exist and scaffold manifests describing them")
 	adoptID := fs_.String("adopt-id", "", "id for the adopted agent (default: the directory name)")
+	forceAgent := fs_.Bool("agent", false,
+		"with --adopt: describe an agent even when the scan finds no model SDK or framework")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
@@ -379,7 +381,7 @@ gates:
 		return code
 	}
 	if *adopt {
-		return finishAdopt(*root, *adoptID)
+		return finishAdopt(*root, *adoptID, *forceAgent)
 	}
 	// start composes init with the steps that follow it and prints one set of next steps at the
 	// end. Two lists of next steps in one flow is how a guided setup stops feeling guided.
@@ -808,7 +810,7 @@ func syncSkills(root string, check bool) (int, int) {
 // The adoption path matters more than it looks. A project with existing agents fails dozens of
 // controls on day one; without a way in that costs nothing on the first day, the gate is
 // switched off and nothing improves. That risk was named in the plan and this is the mitigation.
-func finishAdopt(root, id string) int {
+func finishAdopt(root, id string, force bool) int {
 	if id == "" {
 		abs, err := filepath.Abs(root)
 		if err != nil {
@@ -823,6 +825,10 @@ func finishAdopt(root, id string) int {
 
 	fmt.Printf("\nscanning for an agent that already exists…\n")
 	scan := scanForAgents(root)
+	if !scan.IsAgent() && !force {
+		reportNotAnAgent(root)
+		return exitOK
+	}
 
 	if err := writeAdoptedManifest(root, id, scan); err != nil {
 		fmt.Fprintln(os.Stderr, "adopt:", err)
