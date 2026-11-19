@@ -217,6 +217,9 @@ func printProduct(v any, err error, format string) int {
 		for _, m := range x.Next.Missing {
 			fmt.Println("  •", m)
 		}
+		for _, a := range x.Next.Advice {
+			fmt.Println("  ◦", a)
+		}
 		if x.State.Verification != nil {
 			for _, c := range x.State.Verification.Checks {
 				fmt.Printf("  %-13s %-30s %s\n", c.Status, c.ID, c.Message)

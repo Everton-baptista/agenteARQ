@@ -112,11 +112,13 @@ type State struct {
 }
 
 type NextAction struct {
-	Phase          string   `json:"phase"`
-	Action         string   `json:"action"`
-	Missing        []string `json:"missing"`
-	TaskID         string   `json:"task_id,omitempty"`
-	ReadyTaskIDs   []string `json:"ready_task_ids,omitempty"`
+	Phase        string   `json:"phase"`
+	Action       string   `json:"action"`
+	Missing      []string `json:"missing"`
+	TaskID       string   `json:"task_id,omitempty"`
+	ReadyTaskIDs []string `json:"ready_task_ids,omitempty"`
+	// Advice is what is not required for this step but will be later, said while it is cheap.
+	Advice         []string `json:"advice,omitempty"`
 	BlockedTaskIDs []string `json:"blocked_task_ids,omitempty"` // Incomplete tasks with unfinished dependencies.
 }
 

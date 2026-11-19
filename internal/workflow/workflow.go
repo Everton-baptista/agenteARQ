@@ -66,6 +66,13 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 			documents[1]: []byte(SpecTemplate),
 			documents[2]: []byte(ADRTemplate),
 		}
+		// The release plan is reviewed with the code, so it has to exist before verification.
+		// Created up front, it is not discovered at release time, after the review it needed.
+		if rp, err := safePath(s.Root, ReleasePlanPath); err == nil {
+			if _, err = os.Stat(rp); os.IsNotExist(err) {
+				files[ReleasePlanPath] = []byte(ReleasePlanTemplate)
+			}
+		}
 		for rel := range files {
 			path, err := safePath(s.Root, rel)
 			if err != nil {
@@ -177,8 +184,10 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		} else {
 			action = "All planned tasks are complete; run verification."
 		}
+		next.Advice = releasePlanReminder(s.releasePlanGaps())
 	case "verifying":
 		action = "Run the engineering profile in an isolated container; fix failed or inconclusive checks."
+		next.Advice = releasePlanReminder(s.releasePlanGaps())
 	case "reviewing":
 		action = "Request an independent human or agent review of this exact fingerprint."
 	case "pr_ready":
@@ -492,4 +501,14 @@ func contains(ss []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// releasePlanReminder turns release-plan gaps into advice while it can still be reviewed with the
+// code: finishing it after review would make the review stale.
+func releasePlanReminder(gaps []string) []string {
+	out := make([]string, 0, len(gaps))
+	for _, g := range gaps {
+		out = append(out, "before verifying, so it is reviewed with the code: "+g)
+	}
+	return out
 }

@@ -209,3 +209,28 @@ func (s *Service) RecordProductionCheck(req ProductionCheckRequest) (Snapshot, e
 	}
 	return s.status()
 }
+
+// ReleasePlanTemplate is created with the product. Its TODO markers keep a release from being
+// recorded until each section says something real.
+const ReleasePlanTemplate = `# Release plan
+
+## Environment
+
+TODO: where it runs in production (provider, region, URL) and how it is deployed.
+
+## Owner
+
+TODO: the person accountable for this release and for rolling it back.
+
+## Rollback
+
+TODO: the exact steps to return to the previous version, and how you confirm it worked.
+
+## Post-deploy verification
+
+TODO: what you check right after deploying, and where (smoke test, page, dashboard).
+
+## Signals
+
+TODO: what you watch afterwards, and for how long (errors, latency, sign-ups, complaints).
+`
