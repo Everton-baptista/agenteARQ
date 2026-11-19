@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -212,6 +214,9 @@ var catalog = map[string]map[string]string{
 		"plan.confirm":         "\nGo ahead?",
 		"plan.nothing":         "nothing written",
 
+		// ---- workflow status
+		"workflow.status": "Phase: %s · revision %d\n\nNext step: %s",
+
 		// ---- shared
 		"common.notanoption": "  not one of the options",
 		"common.givingup":    "giving up after three tries; nothing written",
@@ -278,7 +283,53 @@ var catalog = map[string]map[string]string{
 		"plan.confirm":         "\nPodemos seguir?",
 		"plan.nothing":         "nada foi escrito",
 
+		"workflow.status":    "Fase: %s · revisão %d\n\nPróximo passo: %s",
 		"common.notanoption": "  não é uma das opções",
 		"common.givingup":    "desisti após três tentativas; nada foi escrito",
 	},
+}
+
+// projectLanguage is the language the project's generated instruction files were written in,
+// read from their header, so the workflow speaks to the person in the language they chose.
+func projectLanguage(root string) string {
+	for _, name := range []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"} {
+		b, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			continue
+		}
+		if m := generatedLangRe.FindSubmatch(b); m != nil && knownLanguage(string(m[1])) {
+			return string(m[1])
+		}
+	}
+	return SourceLang
+}
+
+var generatedLangRe = regexp.MustCompile(`agentarch:generated[^\n]*\blang=([A-Za-z-]+)`)
+
+// workflowActionsPT translates the workflow's next-step sentences. A sentence with no entry is
+// shown as written, so a new action is never hidden by a missing translation.
+var workflowActionsPT = map[string]string{
+	"Complete the brief and specification; checkpoint specified.":                                "Complete o brief e a especificação; registre o checkpoint specified.",
+	"Record the architecture decision and acceptance-to-check task mapping; checkpoint planned.": "Registre a decisão de arquitetura (opções comparadas) e as tarefas ligadas aos critérios e checks; registre o checkpoint planned.",
+	"Use a dedicated worktree and begin implementation; checkpoint implementing.":                "Use um worktree dedicado e comece a implementação; registre o checkpoint implementing.",
+	"Resolve the unfinished task dependencies before continuing implementation.":                 "Resolva as dependências de tarefas pendentes antes de continuar a implementação.",
+	"All planned tasks are complete; run verification.":                                          "Todas as tarefas planejadas estão concluídas; rode a verificação.",
+	"Run the engineering profile in an isolated container; fix failed or inconclusive checks.":   "Rode o perfil de engenharia em um contêiner isolado; corrija os checks com falha ou inconclusivos.",
+	"Request an independent human or agent review of this exact fingerprint.":                    "Peça uma revisão independente, humana ou de agente, deste fingerprint exato.",
+	"Resolve the recorded blocker and checkpoint implementing.":                                  "Resolva o bloqueio registrado e registre o checkpoint implementing.",
+	"Work cancelled; explicitly checkpoint draft to reopen.":                                     "Trabalho cancelado; registre explicitamente o checkpoint draft para reabrir.",
+}
+
+func translateAction(action string) string {
+	if lang != "pt-BR" {
+		return action
+	}
+	if v, ok := workflowActionsPT[action]; ok {
+		return v
+	}
+	if strings.HasPrefix(action, "Implement task ") && strings.HasSuffix(action, " and checkpoint it when complete.") {
+		id := strings.TrimSuffix(strings.TrimPrefix(action, "Implement task "), " and checkpoint it when complete.")
+		return "Implemente a tarefa " + id + " e registre o checkpoint quando terminar."
+	}
+	return action
 }

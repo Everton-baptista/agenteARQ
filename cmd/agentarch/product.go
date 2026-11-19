@@ -32,6 +32,7 @@ func cmdWorkflow(args []string) int {
 	}
 	command := args[0]
 	f := flag.NewFlagSet("workflow "+command, flag.ContinueOnError)
+	defer func(prev string) { lang = prev }(lang)
 	root := f.String("root", ".", "project Git worktree")
 	format := f.String("format", "text", "text or json")
 	name := f.String("name", "", "product name")
@@ -105,6 +106,7 @@ func cmdWorkflow(args []string) int {
 		fmt.Fprintln(os.Stderr, "unexpected positional argument; use --root for the project directory")
 		return exitUsage
 	}
+	lang = projectLanguage(*root)
 	if *format != "text" && *format != "json" {
 		fmt.Fprintln(os.Stderr, "format must be text or json")
 		return exitUsage
@@ -194,7 +196,7 @@ func printProduct(v any, err error, format string) int {
 	}
 	switch x := v.(type) {
 	case workflow.Snapshot:
-		fmt.Printf("\n%s · %s\nFase: %s · revisão %d\n\nPróximo passo: %s\n", x.Product.Name, x.Product.Profile, x.State.Phase, x.State.Revision, x.Next.Action)
+		fmt.Printf("\n%s · %s\n%s\n", x.Product.Name, x.Product.Profile, tf("workflow.status", x.State.Phase, x.State.Revision, translateAction(x.Next.Action)))
 		for _, m := range x.Next.Missing {
 			fmt.Println("  •", m)
 		}
