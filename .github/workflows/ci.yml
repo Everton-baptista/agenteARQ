@@ -320,7 +320,7 @@ jobs:
         run: |
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --lang pt-BR --profile standard
-          grep -q "Regras de arquitetura de agentes" CLAUDE.md
+          grep -q "Regras de projeto do AgenteARQ" CLAUDE.md
           grep -q "source_sha256" CLAUDE.md && {
             echo "::error::translation front matter leaked into the shim; it spends context budget"; exit 1; }
           /tmp/agentarch sync --check --lang pt-BR
