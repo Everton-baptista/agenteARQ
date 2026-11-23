@@ -27,6 +27,10 @@ Paste the relevant one into the conversation, or work through it by hand.
 | `review-change.md` | `agentarch-review-change` |
 | `prepare-pr.md` | `agentarch-prepare-pr` |
 | `release-product.md` | `agentarch-release-product` |
+| `design-interface.md` | `agentarch-design-interface` |
+| `test-scenarios.md` | `agentarch-test-scenarios` |
+| `persona-run.md` | `agentarch-persona-run` |
+| `choose-services.md` | `agentarch-choose-services` |
 
 If a checklist and its skill ever disagree, that is a bug — `agentarch validate` reports it as
 `AA-SKL-018`.

@@ -120,6 +120,6 @@ words with these meanings — precision here prevents whole classes of design er
 
 ## 7. Status of this catalogue
 
-Published: `01`–`16`. Every routing entry points at a real file. If one ever points at a
+Published: `01`–`17`. Every routing entry points at a real file. If one ever points at a
 planned standard, that is a known gap, not an error — and `agentarch explain` will say so
 rather than pretending otherwise.

@@ -208,7 +208,7 @@ func TestChoosingPortugueseTranslatesTheWholeInterview(t *testing.T) {
 
 	// Every question, and the hint under the first one.
 	for _, want := range []string{
-		"Seu projeto já existe?",
+		"O que você quer fazer?",
 		"Onde seu projeto vai ser usado?",
 		"este diretório parece vazio",
 		"Brasil",
@@ -219,18 +219,18 @@ func TestChoosingPortugueseTranslatesTheWholeInterview(t *testing.T) {
 		}
 	}
 	// And nothing left in English.
-	for _, unwanted := range []string{"Is this a new agent", "Where are the people", "Brazil "} {
+	for _, unwanted := range []string{"What do you want to do", "Where are the people", "Brazil "} {
 		if strings.Contains(stdout, unwanted) {
 			t.Errorf("English leaked into the Portuguese interview: %q", unwanted)
 		}
 	}
 }
 
-// The third option is what "refactor" answers. It shares the adoption path — both describe what
+// The fourth option is what "refactor" answers. It shares the adoption path — both describe what
 // is already here — and differs in what gets installed afterwards.
 func TestThirdOptionAsksForRefactoring(t *testing.T) {
 	var adopt, refactor bool
-	withAnswers(t, "3\n", func() {
+	withAnswers(t, "4\n", func() {
 		capture(t, func() int {
 			adopt, refactor, _, _ = askExisting(projectState{HasCode: true})
 			return exitOK
@@ -240,17 +240,17 @@ func TestThirdOptionAsksForRefactoring(t *testing.T) {
 		t.Error("refactoring still has to adopt what is there first")
 	}
 	if !refactor {
-		t.Error("option 3 did not select the refactoring path")
+		t.Error("option 4 did not select the refactoring path")
 	}
 
-	// And option 2 must not.
-	withAnswers(t, "2\n", func() {
+	// And option 3 must not.
+	withAnswers(t, "3\n", func() {
 		capture(t, func() int {
 			adopt, refactor, _, _ = askExisting(projectState{HasCode: true})
 			return exitOK
 		})
 	})
 	if !adopt || refactor {
-		t.Errorf("option 2 gave adopt=%v refactor=%v, want true/false", adopt, refactor)
+		t.Errorf("option 3 gave adopt=%v refactor=%v, want true/false", adopt, refactor)
 	}
 }

@@ -1,0 +1,23 @@
+# Scenarios: one or more per acceptance criterion in spec.md.
+# Every criterion needs a happy path and, wherever one exists, a failure or permission case.
+# Each test that proves a scenario names its id, so coverage can be checked both ways.
+schema_version: '1.0'
+scenarios:
+  - id: sc-create-task
+    criterion: AC-1
+    kind: happy            # happy | failure | permission | edge
+    given: a signed-in user with no tasks
+    when: they create a task titled "Pay rent"
+    then: the task appears in their list, not done
+  - id: sc-create-task-blank
+    criterion: AC-1
+    kind: failure
+    given: a signed-in user
+    when: they submit a task with an empty title
+    then: nothing is created and the form says the title is required
+  - id: sc-other-users-tasks
+    criterion: AC-2
+    kind: permission
+    given: two users, each with their own tasks
+    when: one user requests the other's task by id
+    then: the request is refused and nothing is revealed

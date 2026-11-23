@@ -57,54 +57,53 @@ Choose / Escolha 1–2 [1]:
 agentarch — let's get you set up.
 
 A few questions in plain language; nothing is written until you say so.
-Press Enter to take the default, or q to quit.
+Where a choice is yours, the options are explained and none is picked for you. q quits.
 
-Is this a new agent, or does the code already exist?
+What do you want to do?
 
-  1. New — start me off with a complete project that works, so I can edit it
-  2. Already built — describe what is here and continue from it
-  3. Already built — refactor it to the standard, with tests and review
+  1. Build a software product of any kind — site, API, app, CLI, docs, data, or an agent
+     from scratch — step by step, with technology options compared before you choose
+  2. Start a new AI agent from a complete project that already works, so I can edit it
+  3. Continue something already built — describe what is here (agent or not) and carry on
+  4. Refactor an existing AI agent to the standard, with tests and review
 
 (this directory looks empty)
-Choose 1–3 [1]:
+Choose 1–4:
+```
 
+Option 1 asks what people will be able to do, who is accountable, and which verification profile
+fits — each profile listed with what it checks — and opens the product workflow. No technology is
+chosen there: the architecture step compares options with you. Option 2 continues:
+
+```
 What are you building?
 
   1. A full agentic product — goal, tools, memory, approvals and observability
-     agentic-product — runs on Python Native
-
-  2. A chat on my website that answers customers, with a human approving the risky actions
-     chatbot-web — runs on Python Native
-
-  3. An agent that acts on my systems, with a human approving the dangerous part
-     tool-approval — runs on Python Native
-
+     agentic-product — runs on no framework (plain Python)
+  …
   4. An agent that answers from my documents and cites its sources
-     rag-support — runs on Python Native, langgraph
-
-  5. An agent that uses MCP servers I did not write
-     mcp-consumer — runs on Python Native
-
-  6. Expose my agent's tools so other agents and IDEs can call them safely
-     mcp-server — runs on Python Native
-
-  7. Several agents working together without losing track of who may do what
-     multi-agent-handoff — runs on Python Native
+     rag-support — runs on no framework (plain Python), langgraph
+  …
 
 Choose 1–7 (or q to quit):
 
 Which model provider will it call?
 
-  1. Anthropic (Claude)     claude-sonnet-4-5-20250929
-  2. OpenAI (GPT)           gpt-5.6-terra
-  3. Google (Gemini)        gemini-3.6-flash
-  4. AWS Bedrock (Nova/Claude)  amazon.nova-micro-v1:0
+  1. Anthropic (Claude)                   claude-sonnet-4-5-20250929
+     direct API account with Anthropic; billed per token by Anthropic
+  2. OpenAI (GPT)                         gpt-5.6-terra
+     direct API account with OpenAI; billed per token by OpenAI
+  3. Google (Gemini)                      gemini-3.6-flash
+     Gemini API key from Google; billed by Google
+  4. AWS Bedrock (Amazon Nova / Claude)   amazon.nova-micro-v1:0
+     through your AWS account: billing, IAM and region stay in AWS; several model families
 
-All four are wired up already — the agent code is the same either way,
-and only the manifest and one pinned SDK change. The model id is pinned
-rather than left as an alias, so an upgrade is something you decide.
+All of them are wired up — the agent code is the same either way; only the
+manifest and one pinned SDK change. Compare them on what matters to you: answer
+quality on your own examples, price, latency, where data is processed, and which
+account your organisation already has. The model id is pinned, not an alias.
 
-Choose 1–4 [1]:
+Choose 1–4:
 
 Where are the people who will use it?
 
@@ -209,7 +208,8 @@ to validate its agents.
 | `docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start` | needs nothing but Docker |
 | [Releases](https://github.com/Everton-baptista/agenteARQ/releases) | signed binaries, verified by hand |
 
-The installer requires Cosign, verifies the Sigstore bundle for `checksums.txt` against the exact
+The installer uses Cosign from your `PATH`, or, if you have none, downloads the official Sigstore
+build pinned by SHA-256 in the script and uses it for that run only. It verifies the Sigstore bundle for `checksums.txt` against the exact
 release workflow and tag, then verifies the binary checksum. Missing or invalid signature bundles
 are errors, including for old releases without the required bundle. It never uses `sudo` on your
 behalf — without write access to `/usr/local/bin` it installs to `~/.local/bin` and tells you how
@@ -317,7 +317,7 @@ scripting, adding a second agent, or want to see each step:
 agentarch init --profile standard --jurisdictions BR   # install the standard
 agentarch blueprint list                              # what starting points exist
 agentarch blueprint show rag-support                   # what one demonstrates
-agentarch blueprint add rag-support --framework none --yes
+agentarch blueprint add rag-support --framework none --provider anthropic --yes
 agentarch sync                                        # regenerate the instruction files
 ```
 
@@ -431,8 +431,8 @@ does not get into the standard.** A rule that genuinely cannot be automated is a
 |---|---|
 | **Standards** | agent contract, prompt and context, tools, MCP, memory, multi-agent, human-in-the-loop, guardrails, security, privacy, evaluation, observability, resilience and cost, lifecycle, supply chain, service and edge |
 | **Packs** | `core.agent`, `sec.owasp-llm`, `obs.otel`, `eval.baseline`, `api.edge`, `reg.gdpr`, `reg.br-lgpd`, `reg.eu-ai-act`, `std.nist-ai-rmf`, `std.iso-42001` |
-| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with Python Native as the default runtime, tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
-| **Adapters** | **Agno (ex-Phidata)** (documentation adapter), LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Vercel AI SDK, FastAPI, and Python Native (Clean Architecture / Seam Pattern) |
+| **Blueprints** | `agentic-product`, `chatbot-web`, `tool-approval`, `rag-support`, `mcp-consumer`, `mcp-server`, `multi-agent-handoff` — each a complete FastAPI service with a plain-Python runtime (and LangGraph for `rag-support`) — you choose — tests, evals, Dockerfile and deploy guides. `agentic-product` is the one that shows memory scoped to a tenant the caller cannot set; `chatbot-web` adds a browser chat UI; `mcp-server` exposes tools to other agents |
+| **Adapters** | Agno, LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Pydantic AI, LlamaIndex, CrewAI, Semantic Kernel, Vercel AI SDK, FastAPI, and plain Python with the provider SDK |
 | **Providers** | Anthropic (Claude), OpenAI (GPT), Google (Gemini), **AWS Bedrock** (Amazon Nova / Claude via Converse API) |
 | **Generated for** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, Cursor, Copilot, Windsurf, `.mcp.json` |
 

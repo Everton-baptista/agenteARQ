@@ -118,8 +118,8 @@ func readState(root, host string) (state, error) {
 		if _, err = safePath(root, rel); err != nil {
 			return s, err
 		}
-		allowed := rel == d.ConfigPath || strings.HasPrefix(rel, d.SkillsPath+"/") || strings.HasPrefix(rel, "agentarch/project/plugins/"+host+"/") || strings.HasPrefix(rel, "agentarch/project/agents/agentarch-"+host+"/") || strings.HasPrefix(rel, "agentarch/project/tools/agentarch_"+host+"_")
-		if !allowed || !contains([]string{"file", "json", "toml"}, e.Kind) || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(e.Hash) {
+		allowed := rel == d.ConfigPath || (d.HooksPath != "" && rel == d.HooksPath) || (d.AgentsPath != "" && strings.HasPrefix(rel, d.AgentsPath+"/")) || strings.HasPrefix(rel, d.SkillsPath+"/") || strings.HasPrefix(rel, "agentarch/project/plugins/"+host+"/") || strings.HasPrefix(rel, "agentarch/project/agents/agentarch-"+host+"/") || strings.HasPrefix(rel, "agentarch/project/tools/agentarch_"+host+"_")
+		if !allowed || !contains([]string{"file", "json", "toml", "hooks"}, e.Kind) || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(e.Hash) {
 			return s, fmt.Errorf("invalid managed entry: %s", rel)
 		}
 	}

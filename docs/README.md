@@ -1,9 +1,15 @@
 # Documentation
 
+**Direction**
+
+- [Mission and roadmap to 1.0](mission-and-roadmap.md) — what AgenteARQ is for, an honest assessment of where it stands, and the phased plan to close the gaps.
+- [Lay-user pilot protocol](pilot-protocol.md) — how non-technical participants are recruited, observed and measured to decide whether AgenteARQ is ready.
+
 **Using AgenteARQ**
 
 - [Standard for AI agents](agent-standard.md) — manifests, the 46 controls, regulatory packs, conformance and the CI gate, for products that contain agents.
 - [Product workflow](workflow.md) — phases, evidence, isolated verification, release and production checks.
+- [Design quality](../content/standards/en/17-design-quality.md) — a recorded design direction, design tokens and the checks that keep interfaces accessible and distinct from the generic generated look.
 - [Host plugins](plugins.md) — installing into Claude Code, Codex and Gemini CLI, and what the plugin can and cannot enforce.
 - [Verifier images](verifier-images.md) — building the pinned images verification runs in, including the security floor.
 - [Live plugin validation](live-plugin-validation.md) — how the plugins were exercised against real hosts.

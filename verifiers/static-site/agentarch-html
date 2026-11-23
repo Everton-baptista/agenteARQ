@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+// static-site profile, check `html`: html-validate over every *.html file in /workspace.
+//
+// The configuration is the image's (/opt/agentarch-static-site/htmlvalidate.json), loaded through
+// a static loader, so no .htmlvalidate.json, .htmlvalidateignore or package.json in the project
+// is read. Inline `<!-- [html-validate-...] -->` directives are made inert before validation, so
+// markup cannot switch a rule off for itself. No HTML at all fails: there is nothing to verify.
+//
+// Exit codes for the AgenteARQ runner: 0 valid, 1 invalid or no HTML (failed), 125 inconclusive.
+'use strict';
+const fs = require('fs');
+const { walk, run } = require('/opt/agentarch-content/agentarch-links.js');
+
+const TOOLS = '/opt/agentarch-static-site';
+
+run('html', async () => {
+  const { HtmlValidate, StaticConfigLoader } = require(`${TOOLS}/node_modules/html-validate`);
+  const config = JSON.parse(fs.readFileSync(`${TOOLS}/htmlvalidate.json`, 'utf8'));
+  const files = walk('.', (f) => /\.html?$/i.test(f));
+  if (files.length === 0) {
+    console.log('html: no .html files found; a static site needs at least one page, so this cannot pass');
+    return 1;
+  }
+  const validator = new HtmlValidate(new StaticConfigLoader(config));
+  let errors = 0;
+  let warnings = 0;
+  let directives = 0;
+  for (const file of files) {
+    // Same length replacement keeps every reported line and column correct.
+    const source = fs.readFileSync(file, 'utf8').replace(/\[html-validate-/g, () => {
+      directives++;
+      return '[html-inactive-';
+    });
+    const report = await validator.validateString(source, file);
+    for (const result of report.results) {
+      for (const m of result.messages) {
+        const level = m.severity === 2 ? 'error' : 'warning';
+        if (m.severity === 2) errors++;
+        else warnings++;
+        console.log(`${file}:${m.line}:${m.column}: ${level} ${m.message} (${m.ruleId})`);
+      }
+    }
+  }
+  if (directives) console.log(`html: ${directives} inline html-validate directive(s) in the project were not applied`);
+  const scope = `${files.length} HTML file${files.length === 1 ? '' : 's'}`;
+  if (errors) {
+    console.log(`html: ${errors} error(s), ${warnings} warning(s) in ${scope}`);
+    return 1;
+  }
+  console.log(`html: ${scope} valid${warnings ? ` (${warnings} warning(s))` : ''}`);
+  return 0;
+});

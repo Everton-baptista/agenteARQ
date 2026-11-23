@@ -350,7 +350,7 @@ func TestNextStepsAnswersTheQuestionAsked(t *testing.T) {
 			name:  "installed with no agent yet",
 			state: projectState{Installed: true, Agents: 0},
 			// Only the two commands that can do anything when nothing is described yet.
-			mustSay: []string{"blueprint", "new agent", "--help --all"},
+			mustSay: []string{"start --product", "workflow status", "blueprint", "--help --all"},
 			// Every one of these reads a manifest, and there is none.
 			mustNot: []string{"agentarch check ", "conformance", "aibom", "waive", "score"},
 		},

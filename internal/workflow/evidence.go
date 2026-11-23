@@ -12,6 +12,7 @@ type Evidence struct {
 	PR              *PRRecord              `json:"pr,omitempty"`
 	Release         *ReleaseRecord         `json:"release,omitempty"`
 	ProductionCheck *ProductionCheckRecord `json:"production_check,omitempty"`
+	OwnerAcceptance *AcceptanceRecord      `json:"owner_acceptance,omitempty"`
 }
 
 const EvidencePath = "agentarch/project/evidence/latest.json"
@@ -21,7 +22,7 @@ func (s *Service) exportEvidence(st State) error {
 	if e != nil {
 		return e
 	}
-	b, e := json.MarshalIndent(Evidence{SchemaVersion: SchemaVersion, Phase: st.Phase, Verification: st.Verification, Review: st.Review, PR: st.PR, Release: st.Release, ProductionCheck: st.ProductionCheck}, "", "  ")
+	b, e := json.MarshalIndent(Evidence{SchemaVersion: SchemaVersion, Phase: st.Phase, Verification: st.Verification, Review: st.Review, PR: st.PR, Release: st.Release, ProductionCheck: st.ProductionCheck, OwnerAcceptance: st.OwnerAcceptance}, "", "  ")
 	if e != nil {
 		return e
 	}

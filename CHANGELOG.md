@@ -10,6 +10,7 @@ supports, and `agentarch version` prints all three lines so a reported result ca
 
 | CLI | Spec majors implemented | Content shipped | Content it can read |
 |---|---|---|---|
+| unreleased | `spec/1` | `content/1.4.0` | `content/1.x` |
 | 0.5.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.4.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.3.x | `spec/1` | `content/1.2.0` | `content/1.x` |
@@ -21,6 +22,121 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 `agentarch/std` whenever one is present — a project pinned to an older content release keeps
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
+
+## Unreleased
+
+`cli` and `content` 1.4.0 — AgenteARQ is for any software product, and technology is the owner's
+compared choice.
+
+- **Technology decisions are compared, then chosen by the owner.** Before `planned`, every ADR in
+  `agentarch/project/adr/` must have `## Context`, `## Options considered` with at least two options
+  under their own `###` headings, each stating benefits and costs, a `## Decision` that names one of
+  the compared options, and `## Consequences`. Headings may be English, Portuguese or Spanish. The
+  design and discovery skills, their checklists, the ADR template and the plugin prompt (1.1.0) say
+  to propose options with trade-offs, label a recommendation, and let the owner choose.
+- **Design quality, as a standard.** New `standards/17-design-quality.md` (en, pt-BR): a design
+  direction in `design/brief.md` and `design/tokens.json` (W3C DTCG 2025.10) before any interface,
+  typefaces, icons and density chosen by the owner from compared options, a versioned list of
+  generic-look tells, and checks split into `fail_closed` (direction declared, tokens only, WCAG 2
+  AA contrast, automated accessibility, focus and reduced motion, no placeholder copy, responsive
+  widths, font licence recorded) and `fail_warn` (visual baseline, generic-look score, APCA,
+  model critique). Routed from the core. Proposed in RFC 0003.
+- **New skills and checklists:** `agentarch-design-interface`, `agentarch-test-scenarios`
+  (acceptance criteria to scenarios and personas, each scenario named by its test),
+  `agentarch-persona-run` (advisory persona runs from a host subagent; only reproduced findings
+  become tests) and `agentarch-choose-services` (services compared by criteria with dated sources
+  and a monthly cost in the ADR). Review, release, discovery and specification skills point to
+  them; review covers a fresh-context agent reviewer recorded as weaker than a human, and release
+  adds backups and a rehearsed restore, monitoring by name, and acknowledged free-tier limits.
+- **Claude Code subagents** `agentarch-reviewer` (read-only) and `agentarch-persona-user`
+  (browser tools only), and templates for `scenarios.yaml`, `personas.yaml`, the design brief and
+  `tokens.json`; the ADR template gains a sources-and-cost section for third-party services.
+- **Real-time guardrails.** `agentarch hook` answers Claude Code's and Codex's SessionStart,
+  PreToolUse and Stop hooks, which `plugin install claude|codex` merges into
+  `.claude/settings.json` or `.codex/hooks.json` as an owned fragment: it injects the product's
+  current step, denies edits to generated files and workflow evidence, and asks (Claude Code) or
+  blocks (Codex) before push, merge, publish and deploy commands and secret-shaped content.
+- **`agentarch doctor`** names every missing prerequisite — Git, container runtime, verifier
+  image, connected assistant, an `agentarch` on PATH older than the project — with the fix for
+  the operating system.
+- **Plain-language refusals.** Every workflow refusal says what it means and the next step, in
+  English and Portuguese, enforced by a test; `agentarch explain workflow.<id>` repeats it.
+- **Any language.** `--lang` takes any language tag; languages without a translated core get the
+  English core plus a directive to speak the owner's language. A plain `sync` keeps the
+  project's language.
+- **Scenarios, personas, design tokens, owner acceptance.** `scenarios.yaml` and `personas.yaml`
+  are validated when present; a UI product's DTCG `design/tokens.json` is checked for aliases,
+  font licences and WCAG 2 contrast; `workflow accept` records the owner's verdict.
+- **Advisory checks for AI-built apps:** tables without row level security, service-role keys in
+  browser code, always-true Firebase rules, and literal colours outside the design tokens.
+- **`workflow import-spec`** turns Kiro, Spec Kit and OpenSpec requirements into numbered
+  acceptance criteria that cite their source line, never overwriting a filled specification.
+- **`get_next_task` context pack**, recommended release sections (backups and a dated restore,
+  monitoring, free-tier limits) and an ADR "Sources and cost" section.
+- **Fixed:** `prepare-verifier` no longer builds the universal verifier on a Python image when
+  no base is given; it lists the images that provide the declared checks' programs.
+- **Any product, from the first command.** `agentarch start` asks whether this is any software
+  product, a new AI agent, existing code or an agent to refactor, with no default. The product path
+  (`start --product`) opens the guided workflow and chooses no stack. The rules synced into every
+  project no longer say the project builds AI agents; the top-level help leads with the workflow.
+- **Nothing technical is chosen silently.** `workflow init` no longer falls back to `universal`: on a
+  terminal it compares the profiles and asks, otherwise it lists them and asks for `--profile`.
+  `start` and `blueprint add` require a provider and, where a blueprint ships several, a framework;
+  each provider says what choosing it means. Choosing a provider also rewrites the credential named
+  in the setup, deploy and CI guides, and the blueprints' leak checks detect any provider's key.
+- **Verification works without this repository.** `agentarch workflow prepare-verifier` builds the
+  profile's verifier image locally from recipes embedded in the binary, with a reviewed
+  digest-pinned base (or an explained choice where the base depends on the project), and records
+  it so `workflow verify` uses it. A content-addressed local image id is accepted.
+- **A product is verified as itself.** `agentarch init` no longer copies the agent blueprints into
+  `agentarch/std`; `blueprint add` and `start` read them from the binary. Copied into every
+  project, their fake test keys failed the product's secret scan, their pinned SDKs its dependency
+  audit and their pages its link check. The product's quality checks (HTML, lint, links, Markdown,
+  ruff, mypy, pytest, bandit) leave `agentarch/std` out; the security floor still scans it.
+- `agentarch/std/LOCK.json` records each digest beside `"sha256"` instead of beside the file's path:
+  paths such as `controls/api/secrets_not_committed.yaml` next to a digest were reported as leaked
+  API keys by the product's own secret scan. Locks in the old format are still read; the scanner
+  configuration is unchanged, with no allowlist.
+- The generated `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` are valid Markdown under the `docs`
+  profile's rules (one top-level heading, lists set off by blank lines), so a documentation project
+  is not failed by AgenteARQ's own files.
+- `upgrade` keeps the language the project chose instead of regenerating its files in English.
+- The `mcp-server` blueprint pins `mcp==1.30.0`, which fixes GHSA-5h93-6whr-6q8j,
+  GHSA-84m7-p3x7-pcfv, GHSA-rwrf-2pqf-9j8j and GHSA-w4fh-qvv9-3v23 in 1.29.0.
+- Blueprint tests that exercise the Anthropic adapter skip when its SDK is not installed, as the
+  OpenAI and Google ones already did, so a project that chose another provider passes its suite.
+- `workflow init` creates `release.md` with the product, and the next step advises completing it
+  before verification so it is reviewed with the code. Templates follow the project's language.
+- Structured brief, spec and ADR templates; each `workflow` subcommand documents and accepts only its
+  own flags; workflow status speaks the project's language.
+- The installer no longer requires a local cosign. Without one it downloads the official Sigstore
+  cosign v3.1.4, checks it against a SHA-256 pinned in the script, and uses it for that run only.
+  Signature and checksum verification stay mandatory, so the signed binary installs without Go,
+  sudo or a source build.
+- The installer resolves the latest release through the `releases/latest` redirect instead of the
+  REST API, whose anonymous rate limit returned 403 on shared networks.
+- `init --adopt` and `start --adopt` no longer report libraries a project does not use. Detection
+  counts only declared dependencies and imports (it read "diagnostic" as agno and any "agents" as
+  the OpenAI Agents SDK), skips virtual environments under any name, and prints the file behind
+  every finding. A model string found in the code is listed as a candidate and never written to
+  `model.id`.
+- Adoption also requires a model to match a provider the project uses, and ignores model names
+  and "you are" text in files that call no model (interface copy, pricing tables, locales).
+- A project with no model SDK or agent framework is not described as an agent. `init --adopt` and
+  `start --adopt` say so, write no `agent.yaml`, and list the product workflow's profiles side by
+  side, marking the ones the files suggest. `--agent` describes an agent anyway.
+- New `static-site` profile for HTML, CSS and JavaScript with no build step: `html`
+  (html-validate 11.18.0), `lint` (ESLint 10.15.0, recommended rules, browser globals) and `links`
+  (relative `href`/`src` in HTML and `url()` in CSS resolve), plus the floor. New `docs` profile
+  for Markdown repositories: `markdown` (markdownlint-cli2 0.24.1) and `links`, plus the floor.
+- Each check is a fixed wrapper in its image with the image's configuration; config files and
+  inline disable comments in the project are not applied. External URLs are never fetched. A
+  project with no `.html` (or no `.md`) file fails instead of passing with nothing to check.
+- New `verifiers/static-site/` and `verifiers/docs/` recipes with exact-pinned lockfiles and
+  pass/fail fixtures, a shared dependency-free link checker in `verifiers/content/`, and
+  `scripts/test-content-profiles-live.sh`, run in CI against both images.
+- The floor installer's Node download fallback, used by bases without curl or wget, now streams
+  to disk and retries a dropped connection three times, as the curl path already did.
 
 ## v0.5.0 — 2026-11-18
 
@@ -34,7 +150,7 @@ v0.5.0 or later. The entries below still describe what each of those versions co
   the repository layout to `.github/CONTRIBUTING.md`. GitHub language statistics now describe
   AgenteARQ itself rather than the starter projects it ships.
 - Dependencies: `github.com/santhosh-tekuri/jsonschema/v6` 6.0.3. The `mcp-server` blueprint stays on
-  `mcp==1.29.0`: the 2.x SDK removed the server decorator API it uses, so moving needs a migration.
+  `mcp` 1.x: the 2.x SDK removed the server decorator API it uses, so moving needs a migration.
 
 ## v0.4.1 — 2026-11-18
 

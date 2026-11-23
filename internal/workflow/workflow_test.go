@@ -72,9 +72,10 @@ func fixture(t *testing.T) (*Service, Snapshot) {
 }
 func prepare(t *testing.T, s *Service) {
 	t.Helper()
-	for _, rel := range documents {
-		write(t, s.Root, rel, "# Reviewed product artifact\n\nAC-1: Customer can find only their own orders.\nDecision: scoped API with independent access checks.\n")
+	for _, rel := range documents[:2] {
+		write(t, s.Root, rel, "# Reviewed product artifact\n\nAC-1: Customer can find only their own orders.\n")
 	}
+	write(t, s.Root, documents[2], testADR)
 	td := TaskDocument{SchemaVersion: SchemaVersion, Tasks: []Task{{ID: "order-search", Title: "Implement tenant-scoped order search", Acceptance: []string{"AC-1"}, Checks: []string{"test", "security"}}}}
 	b, e := yaml.Marshal(td)
 	if e != nil {
@@ -520,3 +521,25 @@ func TestContainerArgumentsKeepCodeIsolated(t *testing.T) {
 		t.Fatal("image can inject an option")
 	}
 }
+
+const testADR = `# ADR 0001 — Order search
+
+## Context
+Customers must find only their own orders; the team already runs a TypeScript API.
+
+## Options considered
+
+### Scoped API endpoint
+- Benefits: reuses the existing API and its access checks.
+- Costs: the API team owns one more endpoint.
+
+### Search service
+- Benefits: scales search independently.
+- Costs: a new service to run, secure and monitor.
+
+## Decision
+Scoped API endpoint, chosen by the product owner: it reuses the tested access checks.
+
+## Consequences
+Search load shares the API; revisit if search latency exceeds the target.
+`

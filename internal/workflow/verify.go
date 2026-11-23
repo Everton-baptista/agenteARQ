@@ -19,14 +19,16 @@ var profiles = map[string][]Command{
 		{ID: "accessibility", Program: "npm", Args: []string{"run", "test:a11y"}, Timeout: 3 * time.Minute},
 		{ID: "security", Program: "npm", Args: []string{"run", "test:security"}, Timeout: 3 * time.Minute},
 	},
+	// agentarch/std is the installed standard, not the product: the checks below leave it out.
+	// The security floor that follows still scans it.
 	"python-api": {
-		{ID: "lint", Program: "python", Args: []string{"-m", "ruff", "check", "."}, Timeout: 2 * time.Minute},
-		{ID: "typecheck", Program: "python", Args: []string{"-m", "mypy", "."}, Timeout: 2 * time.Minute},
-		{ID: "test", Program: "python", Args: []string{"-m", "pytest", "-q"}, Timeout: 5 * time.Minute},
+		{ID: "lint", Program: "python", Args: []string{"-m", "ruff", "check", ".", "--extend-exclude", "agentarch/std"}, Timeout: 2 * time.Minute},
+		{ID: "typecheck", Program: "python", Args: []string{"-m", "mypy", ".", "--exclude", "^agentarch/std/"}, Timeout: 2 * time.Minute},
+		{ID: "test", Program: "python", Args: []string{"-m", "pytest", "-q", "--ignore=agentarch/std"}, Timeout: 5 * time.Minute},
 		{ID: "dependencies", Program: "python", Args: []string{"-m", "pip", "check"}, Timeout: time.Minute},
 		// Bandit scans '.' as './path'; explicit root globs match that prefix and
 		// do not accidentally exclude application paths such as src/tests/.
-		{ID: "security", Program: "python", Args: []string{"-m", "bandit", "-r", ".", "-q", "-x", "./.venv/*,./tests/*"}, Timeout: 3 * time.Minute},
+		{ID: "security", Program: "python", Args: []string{"-m", "bandit", "-r", ".", "-q", "-x", "./.venv/*,./tests/*,./agentarch/std/*"}, Timeout: 3 * time.Minute},
 	},
 	// Go services. Modules come from the image's read-only cache (GOPROXY=off); known
 	// vulnerabilities in go.mod are covered by the security floor's dependency-audit.
@@ -36,6 +38,20 @@ var profiles = map[string][]Command{
 		{ID: "vet", Program: "go", Args: []string{"vet", "./..."}, Timeout: 3 * time.Minute},
 		{ID: "build", Program: "go", Args: []string{"build", "./..."}, Timeout: 5 * time.Minute},
 		{ID: "test", Program: "go", Args: []string{"test", "-race", "./..."}, Timeout: 10 * time.Minute},
+	},
+	// HTML, CSS and JavaScript served as-is, with no build step and no package.json. Each program
+	// is a fixed wrapper from verifiers/static-site/ whose configuration is the image's; files in
+	// the project cannot switch rules off. A project without any .html page fails html and links.
+	"static-site": {
+		{ID: "html", Program: "agentarch-html", Timeout: 3 * time.Minute},
+		{ID: "lint", Program: "agentarch-js-lint", Timeout: 3 * time.Minute},
+		{ID: "links", Program: "agentarch-site-links", Timeout: 2 * time.Minute},
+	},
+	// Documentation and content repositories: Markdown, diagrams as text. Fixed wrappers from
+	// verifiers/docs/. A project without any .md file fails both checks.
+	"docs": {
+		{ID: "markdown", Program: "agentarch-markdown", Timeout: 3 * time.Minute},
+		{ID: "links", Program: "agentarch-docs-links", Timeout: 2 * time.Minute},
 	},
 }
 
@@ -58,7 +74,9 @@ func FloorCheckIDs() []string {
 	return ids
 }
 
-func Profiles() []string { return []string{"universal", "typescript-web", "python-api", "go-service"} }
+func Profiles() []string {
+	return []string{"universal", "typescript-web", "python-api", "go-service", "static-site", "docs"}
+}
 
 // ProfileCommands returns the profile's built-in checks followed by the security floor.
 func ProfileCommands(name string) ([]Command, error) {
@@ -146,7 +164,14 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	}
 	runner := o.Runner
 	if runner == nil {
-		runner = &ContainerRunner{Image: o.Image, DiagnosticsReason: o.DiagnosticsReason}
+		image := o.Image
+		// The image prepared for this worktree, when it was built for the profile in use.
+		if image == "" {
+			if r, err := s.LoadVerifier(); err == nil && r.Profile == p.Profile {
+				image = r.Image
+			}
+		}
+		runner = &ContainerRunner{Image: image, DiagnosticsReason: o.DiagnosticsReason}
 	}
 	v := &Verification{Fingerprint: fp, StartedAt: now(), Isolation: runner.Isolation(), Checks: []CheckResult{}, DiagnosticsReason: strings.TrimSpace(o.DiagnosticsReason)}
 	// A single bounded verification run. Hosts cannot use this endpoint to start a model.
@@ -214,6 +239,7 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	st.Verification = v
 	st.Review = nil
 	st.Release, st.ProductionCheck = nil, nil // a new verification starts a new release cycle
+	st.OwnerAcceptance = nil                  // and the owner tries what was verified, again
 	st.Phase = "verifying"
 	if v.Passed {
 		st.Phase = "reviewing"

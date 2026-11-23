@@ -72,6 +72,13 @@ jobs:
           sh -n scripts/install.sh
           shellcheck --shell=sh scripts/install.sh
           sh scripts/test-install.sh
+      # The real path a new user takes: hosted runners have no cosign, so this exercises the pinned
+      # cosign bootstrap and a real Sigstore verification of the latest published release.
+      - name: the installer authenticates a real release without a local cosign
+        run: |
+          ! command -v cosign
+          AGENTARCH_BIN_DIR="$RUNNER_TEMP/agentarch-bin" sh scripts/install.sh
+          "$RUNNER_TEMP/agentarch-bin/agentarch" version
 
   # The blueprints ship a service and a test suite. Until this job existed, neither was executed by
   # anything: the Go tests check the payload's shape, and a Python file that imports a name that does
@@ -100,7 +107,7 @@ jobs:
           for row in $(/tmp/agentarch blueprint list --format json | jq -r '.[] | .id as $i | .frameworks[] | "\($i):\(.)"'); do
             bp=${row%%:*}; fw=${row##*:}
             work=$(mktemp -d) && cd "$work"
-            /tmp/agentarch start --root . --new --blueprint "$bp" --framework "$fw" --yes >/dev/null
+            /tmp/agentarch start --root . --new --blueprint "$bp" --framework "$fw" --provider anthropic --yes >/dev/null
 
             python -m venv .venv
             .venv/bin/pip install -q -r app/requirements.txt
@@ -126,7 +133,7 @@ jobs:
       - name: the agent core never imports the transport
         run: |
           work=$(mktemp -d) && cd "$work"
-          /tmp/agentarch start --root . --new --blueprint rag-support --yes >/dev/null
+          /tmp/agentarch start --root . --new --blueprint rag-support --provider anthropic --framework none --yes >/dev/null
           if grep -rnE "^(from|import).*(fastapi|starlette|app\.api|\.\.api)" app/agent/; then
             echo "::error::app/agent imports the transport layer"; exit 1
           fi
@@ -143,7 +150,7 @@ jobs:
                        "bedrock|amazon.nova-micro-v1:0|urllib3=="; do
             prov=${combo%%|*}; rest=${combo#*|}; model=${rest%%|*}; pin=${rest#*|}
             work=$(mktemp -d) && cd "$work"
-            /tmp/agentarch start --root . --new --blueprint rag-support --provider "$prov" --yes >/dev/null
+            /tmp/agentarch start --root . --new --blueprint rag-support --provider "$prov" --framework none --yes >/dev/null
             grep -q "provider: $prov" agentarch/project/agents/*/agent.yaml || {
               echo "::error::$prov did not reach model.provider"; exit 1; }
             grep -q "id: $model" agentarch/project/agents/*/agent.yaml || {
@@ -160,7 +167,7 @@ jobs:
         run: |
           for bp in $(/tmp/agentarch blueprint list --format ids); do
             work=$(mktemp -d) && cd "$work"
-            git init -q . && /tmp/agentarch start --root . --new --blueprint "$bp" --yes >/dev/null
+            git init -q . && /tmp/agentarch start --root . --new --blueprint "$bp" --provider anthropic --framework none --yes >/dev/null
             grep -q "^\.env$" .gitignore || { echo "::error::$bp does not ignore .env"; exit 1; }
             printf 'ANTHROPIC_API_KEY=sk-ant-not-a-real-key\n' > .env
             git add -A
@@ -313,7 +320,7 @@ jobs:
         run: |
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --lang pt-BR --profile standard
-          grep -q "Regras de arquitetura de agentes" CLAUDE.md
+          grep -q "Regras de projeto do AgenteARQ" CLAUDE.md
           grep -q "source_sha256" CLAUDE.md && {
             echo "::error::translation front matter leaked into the shim; it spends context budget"; exit 1; }
           /tmp/agentarch sync --check --lang pt-BR
@@ -426,7 +433,7 @@ jobs:
         run: |
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --profile standard >/dev/null
-          /tmp/agentarch blueprint add rag-support --framework langgraph --yes >/dev/null
+          /tmp/agentarch blueprint add rag-support --framework langgraph --provider anthropic --yes >/dev/null
           # app/agent.py became app/agent/ when the blueprints turned into services in v0.2.0,
           # and this check kept looking for the file. It failed for being out of date rather
           # than for finding anything — the worst kind of red, because it trains people to
@@ -438,7 +445,7 @@ jobs:
           /tmp/agentarch check --profile standard >/dev/null
 
           # A framework it does not ship must be refused, naming what it does.
-          set +e; out=$(/tmp/agentarch blueprint add rag-support --framework crewai --yes 2>&1); code=$?; set -e
+          set +e; out=$(/tmp/agentarch blueprint add rag-support --framework crewai --provider anthropic --yes 2>&1); code=$?; set -e
           [ "$code" -ne 0 ] || { echo "::error::an unshipped framework should be refused"; exit 1; }
           echo "$out" | grep -q "It ships" || {
             echo "::error::the refusal should say what is available"; exit 1; }
@@ -535,7 +542,7 @@ jobs:
             work=$(mktemp -d)
             (cd "$work"
              /tmp/agentarch init --profile standard >/dev/null
-             /tmp/agentarch blueprint add "$bp" --yes >/dev/null
+             /tmp/agentarch blueprint add "$bp" --provider anthropic --framework none --yes >/dev/null
              /tmp/agentarch validate
              /tmp/agentarch check --profile standard >/dev/null
              test -d app/agent && test -f app/README.md
@@ -558,7 +565,7 @@ jobs:
         run: |
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --profile standard >/dev/null
-          /tmp/agentarch blueprint add rag-support --yes >/dev/null
+          /tmp/agentarch blueprint add rag-support --provider anthropic --framework none --yes >/dev/null
 
           # go:embed skips dotfiles unless the pattern says all:, and the blueprint ships a
           # CI workflow. Without it the project cannot reach L2, silently.
@@ -588,7 +595,7 @@ jobs:
           for bp in $(/tmp/agentarch blueprint list --format ids); do
             work=$(mktemp -d) && cd "$work"
             /tmp/agentarch init --profile standard >/dev/null
-            /tmp/agentarch blueprint add "$bp" --yes >/dev/null
+            /tmp/agentarch blueprint add "$bp" --provider anthropic --framework none --yes >/dev/null
             for f in agentarch/project/agents/*/evals/results/*.yaml; do
               grep -q "^status: not_run" "$f" || {
                 echo "::error::$bp: $f does not declare status: not_run"; exit 1; }
@@ -640,7 +647,7 @@ jobs:
 
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --profile standard >/dev/null
-          /tmp/agentarch blueprint add rag-support --framework none --yes >/dev/null
+          /tmp/agentarch blueprint add rag-support --framework none --provider anthropic --yes >/dev/null
           python3 -m venv .venv >/dev/null
           .venv/bin/pip install -q -r app/requirements.txt
           # The harness lives in /tmp, so sys.path[0] is /tmp and the project root has to be
@@ -653,7 +660,7 @@ jobs:
       - name: start takes a new project from an empty directory to a passing gate
         run: |
           work=$(mktemp -d) && cd "$work"
-          /tmp/agentarch start --new --blueprint rag-support --framework none \
+          /tmp/agentarch start --new --blueprint rag-support --framework none --provider anthropic \
             --owner "Ana Silva" --contact ana@example.com --jurisdictions BR --yes >/dev/null
 
           m=$(echo agentarch/project/agents/*/agent.yaml)
@@ -709,8 +716,8 @@ jobs:
         run: |
           work=$(mktemp -d) && cd "$work"
           /tmp/agentarch init --profile standard >/dev/null
-          /tmp/agentarch blueprint add rag-support --yes >/dev/null
-          set +e; /tmp/agentarch blueprint add rag-support --yes >/dev/null 2>&1; got=$?; set -e
+          /tmp/agentarch blueprint add rag-support --provider anthropic --framework none --yes >/dev/null
+          set +e; /tmp/agentarch blueprint add rag-support --provider anthropic --framework none --yes >/dev/null 2>&1; got=$?; set -e
           [ "$got" -eq 2 ] || { echo "::error::a second install should refuse, got $got"; exit 1; }
           echo "ok  refuses to overwrite"
 
@@ -847,12 +854,28 @@ jobs:
           image=$(docker inspect --format '{{index .RepoDigests 0}}' localhost:5000/agentarch-go-service:ci)
           if command -v podman >/dev/null 2>&1; then podman pull -q --tls-verify=false "$image"; fi
           IMAGE="$image" bash scripts/test-go-service-live.sh
+      # The static-site and docs images pin their own tooling in verifiers/<profile>/, so the
+      # project directory argument is not read; '.' only satisfies the helper's interface.
+      - name: the static-site and docs profiles verify their fixtures and block invalid HTML, lint errors, broken links, Markdown errors and empty projects
+        env:
+          AGENTARCH_BIN: /tmp/agentarch
+          BASE: docker.io/library/node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+        run: |
+          for profile in static-site docs; do
+            CONTAINER_ENGINE=docker sh verifiers/build.sh "$profile" . "$BASE" "localhost:5000/agentarch-$profile:ci"
+            docker push -q "localhost:5000/agentarch-$profile:ci"
+            image=$(docker inspect --format '{{index .RepoDigests 0}}' "localhost:5000/agentarch-$profile:ci")
+            if command -v podman >/dev/null 2>&1; then podman pull -q --tls-verify=false "$image"; fi
+            PROFILE="$profile" IMAGE="$image" bash scripts/test-content-profiles-live.sh
+          done
       - name: benchmark protocol tests and dry matrix (no model calls)
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_benchmark*.py'
           python3 scripts/benchmark-products.py --dry-run
       - name: live plugin smoke parser and process tests (no model calls)
         run: python3 -m unittest discover -s scripts/tests -p 'test_live_plugin_smoke.py'
+      - name: lay-user pilot collector and summary tests (no model calls)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_pilot.py'
       - name: managed skill helper regressions (no model calls)
         run: |
           # The upgrade-review helper imports PyYAML; same pin as the python-api verifier image.

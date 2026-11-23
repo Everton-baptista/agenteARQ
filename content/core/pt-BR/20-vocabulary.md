@@ -1,12 +1,12 @@
 ---
 lang: pt-BR
 source: content/core/en/20-vocabulary.md
-source_sha256: "3ef6c959ebf58ec9871adb6e8b9afee1c37b6109e86d0e99db2ab8b2a26d43a2"
-translated_at: "2026-07-30"
+source_sha256: "94509ad2277cb43d79975ac12e54d683b09a6d989ab0a90b187933b03d809b4e"
+translated_at: "2026-11-19"
 translators: ["everton"]
 ---
 
-# Vocabulário
+## Vocabulário
 
 Glossário completo: `agentarch/std/standards/00-index.md`. Os termos das invariantes:
 

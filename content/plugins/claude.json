@@ -6,7 +6,9 @@
   "skills_path": ".claude/skills",
   "config_path": ".mcp.json",
   "config_format": "json",
+  "hooks_path": ".claude/settings.json",
+  "agents_path": ".claude/agents",
   "capabilities": {"skills": true, "mcp_stdio": true, "global_tool_enforcement": false, "sandbox_enforcement": false},
   "documentation": ["https://code.claude.com/docs/en/skills", "https://code.claude.com/docs/en/mcp"],
-  "notes": "Project MCP approval is performed in Claude Code. Installation does not auto-approve a server, tool call, or workspace."
+  "notes": "Project MCP approval is performed in Claude Code. Installation does not auto-approve a server, tool call, or workspace. Installation adds SessionStart, PreToolUse and Stop hooks to .claude/settings.json that call `agentarch hook`; they decide only edits to generated files and evidence, secret-shaped content and owner-only shell commands, and do not govern any other tool."
 }

@@ -9,9 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	agentarch "github.com/Everton-baptista/agenteARQ"
 	"github.com/Everton-baptista/agenteARQ/internal/application"
 	"github.com/Everton-baptista/agenteARQ/internal/dashboard"
 	"github.com/Everton-baptista/agenteARQ/internal/mcpserver"
@@ -21,19 +24,20 @@ import (
 
 func cmdWorkflow(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format json]")
+		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|accept|record-pr|record-release|record-production-check [--root DIR] [--format json]")
 		return exitUsage
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
+		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|accept|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
 		return exitOK
 	}
 	command := args[0]
 	f := flag.NewFlagSet("workflow "+command, flag.ContinueOnError)
+	defer func(prev string) { lang = prev }(lang)
 	root := f.String("root", ".", "project Git worktree")
 	format := f.String("format", "text", "text or json")
 	name := f.String("name", "", "product name")
-	profile := f.String("profile", "", "universal (default for a new product), typescript-web, python-api or go-service")
+	profile := f.String("profile", "", "engineering profile; omit it on a terminal to compare the options and choose")
 	goal := f.String("goal", "", "observable product goal")
 	author := f.String("author", "", "accountable implementer (never inferred)")
 	ai := f.Bool("has-ai", false, "product contains AI components")
@@ -47,23 +51,71 @@ func cmdWorkflow(args []string) int {
 	diagnostics := f.String("diagnostics-reason", "", "explicit reason to capture bounded redacted test output; default retains only hashes")
 	reviewer := f.String("reviewer", "", "independent reviewer identity")
 	kind := f.String("kind", "human", "human or independent_agent")
-	verdict := f.String("verdict", "", "approved or changes_requested")
-	summary := f.String("summary", "", "review findings, or what the production check observed")
+	verdict := f.String("verdict", "", "review: approved or changes_requested; accept: accepted or rejected")
+	summary := f.String("summary", "", "review findings, what the production check observed, or what the owner tried and saw")
 	prURL := f.String("url", "", "record-pr: the published pull request; record-release: the deployment run; record-production-check: the dashboard, log or report")
 	head := f.String("head", "", "record-pr: exact commit of the pull request; record-release: the commit that was deployed")
 	environment := f.String("environment", "", "record-release: target environment id, such as production")
 	outcome := f.String("outcome", "", "record-production-check: passed or failed")
 	attester := f.String("attester", "", "record-production-check: who checked production")
+	owner := f.String("owner", "", "accept: the owner who tried the product")
+	base := f.String("base", "", "prepare-verifier: base image pinned by @sha256 digest (default: the profile's reviewed base, when it has one)")
+	from := f.String("from", "auto", "import-spec: kiro, spec-kit, openspec or auto")
+	engine := f.String("engine", "", "prepare-verifier: docker or podman (default: podman if installed, else docker)")
+	common := []string{"root", "format"}
+	allowed := map[string][]string{
+		"init":                    {"name", "profile", "goal", "author", "has-ai", "executors", "application-agents"},
+		"status":                  {},
+		"next":                    {},
+		"checkpoint":              {"phase", "task", "note", "expected-revision"},
+		"verify":                  {"image", "expected-revision", "diagnostics-reason"},
+		"prepare-verifier":        {"base", "engine"},
+		"review":                  {"reviewer", "kind", "verdict", "summary", "expected-revision"},
+		"record-pr":               {"url", "head", "expected-revision"},
+		"record-release":          {"url", "head", "environment", "expected-revision"},
+		"record-production-check": {"url", "outcome", "attester", "summary", "expected-revision"},
+		"accept":                  {"owner", "verdict", "summary", "expected-revision"},
+		"import-spec":             {"from"},
+		"profiles":                {},
+	}
+	own, knownCommand := allowed[command]
+	permitted := map[string]bool{}
+	for _, n := range append(append([]string{}, common...), own...) {
+		permitted[n] = true
+	}
+	// Each subcommand documents only its own flags; a single shared list made `checkpoint --help`
+	// describe deployment URLs and review verdicts.
+	f.Usage = func() {
+		fmt.Fprintf(f.Output(), "Usage of agentarch workflow %s:\n", command)
+		f.VisitAll(func(fl *flag.Flag) {
+			if !knownCommand || permitted[fl.Name] {
+				fmt.Fprintf(f.Output(), "  --%s\n    \t%s\n", fl.Name, fl.Usage)
+			}
+		})
+	}
 	if err := f.Parse(hoistFlags(args[1:])); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return exitUsage
 	}
+	if knownCommand {
+		var stray []string
+		f.Visit(func(fl *flag.Flag) {
+			if !permitted[fl.Name] {
+				stray = append(stray, "--"+fl.Name)
+			}
+		})
+		if len(stray) > 0 {
+			fmt.Fprintf(os.Stderr, "workflow %s does not take %s (see agentarch workflow %s --help)\n", command, strings.Join(stray, ", "), command)
+			return exitUsage
+		}
+	}
 	if f.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected positional argument; use --root for the project directory")
 		return exitUsage
 	}
+	lang = projectLanguage(*root)
 	if *format != "text" && *format != "json" {
 		fmt.Fprintln(os.Stderr, "format must be text or json")
 		return exitUsage
@@ -74,6 +126,10 @@ func cmdWorkflow(args []string) int {
 			diagnosticErr = errors.New("diagnostics-reason is only supported for workflow verify")
 		}
 		return printProduct(nil, diagnosticErr, *format)
+	}
+	if command == "profiles" {
+		// Listed, never asked: an assistant shows these to the owner in its chat.
+		return printProduct(workflow.ProfileOptions(), nil, *format)
 	}
 	if command == "status" {
 		v, err := application.Status(*root)
@@ -92,7 +148,27 @@ func cmdWorkflow(args []string) int {
 	var result any
 	switch command {
 	case "init":
-		result, err = s.Init(workflow.InitOptions{Name: *name, Profile: *profile, Goal: *goal, Author: *author, HasAI: *ai, ExecutorIDs: csv(*executors), ApplicationAgentIDs: csv(*appAgents)})
+		if *profile == "" && isTTY() && !productExists(*root) {
+			chosen, ok := askProfile(*root)
+			if !ok {
+				return exitUsage
+			}
+			*profile = chosen
+		}
+		result, err = s.Init(workflow.InitOptions{Name: *name, Profile: *profile, Goal: *goal, Author: *author, HasAI: *ai, ExecutorIDs: csv(*executors), ApplicationAgentIDs: csv(*appAgents), Language: lang})
+	case "prepare-verifier":
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		var rec workflow.VerifierRecord
+		rec, err = s.PrepareVerifier(ctx, workflow.PrepareOptions{Recipes: agentarch.Verifiers, Base: *base, Engine: *engine, Out: os.Stderr})
+		if err == nil {
+			if *format == "json" {
+				result = rec
+			} else {
+				fmt.Printf("verifier ready for %s: %s\nbuilt from %s; `agentarch workflow verify` now uses it. Rebuild within 14 days to refresh the vulnerability database.\n", rec.Profile, rec.Image, rec.Base)
+				return exitOK
+			}
+		}
 	case "next":
 		result, err = s.Next()
 	case "checkpoint":
@@ -109,6 +185,10 @@ func cmdWorkflow(args []string) int {
 		result, err = s.RecordRelease(workflow.ReleaseRequest{URL: *prURL, Head: *head, Environment: *environment, ExpectedRevision: expected})
 	case "record-production-check":
 		result, err = s.RecordProductionCheck(workflow.ProductionCheckRequest{URL: *prURL, Outcome: *outcome, Attester: *attester, Summary: *summary, ExpectedRevision: expected})
+	case "accept":
+		result, err = acceptProduct(s, *owner, *verdict, *summary, expected)
+	case "import-spec":
+		result, err = s.ImportSpec(*from)
 	default:
 		err = fmt.Errorf("unknown workflow command %q", command)
 	}
@@ -134,6 +214,7 @@ func csv(s string) []string {
 func printProduct(v any, err error, format string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "agentarch:", err)
+		explainRefusal(os.Stderr, err)
 		return exitUsage
 	}
 	if format == "json" {
@@ -146,9 +227,12 @@ func printProduct(v any, err error, format string) int {
 	}
 	switch x := v.(type) {
 	case workflow.Snapshot:
-		fmt.Printf("\n%s · %s\nFase: %s · revisão %d\n\nPróximo passo: %s\n", x.Product.Name, x.Product.Profile, x.State.Phase, x.State.Revision, x.Next.Action)
+		fmt.Printf("\n%s · %s\n%s\n", x.Product.Name, x.Product.Profile, tf("workflow.status", x.State.Phase, x.State.Revision, translateAction(x.Next.Action)))
 		for _, m := range x.Next.Missing {
-			fmt.Println("  •", m)
+			fmt.Println("  •", translateMissing(m))
+		}
+		for _, a := range x.Next.Advice {
+			fmt.Println("  ◦", translateAdvice(a))
 		}
 		if x.State.Verification != nil {
 			for _, c := range x.State.Verification.Checks {
@@ -161,16 +245,22 @@ func printProduct(v any, err error, format string) int {
 		if c := x.State.ProductionCheck; c != nil {
 			fmt.Printf("  production    %s by %s (attested, not observed by agentarch) · %s\n", c.Outcome, c.Attester, c.URL)
 		}
+		printAcceptance(x.State.OwnerAcceptance)
 	case application.View:
 		if x.Initialized && x.Snapshot != nil {
 			return printProduct(*x.Snapshot, nil, format)
 		}
 		fmt.Println(x.Message)
 	case workflow.NextAction:
-		fmt.Println(x.Action)
+		fmt.Println(translateAction(x.Action))
 		for _, m := range x.Missing {
-			fmt.Println("  •", m)
+			fmt.Println("  •", translateMissing(m))
 		}
+	case workflow.ImportResult:
+		for _, src := range x.Sources {
+			fmt.Printf("  %-9s %s\n", src.Format, strings.Join(src.Files, ", "))
+		}
+		fmt.Printf("%d acceptance criteria written to %s; review and merge them before checkpoint specified.\n", x.Criteria, x.Written)
 	case plugin.Report:
 		fmt.Printf("Plugin %s · installed=%v · dry_run=%v\n", x.Host, x.Installed, x.DryRun)
 		for _, c := range x.Changes {
@@ -306,4 +396,39 @@ func cmdUI(args []string) int {
 		return exitUsage
 	}
 	return 0
+}
+
+func productExists(root string) bool {
+	_, err := os.Stat(filepath.Join(root, workflow.ProductPath))
+	return err == nil
+}
+
+// askProfile shows every profile with what it checks, marks the ones this project's files point
+// to, and asks. There is no default: Enter asks again.
+func askProfile(root string) (string, bool) {
+	opts := productProfileOptions(root)
+	fmt.Println(t("profile.question"))
+	for i, o := range opts {
+		mark := " "
+		if o.Matches {
+			mark = "*"
+		}
+		fits, checks := profileText(o.ID, o.Fits, o.Checks)
+		fmt.Printf("  %d.%s %-15s %s\n        %s %s\n", i+1, mark, o.ID, fits, t("profile.checks"), checks)
+	}
+	fmt.Println(t("profile.legend"))
+	for attempt := 0; attempt < 3; attempt++ {
+		in := strings.TrimSpace(ask(tf("profile.prompt", len(opts))))
+		if n, err := strconv.Atoi(in); err == nil && n >= 1 && n <= len(opts) {
+			return opts[n-1].ID, true
+		}
+		for _, o := range opts {
+			if in == o.ID {
+				return o.ID, true
+			}
+		}
+		fmt.Fprintln(os.Stderr, t("common.notanoption"))
+	}
+	fmt.Fprintln(os.Stderr, t("common.givingup"))
+	return "", false
 }

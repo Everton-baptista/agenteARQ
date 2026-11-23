@@ -36,7 +36,8 @@ fetch() { # url, destination
 with urllib.request.urlopen(sys.argv[1], timeout=300) as r, open(sys.argv[2], "wb") as f:
     shutil.copyfileobj(r, f)' "$1" "$2"
   elif command -v node >/dev/null 2>&1; then
-    node -e 'const [u,d]=process.argv.slice(1);fetch(u).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer()}).then(b=>require("fs").writeFileSync(d,Buffer.from(b))).catch(e=>{console.error(e);process.exit(1)})' "$1" "$2"
+    # Streams to disk (the OSV archives are large) and retries a dropped connection, like curl --retry 3.
+    node -e 'const fs=require("fs"),{Readable}=require("stream"),{pipeline}=require("stream/promises");const [u,d]=process.argv.slice(1);(async()=>{for(let i=1;;i++){try{const r=await fetch(u);if(!r.ok)throw new Error("HTTP "+r.status);await pipeline(Readable.fromWeb(r.body),fs.createWriteStream(d));return}catch(e){if(i>3){console.error(e);process.exit(1)}console.error("floor: retry "+i+" for "+u+": "+e.message);await new Promise(s=>setTimeout(s,5000*i))}}})()' "$1" "$2"
   else
     die "no downloader available (curl, wget, python3 or node)"
   fi

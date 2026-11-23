@@ -20,6 +20,15 @@ const ReleasePlanPath = "agentarch/project/release.md"
 // reviewer has read how to roll back before anything ships.
 var releaseSections = []string{"Environment", "Owner", "Rollback", "Post-deploy verification", "Signals"}
 
+// releaseAliases accepts each section in the languages the interview speaks.
+var releaseAliases = map[string][]string{
+	"Environment":              {"environment", "ambiente", "entorno"},
+	"Owner":                    {"owner", "responsável", "responsable"},
+	"Rollback":                 {"rollback", "reversão", "reversión"},
+	"Post-deploy verification": {"post-deploy verification", "verificação pós-deploy", "verificación posterior al despliegue"},
+	"Signals":                  {"signals", "sinais", "señales"},
+}
+
 var environmentID = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}$`)
 
 type ReleaseRequest struct {
@@ -93,7 +102,7 @@ func (s *Service) releasePlanGaps() []string {
 	}
 	var gaps []string
 	for _, name := range releaseSections {
-		body, ok := sections[strings.ToLower(name)]
+		body, ok := findSection(sections, releaseAliases[name])
 		if !ok {
 			gaps = append(gaps, fmt.Sprintf("%s needs a \"## %s\" section", ReleasePlanPath, name))
 		} else if !meaningful(body) {
@@ -209,3 +218,81 @@ func (s *Service) RecordProductionCheck(req ProductionCheckRequest) (Snapshot, e
 	}
 	return s.status()
 }
+
+// ReleasePlanTemplate is created with the product. Its TODO markers keep a release from being
+// recorded until each section says something real.
+const ReleasePlanTemplate = `# Release plan
+
+## Environment
+
+TODO: where it runs in production (provider, region, URL) and how it is deployed.
+
+## Owner
+
+TODO: the person accountable for this release and for rolling it back.
+
+## Rollback
+
+TODO: the exact steps to return to the previous version, and how you confirm it worked.
+
+## Post-deploy verification
+
+TODO: what you check right after deploying, and where (smoke test, page, dashboard).
+
+## Signals
+
+TODO: what you watch afterwards, and for how long (errors, latency, sign-ups, complaints).
+
+## Backups and restore
+
+Recommended. TODO: what is backed up, where and how often, and the date a restore was last
+actually rehearsed.
+
+## Monitoring
+
+Recommended. TODO: the uptime monitor and the error tracker, named here; never paste a key or
+DSN value.
+
+## Free-tier limits
+
+Recommended. TODO: each service's limits that can take the product down (commercial-use bans,
+sleeping services, databases that expire or pause) and the owner's written acknowledgement.
+`
+
+const ReleasePlanTemplatePT = `# Plano de release
+
+## Ambiente
+
+TODO: onde roda em produção (provedor, região, URL) e como é feito o deploy.
+
+## Responsável
+
+TODO: a pessoa responsável por este release e por desfazê-lo.
+
+## Reversão
+
+TODO: os passos exatos para voltar à versão anterior, e como confirmar que funcionou.
+
+## Verificação pós-deploy
+
+TODO: o que você confere logo depois do deploy, e onde (teste rápido, página, painel).
+
+## Sinais
+
+TODO: o que você acompanha depois, e por quanto tempo (erros, lentidão, cadastros, reclamações).
+
+## Backups e restauração
+
+Recomendado. TODO: o que tem backup, onde e com que frequência, e a data do último teste real
+de restauração.
+
+## Monitoramento
+
+Recomendado. TODO: o monitor de uptime e o rastreador de erros, pelo nome; nunca cole uma
+chave ou DSN.
+
+## Limites do plano gratuito
+
+Recomendado. TODO: os limites de cada serviço que podem derrubar o produto (proibição de uso
+comercial, serviços que dormem, bancos que expiram ou pausam) e o aceite por escrito do dono.
+`

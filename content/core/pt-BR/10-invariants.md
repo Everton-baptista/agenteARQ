@@ -1,12 +1,12 @@
 ---
 lang: pt-BR
 source: content/core/en/10-invariants.md
-source_sha256: "73d6539d8af41cd275085155237f67d3140c60c09f6a8f9c9cb5cfe593462792"
-translated_at: "2026-07-28"
+source_sha256: "1ee16b6c5592f95777cfe730f5982fe52fe6e0b5a38309c2044422886f472fb8"
+translated_at: "2026-11-19"
 translators: ["everton"]
 ---
 
-# Invariantes
+## Invariantes
 
 Inegociáveis. Cada uma corresponde a um control; `agentarch check` as aplica.
 

@@ -84,6 +84,10 @@ func run(args []string) int {
 		return cmdPlugin(args[1:])
 	case "ui":
 		return cmdUI(args[1:])
+	case "doctor":
+		return cmdDoctor(args[1:])
+	case "hook":
+		return cmdHook(args[1:])
 	case "start":
 		return cmdStart(args[1:])
 	case "init":
@@ -186,24 +190,26 @@ func usage() { usageFull(false) }
 // the list it counts, and so a command added to run() without a home in either is a test failure
 // rather than a command nobody can discover.
 var (
-	firstWeekCommands = []string{"start", "blueprint", "new", "check", "conformance", "explain"}
+	firstWeekCommands = []string{"start", "doctor", "workflow", "plugin", "blueprint", "check", "explain"}
 	extraCommands     = []string{
-		"workflow", "verify-profile", "plugin", "ui",
+		"new", "conformance", "verify-profile", "ui",
 		"init", "sync", "validate", "waive", "mcp", "score",
-		"pack", "diff", "upgrade", "aibom", "report", "version",
+		"pack", "diff", "upgrade", "aibom", "report", "version", "hook",
 	}
 )
 
 func usageFull(all bool) {
-	fmt.Fprint(os.Stderr, `agentarch — an open standard for building AI agents
+	fmt.Fprint(os.Stderr, `agentarch — build any software product from idea to production, in verifiable steps
+              (websites, APIs, apps, CLIs, docs, data — and AI agents, with their own rules)
 
   start       the one command to begin with: asks what you are building
-              and does the rest
-  blueprint   start from a complete, working project — run it with no
-              arguments to choose from the catalogue
-  new         scaffold an empty agent, tool or ADR from the templates
-  check       the release gate: evaluate controls (exit 4 blocked, 5 waiver)
-  conformance assess L1/L2/L3 and emit a badge that expires
+  doctor      what is missing on this machine and project, and how to fix it
+  workflow    the guided steps for any product: brief, spec, a compared
+              technology decision, tasks, isolated verification, review,
+              release and a production check
+  plugin      connect a coding assistant (Claude Code, Codex, Gemini CLI)
+  blueprint   start an AI agent from a complete, working project
+  check       the release gate for AI agents (exit 4 blocked, 5 waiver)
   explain     why a control exists and how to satisfy it
 `)
 
@@ -219,8 +225,10 @@ Docs: https://github.com/Everton-baptista/agenteARQ
 	}
 
 	fmt.Fprint(os.Stderr, `
+  new         scaffold an empty agent, tool or ADR from the templates
+  conformance assess L1/L2/L3 and emit a badge that expires
   init        install the standard into this project
-              --adopt   scan for agents that already exist and describe them
+              --adopt   describe what already exists (agents, or say it is not one)
   sync        regenerate the assistant instruction files
               --check   report drift without writing (exit 3)
   validate    check artifacts for structure and consistency (exit 2)
@@ -228,9 +236,7 @@ Docs: https://github.com/Everton-baptista/agenteARQ
   waive       record a time-boxed, owned exception (max 90 days)
   mcp audit   check the MCP allowlist; --probe compares live tool descriptions
   mcp serve   expose the five bounded local workflow tools over stdio
-  workflow    init|status|next|checkpoint|verify|review|record-pr for products
   verify-profile  run isolated engineering checks without a workflow or plugin
-  plugin      install|check|remove|list integrations for coding assistants
   ui          open the read-only local project dashboard
   score       maturity by dimension, declared vs proven; never blocks
   pack        list|verify|add community packs (checksum verified, never executed)
@@ -239,6 +245,7 @@ Docs: https://github.com/Everton-baptista/agenteARQ
   aibom       what this agent is made of: models, prompts, corpora, tools, MCP
   report      everything the gate knows, as markdown and a self-contained page
   version     print the CLI, spec and content versions
+  hook        the host's real-time guardrail (installed by plugin install claude)
 
   check also takes:
               --profile minimal|standard|regulated  --format text|json|sarif
@@ -263,6 +270,8 @@ func cmdInit(args []string) int {
 	adopt := fs_.Bool("adopt", false,
 		"scan for agents that already exist and scaffold manifests describing them")
 	adoptID := fs_.String("adopt-id", "", "id for the adopted agent (default: the directory name)")
+	forceAgent := fs_.Bool("agent", false,
+		"with --adopt: describe an agent even when the scan finds no model SDK or framework")
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
@@ -282,7 +291,11 @@ func cmdInit(args []string) int {
 	}
 
 	stdDir := filepath.Join(*root, "agentarch", "std")
-	if err := copyEmbedded(agentarch.Content, "content", stdDir); err != nil {
+	// Blueprints stay in the binary. Copied into every project they were judged as the product's
+	// own code: their fake test keys read as leaked secrets, their pinned SDKs as the product's
+	// dependencies and their pages as the product's broken links. `blueprint add` reads them from
+	// the binary.
+	if err := copyEmbeddedExcept(agentarch.Content, "content", stdDir, "content/blueprints"); err != nil {
 		fmt.Fprintln(os.Stderr, "init:", err)
 		return exitUsage
 	}
@@ -379,7 +392,7 @@ gates:
 		return code
 	}
 	if *adopt {
-		return finishAdopt(*root, *adoptID)
+		return finishAdopt(*root, *adoptID, *forceAgent, *lang)
 	}
 	// start composes init with the steps that follow it and prints one set of next steps at the
 	// end. Two lists of next steps in one flow is how a guided setup stops feeling guided.
@@ -397,10 +410,16 @@ gates:
 	return exitOK
 }
 
-func copyEmbedded(src fs.FS, from, to string) error {
+func copyEmbedded(src fs.FS, from, to string) error { return copyEmbeddedExcept(src, from, to, "") }
+
+// copyEmbeddedExcept copies the tree under from, leaving out the subtree skip.
+func copyEmbeddedExcept(src fs.FS, from, to, skip string) error {
 	return fs.WalkDir(src, from, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if skip != "" && p == skip {
+			return fs.SkipDir
 		}
 		rel, err := filepath.Rel(from, p)
 		if err != nil {
@@ -427,10 +446,15 @@ func cmdSync(args []string) int {
 	fs_ := flag.NewFlagSet("sync", flag.ContinueOnError)
 	check := fs_.Bool("check", false, "report drift without writing; exit 3 if any")
 	root := fs_.String("root", ".", "project root")
-	lang := fs_.String("lang", "en", "language of the generated files")
+	lang := fs_.String("lang", "en", "language of the generated files (default: the language they are already in)")
 	targets := fs_.String("targets", "", "comma-separated subset of targets")
 	if err := fs_.Parse(args); err != nil {
 		return exitUsage
+	}
+	// A plain `agentarch sync`, which the generated files themselves tell the assistant to
+	// run, must not turn a Portuguese or Japanese project back into English.
+	if !langSet(fs_) {
+		*lang = projectLanguage(*root)
 	}
 
 	// Prefer the project's installed copy so that a project pinned to an older content
@@ -808,7 +832,11 @@ func syncSkills(root string, check bool) (int, int) {
 // The adoption path matters more than it looks. A project with existing agents fails dozens of
 // controls on day one; without a way in that costs nothing on the first day, the gate is
 // switched off and nothing improves. That risk was named in the plan and this is the mitigation.
-func finishAdopt(root, id string) int {
+func finishAdopt(root, id string, force bool, language string) int {
+	if render.ValidLanguage(language) {
+		defer func(prev string) { lang = prev }(lang)
+		lang = language
+	}
 	if id == "" {
 		abs, err := filepath.Abs(root)
 		if err != nil {
@@ -823,6 +851,10 @@ func finishAdopt(root, id string) int {
 
 	fmt.Printf("\nscanning for an agent that already exists…\n")
 	scan := scanForAgents(root)
+	if !scan.IsAgent() && !force {
+		reportNotAnAgent(root)
+		return exitOK
+	}
 
 	if err := writeAdoptedManifest(root, id, scan); err != nil {
 		fmt.Fprintln(os.Stderr, "adopt:", err)
@@ -836,22 +868,7 @@ func finishAdopt(root, id string) int {
 	case len(scan.Providers) == 0 && len(scan.Models) == 0:
 		fmt.Printf("Nothing recognisable was found, so almost everything is `unknown`.\n")
 	default:
-		if len(scan.Providers) > 0 {
-			fmt.Printf("  providers   %s\n", strings.Join(scan.Providers, ", "))
-		}
-		if len(scan.Models) > 0 {
-			shown := scan.Models
-			if len(shown) > 5 {
-				shown = shown[:5]
-			}
-			fmt.Printf("  models      %s\n", strings.Join(shown, ", "))
-		}
-		if len(scan.Frameworks) > 0 {
-			fmt.Printf("  frameworks  %s\n", strings.Join(scan.Frameworks, ", "))
-		}
-		if len(scan.Prompts) > 0 {
-			fmt.Printf("  prompts?    %s\n", strings.Join(scan.Prompts[:min(3, len(scan.Prompts))], ", "))
-		}
+		reportScan(scan)
 	}
 
 	fmt.Printf(`

@@ -28,6 +28,7 @@ type providerChoice struct {
 	ModelID string // model.id — an exact id, never an alias (invariant 7)
 	SDK     string // the pinned line for app/requirements.txt
 	Key     string // the credential name, matching CREDENTIAL_NAMES in the seam
+	Note    string // what choosing it means operationally; facts, not rankings
 }
 
 // providers is the table, and it is the only part of agentarch that goes stale on its own.
@@ -52,6 +53,7 @@ var providers = []providerChoice{
 		ModelID: "claude-sonnet-4-5-20250929",
 		SDK:     "anthropic==2.8.0",
 		Key:     "ANTHROPIC_API_KEY",
+		Note:    "direct API account with Anthropic; billed per token by Anthropic",
 	},
 	{
 		ID:      "openai",
@@ -59,6 +61,7 @@ var providers = []providerChoice{
 		ModelID: "gpt-5.6-terra",
 		SDK:     "openai==2.51.0",
 		Key:     "OPENAI_API_KEY",
+		Note:    "direct API account with OpenAI; billed per token by OpenAI",
 	},
 	{
 		ID:      "google",
@@ -66,6 +69,7 @@ var providers = []providerChoice{
 		ModelID: "gemini-3.6-flash",
 		SDK:     "google-genai==2.16.0",
 		Key:     "GOOGLE_API_KEY",
+		Note:    "Gemini API key from Google; billed by Google",
 	},
 	{
 		ID:      "bedrock",
@@ -73,6 +77,7 @@ var providers = []providerChoice{
 		ModelID: "amazon.nova-micro-v1:0",
 		SDK:     "urllib3==2.2.1",
 		Key:     "AWS_BEARER_TOKEN_BEDROCK_API_KEY",
+		Note:    "through your AWS account: billing, IAM and region stay in AWS; several model families",
 	},
 }
 
@@ -104,19 +109,18 @@ func providerIDs() []string {
 	return out
 }
 
-// askProvider is the question. The default is the first row, which is what the blueprints ship.
+// askProvider is the question. It has no default: the provider decides who holds the data, who
+// bills for it and which account the team needs, so Enter asks again instead of choosing.
 func askProvider() (providerChoice, bool) {
 	fmt.Printf("\n%s\n\n", t("provider.question"))
 	for i, p := range providers {
-		fmt.Printf("  %d. %-22s %s\n", i+1, p.Label, p.ModelID)
+		fmt.Printf("  %d. %-36s %s\n     %s\n", i+1, p.Label, p.ModelID, p.Note)
 	}
 	fmt.Printf("\n%s\n\n", t("provider.explain"))
 
 	for attempt := 0; attempt < 3; attempt++ {
 		in := strings.ToLower(ask(tf("provider.prompt", len(providers))))
 		switch in {
-		case "":
-			return providers[0], false
 		case "q", "quit", "sair":
 			fmt.Println(t("plan.nothing"))
 			return providerChoice{}, true
@@ -131,7 +135,7 @@ func askProvider() (providerChoice, bool) {
 		fmt.Fprintln(os.Stderr, t("common.notanoption"))
 	}
 	fmt.Fprintln(os.Stderr, t("common.givingup"))
-	return providers[0], true
+	return providerChoice{}, true
 }
 
 // ------------------------------------------------------- writing the answer in
@@ -204,6 +208,13 @@ func setProviderSDK(lines []string, pin string) bool {
 // zero for a non-default provider is a bug worth surfacing: it means the manifest still names one
 // provider while requirements.txt pins another SDK, and the failure would arrive much later as an
 // import error at the first model call.
+// credentialDocs are the text files a blueprint ships that name the provider credential: setup,
+// deploy and CI guidance. Code reads the name from CREDENTIAL_NAMES and is not rewritten.
+var credentialDocs = []string{
+	".env.example", "README.md", "app/README.md", "deploy/README.md", "deploy/k8s.yaml",
+	".github/workflows/agentarch.yml",
+}
+
 func applyProvider(root string, p providerChoice) (int, error) {
 	changed := 0
 
@@ -226,6 +237,28 @@ func applyProvider(root string, p providerChoice) (int, error) {
 			return changed, err
 		}
 		changed++
+	}
+
+	// The setup and deploy guides name the credential to create. Left as the blueprint shipped
+	// them, a project that chose another provider would be told to create the wrong secret.
+	for _, rel := range credentialDocs {
+		path := filepath.Join(root, rel)
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		text := string(raw)
+		for _, other := range providers {
+			if other.Key != p.Key {
+				text = strings.ReplaceAll(text, other.Key, p.Key)
+			}
+		}
+		if text != string(raw) {
+			if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+				return changed, err
+			}
+			changed++
+		}
 	}
 
 	req := filepath.Join(root, "app", "requirements.txt")

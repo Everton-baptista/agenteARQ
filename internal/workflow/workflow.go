@@ -46,7 +46,7 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 			return Snapshot{}, errors.New("product name is required")
 		}
 		if o.Profile == "" {
-			o.Profile = "universal"
+			return Snapshot{}, fmt.Errorf("choose an engineering profile with --profile; none is chosen for you:\n%s", ProfileChoiceText())
 		}
 		if _, ok := profiles[o.Profile]; !ok {
 			return Snapshot{}, fmt.Errorf("unknown engineering profile %q", o.Profile)
@@ -62,9 +62,16 @@ func (s *Service) Init(o InitOptions) (Snapshot, error) {
 		tb, _ := yaml.Marshal(TaskDocument{SchemaVersion: SchemaVersion, Tasks: []Task{}})
 		files := map[string][]byte{
 			ProductPath: pb, TasksPath: tb,
-			documents[0]: []byte("# Product brief\n\nTODO: describe the problem, users, success metric, constraints and exclusions.\n"),
-			documents[1]: []byte("# Specification\n\nTODO: define observable acceptance criteria with IDs AC-1, AC-2, and link them to tasks.\n"),
-			documents[2]: []byte("# ADR 0001 — Architecture\n\nTODO: record the decision, alternatives, boundaries and consequences.\n"),
+			documents[0]: []byte(templateFor(o.Language, BriefTemplate, BriefTemplatePT)),
+			documents[1]: []byte(templateFor(o.Language, SpecTemplate, SpecTemplatePT)),
+			documents[2]: []byte(templateFor(o.Language, ADRTemplate, ADRTemplatePT)),
+		}
+		// The release plan is reviewed with the code, so it has to exist before verification.
+		// Created up front, it is not discovered at release time, after the review it needed.
+		if rp, err := safePath(s.Root, ReleasePlanPath); err == nil {
+			if _, err = os.Stat(rp); os.IsNotExist(err) {
+				files[ReleasePlanPath] = []byte(templateFor(o.Language, ReleasePlanTemplate, ReleasePlanTemplatePT))
+			}
 		}
 		for rel := range files {
 			path, err := safePath(s.Root, rel)
@@ -125,6 +132,7 @@ func (s *Service) status() (Snapshot, error) {
 	if st.ProductionCheck != nil && st.ProductionCheck.Outcome == "failed" && snap.State.Phase == "released" {
 		snap.Findings = append(snap.Findings, Finding{"production.check_failed", "product", "failed", "The production check failed; follow the rollback in " + ReleasePlanPath + "."})
 	}
+	acceptanceFindings(&snap)
 	if st.Verification != nil {
 		for _, check := range st.Verification.Checks {
 			if check.Status != "passed" {
@@ -145,9 +153,15 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 	case "draft":
 		missing = s.requirements(snap.Product, snap.Tasks, "specified")
 		action = "Complete the brief and specification; checkpoint specified."
+		// One thing at a time: while the brief and spec are being written, only the advice
+		// that belongs to the spec. The rest arrives at the step where it is acted on.
+		if !s.exists(ScenariosPath) {
+			next.Advice = []string{AdviceScenarios}
+		}
 	case "specified":
 		missing = s.requirements(snap.Product, snap.Tasks, "planned")
 		action = "Record the architecture decision and acceptance-to-check task mapping; checkpoint planned."
+		next.Advice = s.planningAdvice(snap.Product)
 	case "planned":
 		action = "Use a dedicated worktree and begin implementation; checkpoint implementing."
 	case "implementing":
@@ -172,22 +186,36 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		if len(next.ReadyTaskIDs) > 0 {
 			next.TaskID = next.ReadyTaskIDs[0]
 			action = "Implement task " + next.TaskID + " and checkpoint it when complete."
+			for _, t := range snap.Tasks {
+				if t.ID == next.TaskID {
+					next.Context = s.taskContext(t)
+				}
+			}
 		} else if len(next.BlockedTaskIDs) > 0 {
 			action = "Resolve the unfinished task dependencies before continuing implementation."
 		} else {
 			action = "All planned tasks are complete; run verification."
 		}
+		next.Advice = append(append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...), s.tokenColourAdvice()...)
 	case "verifying":
 		action = "Run the engineering profile in an isolated container; fix failed or inconclusive checks."
+		next.Advice = append(append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...), s.tokenColourAdvice()...)
 	case "reviewing":
 		action = "Request an independent human or agent review of this exact fingerprint."
+		next.Advice = append(s.appRiskAdvice(), s.tokenColourAdvice()...)
 	case "pr_ready":
 		action = "The local gate passed. Publish the PR with your host; after a person or CI deploys this content, record it with record-release. This tool does not merge or deploy."
 		if gaps := s.releasePlanGaps(); len(gaps) > 0 {
 			action += " Releasing also needs " + ReleasePlanPath + " in the reviewed source."
 		}
+		if a := snap.State.OwnerAcceptance; a == nil || a.Verdict != "accepted" {
+			next.Advice = append(next.Advice, AdviceAccept)
+		}
+		next.Advice = append(next.Advice, s.releaseRecommendations()...)
+		next.Advice = append(next.Advice, s.appRiskAdvice()...)
 	case "released":
 		action = "Run the post-deploy verification from " + ReleasePlanPath + " and record it with record-production-check."
+		next.Advice = s.releaseRecommendations()
 	case "production_verified":
 		action = "Shipped and checked in production. Keep watching the signals in " + ReleasePlanPath + "; new work starts at implementing."
 	case "blocked":
@@ -272,11 +300,7 @@ func (s *Service) requirements(p Product, tasks []Task, phase string) []string {
 	if !p.HasAI && len(p.ApplicationAgentIDs) > 0 {
 		missing = append(missing, "application agents contradict has_ai: false")
 	}
-	limit := 2
-	if phaseIndex(phase) >= phaseIndex("planned") {
-		limit = 3
-	}
-	for _, rel := range documents[:limit] {
+	for _, rel := range documents[:2] {
 		path, e := safePath(s.Root, rel)
 		if e != nil {
 			missing = append(missing, e.Error())
@@ -288,6 +312,7 @@ func (s *Service) requirements(p Product, tasks []Task, phase string) []string {
 		}
 	}
 	if phaseIndex(phase) >= phaseIndex("planned") {
+		missing = append(missing, s.architectureGaps()...)
 		commands, e := commandsFor(p)
 		if e != nil {
 			missing = append(missing, e.Error())
@@ -322,6 +347,9 @@ func (s *Service) requirements(p Product, tasks []Task, phase string) []string {
 				}
 			}
 		}
+		missing = append(missing, s.scenarioGaps(spec)...)
+		missing = append(missing, s.personaGaps()...)
+		missing = append(missing, s.designGaps()...)
 	}
 	return missing
 }
@@ -407,6 +435,9 @@ func (s *Service) Checkpoint(req CheckpointRequest) (Snapshot, error) {
 	if req.Phase != st.Phase || req.TaskID != "" {
 		st.Review = nil
 		st.Release, st.ProductionCheck = nil, nil
+	}
+	if req.Phase != st.Phase {
+		st.OwnerAcceptance = nil // a rejection stays visible while the work is redone, then clears
 	}
 	st.Phase = req.Phase
 	st.Checkpoints = append(st.Checkpoints, CheckpointRecord{Phase: req.Phase, TaskID: req.TaskID, Note: req.Note, At: now()})
@@ -495,4 +526,14 @@ func contains(ss []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// releasePlanReminder turns release-plan gaps into advice while it can still be reviewed with the
+// code: finishing it after review would make the review stale.
+func releasePlanReminder(gaps []string) []string {
+	out := make([]string, 0, len(gaps))
+	for _, g := range gaps {
+		out = append(out, "before verifying, so it is reviewed with the code: "+g)
+	}
+	return out
 }

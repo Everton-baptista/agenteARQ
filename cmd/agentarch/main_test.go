@@ -60,6 +60,7 @@ func startNewProject(t *testing.T, owner string) (root, output string) {
 		"--new",
 		"--blueprint", "rag-support",
 		"--framework", "none",
+		"--provider", "anthropic",
 		"--jurisdictions", "BR",
 		"--yes",
 	}

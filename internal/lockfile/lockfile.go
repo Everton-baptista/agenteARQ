@@ -25,7 +25,50 @@ const Name = "LOCK.json"
 type Lock struct {
 	Version   string            `json:"content_version"`
 	CreatedAt string            `json:"installed_at"`
-	Files     map[string]string `json:"files"`
+	Files     map[string]string `json:"-"`
+}
+
+// entry is one installed file on disk. The digest sits beside "sha256", not beside the file's
+// path: a path such as "controls/api/secrets_not_committed.yaml" next to 64 hex characters reads
+// as a leaked API key to every secret scanner, including the product's own security floor.
+type entry struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+
+type wire struct {
+	Version   string            `json:"content_version"`
+	CreatedAt string            `json:"installed_at"`
+	Entries   []entry           `json:"entries,omitempty"`
+	Legacy    map[string]string `json:"files,omitempty"` // written by releases before content 1.4.0
+}
+
+func (l Lock) MarshalJSON() ([]byte, error) {
+	w := wire{Version: l.Version, CreatedAt: l.CreatedAt, Entries: []entry{}}
+	paths := make([]string, 0, len(l.Files))
+	for p := range l.Files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		w.Entries = append(w.Entries, entry{Path: p, SHA256: l.Files[p]})
+	}
+	return json.Marshal(w)
+}
+
+func (l *Lock) UnmarshalJSON(b []byte) error {
+	var w wire
+	if err := json.Unmarshal(b, &w); err != nil {
+		return err
+	}
+	l.Version, l.CreatedAt, l.Files = w.Version, w.CreatedAt, map[string]string{}
+	for p, h := range w.Legacy {
+		l.Files[p] = h
+	}
+	for _, e := range w.Entries {
+		l.Files[e.Path] = e.SHA256
+	}
+	return nil
 }
 
 // Hash reduces a file's contents to a comparable value.
@@ -68,8 +111,6 @@ func Write(stdDir string, l *Lock) error {
 	if err != nil {
 		return err
 	}
-	header := []byte("")
-	_ = header
 	return os.WriteFile(filepath.Join(stdDir, Name), append(b, '\n'), 0o644)
 }
 

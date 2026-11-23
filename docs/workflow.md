@@ -16,15 +16,20 @@ An undeclared executor is not certified: the product gate only reports the agent
 listed and checked. Host capabilities that cannot be observed must not be presented as enforced.
 
 The engineering profile is separate from the `minimal`, `standard` and `regulated` AI policy
-profiles. Built-in engineering profiles are `typescript-web`, `python-api` and `go-service`. `universal` uses
-explicit reviewed checks for another stack. Built-in checks cannot be removed by configuration.
+profiles. Built-in engineering profiles are `typescript-web`, `python-api`, `go-service`,
+`static-site` and `docs`; `agentarch workflow init` lists them with what each checks and asks, and
+none is chosen for you. `universal` uses explicit reviewed checks for any other stack. Built-in
+checks cannot be removed by configuration.
 
 Version and review these artifacts:
 
 - `product.yaml`: name, intended outcome, author, engineering profile and AI subject references.
 - `brief.md`: problem, users, success measures, constraints and exclusions.
 - `spec.md`: observable acceptance criteria named `AC-1`, `AC-2`, etc.
-- `adr/0001-architecture.md`: decision, alternatives, boundaries and consequences.
+- `adr/0001-architecture.md`: `## Context`, `## Options considered` (at least two, each under its
+  own `###` heading with its benefits and costs), `## Decision` naming the option chosen and who
+  chose it, and `## Consequences`. Every ADR in `adr/` is checked before `planned`; headings may
+  be in English, Portuguese or Spanish. The technology is the owner's choice, never assumed.
 - `tasks.yaml`: tasks, dependencies and acceptance-to-check mapping.
 
 A task's `checks` list declares coverage; it is not proof that its test is semantically adequate.
@@ -118,6 +123,19 @@ TypeScript web requires npm scripts `lint`, `typecheck`, `test` (non-watch `--ru
 consistency and Bandit. Go service requires gofmt-clean source, `go vet`, `go build` and
 `go test -race`, with modules from the image's read-only cache (`GOPROXY=off`). Browser binaries, test databases and dependencies must be provisioned in
 the verifier image or tests; this first version deliberately provides no network access.
+
+Static site (`static-site`) is for HTML, CSS and JavaScript served as-is, with no build step and
+no `package.json`. It runs `html` (html-validate over every `*.html`), `lint` (ESLint over
+`*.js` and `*.mjs`, minified `*.min.js` excluded) and `links` (every relative `href`, `src`,
+`srcset` and `poster` in HTML and every `url()` and `@import` in CSS names a file in the
+project; a directory link needs its `index.html`). Docs (`docs`) is for documentation and
+content repositories: `markdown` (markdownlint over every `*.md`) and `links` (relative links,
+reference definitions and image paths in Markdown resolve to a file or directory in the project).
+Both run fixed wrappers installed in the image with the image's configuration: an
+`.htmlvalidate.json`, `eslint.config.*`, `.markdownlint*` or `.markdownlint-cli2.*` in the project
+is ignored, and inline comments that switch a rule off are not applied. External URLs are never
+fetched and anchors are not checked. A project with no `.html` page, or no `.md` file, fails
+rather than passing with nothing to check; a static site without JavaScript passes `lint`.
 
 Every profile, `universal` included, also runs the **security floor**: `secrets` (gitleaks over
 the staged source) and `dependency-audit` (osv-scanner against an offline OSV database baked into

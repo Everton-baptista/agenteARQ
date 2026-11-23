@@ -3,6 +3,7 @@ package lockfile
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -127,5 +128,32 @@ func TestMissingLockIsNotAnError(t *testing.T) {
 	changes, err := Diff(dir, nil)
 	if err != nil || changes != nil {
 		t.Fatal("a tree installed by an older release has nothing to compare against")
+	}
+}
+
+// A lock written by an older release keeps working, and a new one never puts a digest beside a
+// path: that pairing is what secret scanners report as a leaked key.
+func TestLockReadsTheLegacyFormatAndWritesDigestsBesideSHA256(t *testing.T) {
+	dir := t.TempDir()
+	legacy := `{"content_version":"1.3.0","installed_at":"2026-11-01","files":{"packs/controls/api/secrets_not_committed.yaml":"66c763f7fb4c095157478048afd7ed0dfcd427de96316b0262ff6555ce6d0762"}}`
+	if err := os.WriteFile(filepath.Join(dir, Name), []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	l, err := Read(dir)
+	if err != nil || l.Files["packs/controls/api/secrets_not_committed.yaml"] == "" {
+		t.Fatalf("legacy lock not read: %v %+v", err, l)
+	}
+	if err := Write(dir, l); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, Name))
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.Contains(line, "secrets_not_committed") && strings.Contains(line, "66c763f7") {
+			t.Fatalf("digest written beside its path: %s", line)
+		}
+	}
+	again, err := Read(dir)
+	if err != nil || again.Files["packs/controls/api/secrets_not_committed.yaml"] != l.Files["packs/controls/api/secrets_not_committed.yaml"] {
+		t.Fatalf("round trip lost the digest: %v", err)
 	}
 }

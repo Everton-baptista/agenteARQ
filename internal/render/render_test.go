@@ -103,3 +103,23 @@ func TestEveryTargetHasABudgetAndDistinctPath(t *testing.T) {
 		paths[tg.Path] = tg.Name
 	}
 }
+
+func TestAnyLanguageGetsTheSourceCoreWithADirective(t *testing.T) {
+	fsys := fstest.MapFS{"core/en/00-identity.md": {Data: []byte("# Rules\n")}}
+	c, err := BuildCore(fsys, "ja")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Lang != "ja" || c.Source != "en" || !strings.Contains(c.Text, "The owner chose `ja`") {
+		t.Fatalf("untranslated language not handled: %+v", c)
+	}
+	c, err = BuildCore(fsys, "en")
+	if err != nil || strings.Contains(c.Text, "## Language") {
+		t.Fatalf("the source language got a directive: %v %q", err, c.Text)
+	}
+	for _, bad := range []string{"", "english please", "../en", "x"} {
+		if _, err := BuildCore(fsys, bad); err == nil {
+			t.Errorf("%q accepted as a language", bad)
+		}
+	}
+}

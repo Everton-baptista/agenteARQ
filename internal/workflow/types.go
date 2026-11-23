@@ -109,15 +109,23 @@ type State struct {
 	// Release and ProductionCheck record shipping done elsewhere; AgenteARQ never deploys.
 	Release         *ReleaseRecord         `json:"release,omitempty"`
 	ProductionCheck *ProductionCheckRecord `json:"production_check,omitempty"`
+	// OwnerAcceptance is the owner trying the product and saying, in their own words, whether
+	// it does what they meant. It is evidence of intent, not of correctness.
+	OwnerAcceptance *AcceptanceRecord `json:"owner_acceptance,omitempty"`
 }
 
 type NextAction struct {
-	Phase          string   `json:"phase"`
-	Action         string   `json:"action"`
-	Missing        []string `json:"missing"`
-	TaskID         string   `json:"task_id,omitempty"`
-	ReadyTaskIDs   []string `json:"ready_task_ids,omitempty"`
+	Phase        string   `json:"phase"`
+	Action       string   `json:"action"`
+	Missing      []string `json:"missing"`
+	TaskID       string   `json:"task_id,omitempty"`
+	ReadyTaskIDs []string `json:"ready_task_ids,omitempty"`
+	// Advice is what is not required for this step but will be later, said while it is cheap.
+	Advice         []string `json:"advice,omitempty"`
 	BlockedTaskIDs []string `json:"blocked_task_ids,omitempty"` // Incomplete tasks with unfinished dependencies.
+	// Context is the bounded pack the assistant needs for TaskID, so it does not re-read the
+	// whole specification to learn what one task must do.
+	Context *TaskContext `json:"context,omitempty"`
 }
 
 type Snapshot struct {
@@ -137,6 +145,8 @@ type InitOptions struct {
 	HasAI               bool     `json:"has_ai"`
 	ExecutorIDs         []string `json:"executor_ids"`
 	ApplicationAgentIDs []string `json:"application_agent_ids"`
+	// Language of the document templates written for a new product: "en" (default) or "pt-BR".
+	Language string `json:"language,omitempty"`
 }
 
 type CheckpointRequest struct {
@@ -194,4 +204,19 @@ type PRRecord struct {
 	URL  string    `json:"url"`
 	Head string    `json:"head"`
 	At   time.Time `json:"at"`
+}
+
+type AcceptanceRecord struct {
+	Owner       string      `json:"owner"`
+	Verdict     string      `json:"verdict"` // accepted | rejected
+	Summary     string      `json:"summary"`
+	Fingerprint Fingerprint `json:"fingerprint"`
+	At          time.Time   `json:"at"`
+}
+
+type AcceptRequest struct {
+	Owner            string  `json:"owner"`
+	Verdict          string  `json:"verdict"`
+	Summary          string  `json:"summary"`
+	ExpectedRevision *uint64 `json:"expected_revision,omitempty"`
 }

@@ -1,0 +1,12 @@
+{
+  "name": "agentarch-static-site-verifier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned tooling for the static-site verifier image; never an application dependency manifest.",
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.15.0",
+    "globals": "17.14.0",
+    "html-validate": "11.18.0"
+  }
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# static-site profile, check `links`: every relative href/src in HTML and url()/@import in CSS
+# resolves to a file in the project. External URLs are not fetched. See agentarch-links.js.
+exec node /opt/agentarch-content/agentarch-links.js html

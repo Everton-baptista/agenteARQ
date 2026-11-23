@@ -23,3 +23,9 @@ var Content embed.FS
 
 //go:embed spec/schemas spec/normative spec/conformance spec/VERSION
 var Spec embed.FS
+
+// Verifiers holds the verification image recipes, so `agentarch workflow prepare-verifier` can
+// build one without a checkout of this repository.
+//
+//go:embed verifiers
+var Verifiers embed.FS
