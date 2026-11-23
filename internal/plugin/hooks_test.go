@@ -108,3 +108,22 @@ func TestShellQuoteOnlyWhenNeeded(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexInstallWritesItsOwnHooksFile(t *testing.T) {
+	root := t.TempDir()
+	if _, err := Install(root, "codex", testOptions()); err != nil {
+		t.Fatal(err)
+	}
+	b := readTest(t, root, ".codex/hooks.json")
+	for _, want := range []string{`"PreToolUse"`, "Bash|apply_patch|Edit|Write", "hook --event pre-tool --host codex", `"SessionStart"`, `"Stop"`} {
+		if !strings.Contains(string(b), want) {
+			t.Fatalf("codex hooks missing %s: %s", want, b)
+		}
+	}
+	if _, err := Remove(root, "codex", Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".codex", "hooks.json")); !os.IsNotExist(err) {
+		t.Fatal("hooks.json created by install survived remove")
+	}
+}

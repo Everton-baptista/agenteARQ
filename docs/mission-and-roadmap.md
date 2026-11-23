@@ -372,7 +372,9 @@ Still open, and why:
   without local Docker. Driving Apple `container` waits until its isolation flags are verified.
 - **Phase 1:** a fast path for small changes and Spec Kit, OpenSpec and Kiro import need an
   owner decision on what a fast path may skip without weakening "no self-approval".
-- **Hooks for Codex and Gemini CLI:** waiting on adapters for their hook protocols.
+- **Hooks for Gemini CLI:** not planned. Its documentation says it was replaced by Antigravity
+  CLI on 2026-06-18; an Antigravity adapter waits until its hook protocol is verified. Codex
+  hooks are implemented (`plugin install codex`), denying where Claude Code would ask.
 - **Making the new checks blocking:** scenarios, risks and recommended release sections are
   advisory now and are planned to block from content 1.5, after their false-positive rate on
   real projects is measured.

@@ -32,6 +32,13 @@ var hookEventsByHost = map[string][]struct {
 		{"pre-tool", "PreToolUse", "Edit|Write|MultiEdit|NotebookEdit|Bash", 10},
 		{"stop", "Stop", "", 30},
 	},
+	// Codex: .codex/hooks.json has the same shape. apply_patch is its file-edit tool (Edit
+	// and Write are matcher aliases for it); it runs project hooks only once trusted.
+	"codex": {
+		{"session-start", "SessionStart", "", 15},
+		{"pre-tool", "PreToolUse", "Bash|apply_patch|Edit|Write", 10},
+		{"stop", "Stop", "", 30},
+	},
 }
 
 func hookCommand(binary, host, event string) string {

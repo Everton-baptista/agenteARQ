@@ -77,7 +77,7 @@ const hookInputLimit = 4 << 20
 func cmdHook(args []string) int {
 	f := flag.NewFlagSet("hook", flag.ContinueOnError)
 	event := f.String("event", "", "session-start, pre-tool or stop")
-	host := f.String("host", "claude", "host whose hook protocol to speak (claude)")
+	host := f.String("host", "claude", "host whose hook protocol to speak (claude or codex)")
 	root := f.String("root", "", "project root (default: the hook payload's cwd, searched upward)")
 	if err := f.Parse(hoistFlags(args)); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -89,8 +89,8 @@ func cmdHook(args []string) int {
 		fmt.Fprintf(os.Stderr, "hook: --event must be one of %s\n", strings.Join(hookEvents, ", "))
 		return exitUsage
 	}
-	if *host != "claude" {
-		fmt.Fprintln(os.Stderr, "hook: only the claude hook protocol is implemented; other hosts rely on agentarch check in CI")
+	if *host != "claude" && *host != "codex" {
+		fmt.Fprintln(os.Stderr, "hook: the claude and codex hook protocols are implemented; other hosts rely on agentarch check in CI")
 		return exitUsage
 	}
 	raw, err := io.ReadAll(io.LimitReader(os.Stdin, hookInputLimit+1))
@@ -124,7 +124,13 @@ func cmdHook(args []string) int {
 	case "session-start":
 		return emitClaude(os.Stdout, *event, decision{}, sessionContext(project))
 	case "pre-tool":
-		return emitClaude(os.Stdout, *event, preToolDecision(project, in), "")
+		d := preToolDecision(project, in)
+		if *host == "codex" && d.Verdict == "ask" {
+			// Codex parses "ask" but does not support it: the call would go ahead. Deny
+			// instead, so the owner-only action waits for the owner (fail closed).
+			d = decision{Verdict: "deny", Reason: d.Reason + " " + hookMsg("codex_no_ask")}
+		}
+		return emitClaude(os.Stdout, *event, d, "")
 	case "stop":
 		if in.StopHookActive {
 			// The assistant is already continuing because of this hook; blocking again
@@ -228,8 +234,36 @@ func preToolDecision(root string, in hookInput) decision {
 		}
 	case "Bash":
 		return commandDecision(ti.Command)
+	case "apply_patch":
+		// Codex edits files through a patch in tool_input.command: check every file it
+		// touches and every line it adds, exactly as an Edit or Write would be checked.
+		paths, added := parsePatch(ti.Command)
+		for _, path := range paths {
+			if d := protectedFileDecision(root, in.CWD, path); d.Verdict != "" {
+				return d
+			}
+		}
+		if kind := secretKind(added); kind != "" {
+			return decision{Verdict: "ask", Reason: fmt.Sprintf(hookMsg("secret"), kind)}
+		}
 	}
 	return decision{}
+}
+
+var patchFile = regexp.MustCompile(`(?m)^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$`)
+
+// parsePatch reads Codex's apply_patch format: the files it names and the lines it adds.
+func parsePatch(patch string) (paths []string, added string) {
+	for _, m := range patchFile.FindAllStringSubmatch(patch, -1) {
+		paths = append(paths, strings.TrimSpace(m[1]))
+	}
+	var b strings.Builder
+	for _, line := range strings.Split(patch, "\n") {
+		if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
+			b.WriteString(line[1:] + "\n")
+		}
+	}
+	return paths, b.String()
 }
 
 // protectedFileDecision denies edits to files no assistant may change by hand: generated
@@ -420,6 +454,7 @@ var hookMessages = map[string]map[string]string{
 		"no_verify":       "--no-verify skips the project's own checks. The owner must approve skipping them.",
 		"validate_failed": "Agent artifacts no longer validate. Fix them (or tell the owner why not) before finishing:",
 		"language_line":   "The owner's language is %s: speak to them and write every document in it.",
+		"codex_no_ask":    "Codex cannot ask for approval from a hook, so AgenteARQ blocks it: the owner runs it, or approves it outside the assistant.",
 		"verify_stale":    "AgenteARQ: there is no passing verification for the current source. Run `agentarch workflow verify` before claiming the work is done.",
 	},
 	"pt-BR": {
@@ -437,6 +472,7 @@ var hookMessages = map[string]map[string]string{
 		"no_verify":       "--no-verify pula as verificações do próprio projeto. O dono precisa aprovar.",
 		"validate_failed": "Os artefatos de agente não validam mais. Corrija-os (ou explique ao dono por quê) antes de encerrar:",
 		"language_line":   "O idioma do dono é %s: fale com ele e escreva todos os documentos nesse idioma.",
+		"codex_no_ask":    "O Codex não consegue pedir aprovação a partir de um hook, então o AgenteARQ bloqueia: o dono executa, ou aprova fora do assistente.",
 		"verify_stale":    "AgenteARQ: não há verificação aprovada para o código atual. Rode `agentarch workflow verify` antes de dizer que o trabalho está pronto.",
 	},
 }

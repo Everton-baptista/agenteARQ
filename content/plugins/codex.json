@@ -6,7 +6,8 @@
   "skills_path": ".agents/skills",
   "config_path": ".codex/config.toml",
   "config_format": "toml",
+  "hooks_path": ".codex/hooks.json",
   "capabilities": {"skills": true, "mcp_stdio": true, "global_tool_enforcement": false, "sandbox_enforcement": false},
-  "documentation": ["https://developers.openai.com/codex/skills/", "https://developers.openai.com/codex/mcp/"],
-  "notes": "Project configuration remains subject to Codex workspace trust and host policy. This integration does not change approval or sandbox settings."
+  "documentation": ["https://developers.openai.com/codex/skills/", "https://developers.openai.com/codex/mcp/", "https://learn.chatgpt.com/docs/hooks"],
+  "notes": "Project configuration remains subject to Codex workspace trust and host policy. This integration does not change approval or sandbox settings. Installation adds SessionStart, PreToolUse and Stop hooks to .codex/hooks.json that call `agentarch hook --host codex`; Codex runs them only after the user reviews and trusts them with /hooks, and a hook cannot ask for approval there, so owner-only actions are denied."
 }

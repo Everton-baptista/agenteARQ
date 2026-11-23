@@ -111,7 +111,7 @@ MCP approval prompts yourself. Never turn on bypass/YOLO as an installation work
 
 ## Real-time guardrail hooks
 
-`plugin install claude` also merges three hooks into `.claude/settings.json`, as an owned
+`plugin install claude` (and `plugin install codex`, into `.codex/hooks.json`) also merges three hooks into `.claude/settings.json`, as an owned
 fragment: your own hooks, permissions and other settings survive install and `plugin remove`,
 and a changed agentarch fragment is reported by `plugin check` and refused by a reinstall. Each
 hook only runs `agentarch hook --event <event> --host claude`; every decision is made by that
@@ -133,8 +133,8 @@ What each host really enforces:
 | Host | Hooks driven by agentarch | Boundary |
 |---|---|---|
 | Claude Code | yes | Project hooks run once the project's settings are trusted. The command parser recognises plain forms, not obfuscated shell. |
-| Codex | not yet | Codex runs project and plugin hooks only after the user trusts them; until the adapter exists, skills and MCP guide and CI enforces. |
-| Gemini CLI | not yet | A Gemini hook that prints invalid output lets the action through, so a hook there could not be fail-closed. |
+| Codex | yes (`.codex/hooks.json`) | Codex runs project hooks only after the user reviews and trusts them with `/hooks`. A Codex hook cannot ask for approval, so owner-only commands and secret-shaped content are denied with the reason, and the owner runs or approves them outside the assistant. File edits arrive as `apply_patch`, whose files and added lines are checked like an edit. |
+| Gemini CLI | no | Its documentation says Gemini CLI was replaced by Antigravity CLI on 2026-06-18, and a Gemini hook that prints invalid output lets the action through, so it could not be fail-closed. Skills and MCP still guide; CI enforces. |
 
 Wherever a hook does not run, `agentarch check` and `agentarch sync --check` in CI remain the
 guarantee. `agentarch doctor` reports which assistants are connected and whether their managed

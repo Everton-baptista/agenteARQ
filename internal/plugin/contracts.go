@@ -106,7 +106,7 @@ var ToolSchemas = map[string]map[string]any{
 func actionGuardrails(host string) []map[string]any {
 	g := []map[string]any{{"control": "control.ai.tool.least_privilege", "fail_mode": "fail_closed", "note": "Applies only to AgenteARQ MCP operations. The host owns all other tool, input, and output controls."}}
 	if len(hookEventsByHost[host]) > 0 {
-		g = append(g, map[string]any{"control": "control.ai.tool.irreversible_requires_approval", "fail_mode": "fail_closed", "note": "Host PreToolUse hook: asks the owner before push, merge, publish and deploy commands, denies edits to generated files and workflow evidence, and asks before writing secret-shaped content. It does not parse obfuscated commands; CI's agentarch check remains the guarantee."})
+		g = append(g, map[string]any{"control": "control.ai.tool.irreversible_requires_approval", "fail_mode": "fail_closed", "note": "Host PreToolUse hook: asks the owner (Claude Code) or blocks (Codex, which cannot ask from a hook) before push, merge, publish and deploy commands, denies edits to generated files and workflow evidence, and asks before writing secret-shaped content. It does not parse obfuscated commands; CI's agentarch check remains the guarantee."})
 	}
 	return g
 }

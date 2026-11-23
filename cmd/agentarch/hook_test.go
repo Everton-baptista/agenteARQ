@@ -248,3 +248,27 @@ func TestDoctorFlagsABinaryOlderThanTheProject(t *testing.T) {
 		t.Fatalf("newer binary flagged (versions must compare numerically): %+v", r)
 	}
 }
+
+func TestCodexApplyPatchIsCheckedLikeAnEdit(t *testing.T) {
+	root := hookProject(t)
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("<!-- agentarch:generated v=1 -->\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	patch := func(body string) hookInput {
+		b, _ := json.Marshal(map[string]string{"command": body})
+		return hookInput{CWD: root, ToolName: "apply_patch", ToolInput: b}
+	}
+	if d := preToolDecision(root, patch("*** Begin Patch\n*** Update File: AGENTS.md\n@@\n-a\n+b\n*** End Patch")); d.Verdict != "deny" {
+		t.Errorf("patch to a generated file: %q, want deny", d.Verdict)
+	}
+	if d := preToolDecision(root, patch("*** Begin Patch\n*** Add File: src/key.js\n+const k = 'AKIA"+strings.Repeat("Q", 16)+"'\n*** End Patch")); d.Verdict != "ask" {
+		t.Errorf("patch adding a secret: %q, want ask", d.Verdict)
+	}
+	if d := preToolDecision(root, patch("*** Begin Patch\n*** Update File: src/app.js\n@@\n-old\n+new\n*** End Patch")); d.Verdict != "" {
+		t.Errorf("ordinary patch: %q, want allow", d.Verdict)
+	}
+	paths, added := parsePatch("*** Update File: a.txt\n*** Move to: b.txt\n+++ not a line\n+x\n-y")
+	if len(paths) != 2 || paths[1] != "b.txt" || added != "x\n" {
+		t.Errorf("parsePatch = %v %q", paths, added)
+	}
+}
