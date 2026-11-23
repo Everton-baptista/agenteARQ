@@ -123,3 +123,19 @@ func TestAnyLanguageGetsTheSourceCoreWithADirective(t *testing.T) {
 		}
 	}
 }
+
+func TestABaseLanguageReadsItsSiblingTranslation(t *testing.T) {
+	fsys := fstest.MapFS{
+		"core/en/00-identity.md":    {Data: []byte("# Rules\n")},
+		"core/pt-BR/00-identity.md": {Data: []byte("# Regras\n")},
+	}
+	for _, tag := range []string{"pt", "pt-PT", "pt-br"} {
+		c, err := BuildCore(fsys, tag)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Source != "pt-BR" || !strings.Contains(c.Text, "# Regras") || strings.Contains(c.Text, "## Language") {
+			t.Errorf("%s: source %s, text %q", tag, c.Source, c.Text)
+		}
+	}
+}

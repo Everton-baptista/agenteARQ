@@ -275,6 +275,7 @@ func cmdInit(args []string) int {
 	if err := fs_.Parse(hoistFlags(args)); err != nil {
 		return exitUsage
 	}
+	*lang = resolveLanguage(*lang)
 
 	// Same validation start applies: a bad code must be rejected where it was typed, not
 	// written into agentarch.yaml and reported later as a schema failure.
@@ -456,6 +457,7 @@ func cmdSync(args []string) int {
 	if !langSet(fs_) {
 		*lang = projectLanguage(*root)
 	}
+	*lang = resolveLanguage(*lang)
 
 	// Prefer the project's installed copy so that a project pinned to an older content
 	// release keeps rendering that release. Falling back to the embedded payload is what
@@ -833,6 +835,7 @@ func syncSkills(root string, check bool) (int, int) {
 // controls on day one; without a way in that costs nothing on the first day, the gate is
 // switched off and nothing improves. That risk was named in the plan and this is the mitigation.
 func finishAdopt(root, id string, force bool, language string) int {
+	language = resolveLanguage(language)
 	if render.ValidLanguage(language) {
 		defer func(prev string) { lang = prev }(lang)
 		lang = language

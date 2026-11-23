@@ -254,3 +254,22 @@ func TestThirdOptionAsksForRefactoring(t *testing.T) {
 		t.Errorf("option 3 gave adopt=%v refactor=%v, want true/false", adopt, refactor)
 	}
 }
+
+func TestALanguageTagUsesTheClosestTranslation(t *testing.T) {
+	for in, want := range map[string]string{
+		"pt": "pt-BR", "pt-PT": "pt-BR", "pt-br": "pt-BR", "PT": "pt-BR",
+		"en": "en", "en-GB": "en", "ja": "ja", "fr-CA": "fr-CA",
+	} {
+		if got := resolveLanguage(in); got != want {
+			t.Errorf("resolveLanguage(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestStartWithLangPtSpeaksPortuguese(tt *testing.T) {
+	defer func(prev string) { lang = prev }(lang)
+	lang = resolveLanguage("pt")
+	if t("start.nothing_written") == catalog["en"]["start.nothing_written"] {
+		tt.Fatal("--lang pt still reads the English catalogue")
+	}
+}
