@@ -59,7 +59,7 @@ func cmdWorkflow(args []string) int {
 	outcome := f.String("outcome", "", "record-production-check: passed or failed")
 	attester := f.String("attester", "", "record-production-check: who checked production")
 	owner := f.String("owner", "", "accept: the owner who tried the product")
-	base := f.String("base", "", "prepare-verifier: base image pinned by @sha256 digest (default: the profile's reviewed base, when it has one)")
+	base := f.String("base", "", "prepare-verifier, ci-template: base image pinned by @sha256 digest (default: the profile's reviewed base, when it has one)")
 	from := f.String("from", "auto", "import-spec: kiro, spec-kit, openspec or auto")
 	engine := f.String("engine", "", "prepare-verifier: docker or podman (default: podman if installed, else docker)")
 	common := []string{"root", "format"}
@@ -76,6 +76,8 @@ func cmdWorkflow(args []string) int {
 		"record-production-check": {"url", "outcome", "attester", "summary", "expected-revision"},
 		"accept":                  {"owner", "verdict", "summary", "expected-revision"},
 		"import-spec":             {"from"},
+		"ci-verify":               {"image"},
+		"ci-template":             {"base"},
 		"profiles":                {},
 	}
 	own, knownCommand := allowed[command]
@@ -126,6 +128,48 @@ func cmdWorkflow(args []string) int {
 			diagnosticErr = errors.New("diagnostics-reason is only supported for workflow verify")
 		}
 		return printProduct(nil, diagnosticErr, *format)
+	}
+	if command == "ci-verify" {
+		// CI has no workflow state and never advances it: run the checks and report.
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		v, err := workflow.VerifyProduct(ctx, *root, *image)
+		if err != nil {
+			return printProduct(nil, err, *format)
+		}
+		if path := os.Getenv("GITHUB_STEP_SUMMARY"); path != "" {
+			if f, ferr := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
+				_, _ = f.WriteString(workflow.CISummary(v))
+				_ = f.Close()
+			}
+		}
+		if *format == "json" {
+			_ = printProduct(v, nil, "json")
+		} else {
+			for _, c := range v.Checks {
+				fmt.Printf("  %-13s %-30s %s\n", c.Status, c.ID, c.Message)
+			}
+		}
+		if !v.Passed {
+			return exitGate
+		}
+		return exitOK
+	}
+	if command == "ci-template" {
+		s, err := workflow.New(*root)
+		if err != nil {
+			return printProduct(nil, err, *format)
+		}
+		ref := "main"
+		if version != "dev" {
+			ref = "v" + version
+		}
+		path, err := s.WriteCIWorkflow(ref, *base)
+		if err != nil {
+			return printProduct(nil, err, *format)
+		}
+		fmt.Printf("wrote %s: every pull request now runs the isolated checks in GitHub Actions; commit it to enable.\n", path)
+		return exitOK
 	}
 	if command == "profiles" {
 		// Listed, never asked: an assistant shows these to the owner in its chat.
