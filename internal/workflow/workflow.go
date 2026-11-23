@@ -192,12 +192,13 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		} else {
 			action = "All planned tasks are complete; run verification."
 		}
-		next.Advice = releasePlanReminder(s.releasePlanGaps())
+		next.Advice = append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...)
 	case "verifying":
 		action = "Run the engineering profile in an isolated container; fix failed or inconclusive checks."
-		next.Advice = releasePlanReminder(s.releasePlanGaps())
+		next.Advice = append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...)
 	case "reviewing":
 		action = "Request an independent human or agent review of this exact fingerprint."
+		next.Advice = s.appRiskAdvice()
 	case "pr_ready":
 		action = "The local gate passed. Publish the PR with your host; after a person or CI deploys this content, record it with record-release. This tool does not merge or deploy."
 		if gaps := s.releasePlanGaps(); len(gaps) > 0 {
@@ -206,8 +207,11 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		if a := snap.State.OwnerAcceptance; a == nil || a.Verdict != "accepted" {
 			next.Advice = append(next.Advice, AdviceAccept)
 		}
+		next.Advice = append(next.Advice, s.releaseRecommendations()...)
+		next.Advice = append(next.Advice, s.appRiskAdvice()...)
 	case "released":
 		action = "Run the post-deploy verification from " + ReleasePlanPath + " and record it with record-production-check."
+		next.Advice = s.releaseRecommendations()
 	case "production_verified":
 		action = "Shipped and checked in production. Keep watching the signals in " + ReleasePlanPath + "; new work starts at implementing."
 	case "blocked":

@@ -29,10 +29,11 @@ func printAcceptance(a *workflow.AcceptanceRecord) {
 // workflowAdvicePT translates the workflow's advice sentences by exact match, like the
 // next-step actions. Advice built from a gap keeps the gap in English and translates the frame.
 var workflowAdvicePT = map[string]string{
-	workflow.AdviceScenarios: "Ligue cada critério de aceite a cenários dado/quando/então em " + workflow.ScenariosPath + "; isso passa a ser obrigatório no content 1.5.",
-	workflow.AdvicePersonas:  "Descreva para quem é o produto em " + workflow.PersonasPath + " (objetivo, familiaridade, dispositivo, necessidades de acessibilidade), incluindo um usuário adversário.",
-	workflow.AdviceDesign:    "Antes de construir a interface, registre a direção em " + workflow.DesignBriefPath + " e os tokens em " + workflow.DesignTokensPath + " (W3C DTCG), para que pareça este produto e não um padrão.",
-	workflow.AdviceAccept:    "Peça ao dono para experimentar o produto e registre com workflow accept.",
+	workflow.AdviceScenarios:  "Ligue cada critério de aceite a cenários dado/quando/então em " + workflow.ScenariosPath + "; isso passa a ser obrigatório no content 1.5.",
+	workflow.AdvicePersonas:   "Descreva para quem é o produto em " + workflow.PersonasPath + " (objetivo, familiaridade, dispositivo, necessidades de acessibilidade), incluindo um usuário adversário.",
+	workflow.AdviceDesign:     "Antes de construir a interface, registre a direção em " + workflow.DesignBriefPath + " e os tokens em " + workflow.DesignTokensPath + " (W3C DTCG), para que pareça este produto e não um padrão.",
+	workflow.AdviceAccept:     "Peça ao dono para experimentar o produto e registre com workflow accept.",
+	workflow.AdviceADRSources: "Adicione uma seção \"## Fontes e custo\" a cada ADR em " + workflow.ADRDir + ": a data e a fonte de cada preço ou limite usado, e o custo mensal estimado que o dono aprovou.",
 }
 
 const releaseAdvicePrefix = "before verifying, so it is reviewed with the code: "
@@ -43,6 +44,12 @@ func translateAdvice(advice string) string {
 	}
 	if v, ok := workflowAdvicePT[advice]; ok {
 		return v
+	}
+	if strings.HasPrefix(advice, workflow.RiskAdvicePrefix) {
+		return "Risco de segurança (aviso): " + strings.TrimPrefix(advice, workflow.RiskAdvicePrefix)
+	}
+	if strings.HasPrefix(advice, workflow.ReleaseRecommendationPrefix) {
+		return "Recomendado antes da produção: preencha " + strings.TrimPrefix(advice, workflow.ReleaseRecommendationPrefix)
 	}
 	if strings.HasPrefix(advice, releaseAdvicePrefix) {
 		return "antes de verificar, para ser revisado com o código: " + strings.TrimPrefix(advice, releaseAdvicePrefix)

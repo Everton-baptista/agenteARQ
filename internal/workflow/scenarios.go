@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -59,6 +60,9 @@ const (
 	AdvicePersonas  = "Describe who the product is for in " + PersonasPath + " (goal, familiarity, device, accessibility needs), including one adversarial user."
 	AdviceDesign    = "Before building the interface, record its direction in " + DesignBriefPath + " and its tokens in " + DesignTokensPath + " (W3C DTCG), so it looks like this product and not a default."
 	AdviceAccept    = "Ask the owner to try the product and record it with workflow accept."
+	// AdviceADRSources is given while an ADR records a decision without the date and sources of
+	// the facts it used or the monthly cost the owner approved; market facts go stale fast.
+	AdviceADRSources = "Add a \"## Sources and cost\" section to each ADR in " + ADRDir + ": the date and source of every price or limit used, and the estimated monthly cost the owner approved."
 )
 
 // uiProfiles are the profiles whose product has an interface a person looks at.
@@ -201,6 +205,9 @@ func sortedGaps(g []string) []string {
 // planningAdvice is what a product will want before planned but is not yet required.
 func (s *Service) planningAdvice(p Product) []string {
 	var advice []string
+	if s.adrLacksSources() {
+		advice = append(advice, AdviceADRSources)
+	}
 	if !s.exists(ScenariosPath) {
 		advice = append(advice, AdviceScenarios)
 	}
@@ -213,4 +220,23 @@ func (s *Service) planningAdvice(p Product) []string {
 		}
 	}
 	return advice
+}
+
+// adrLacksSources reports whether any ADR has no sources-and-cost section (any language).
+func (s *Service) adrLacksSources() bool {
+	entries, err := os.ReadDir(filepath.Join(s.Root, filepath.FromSlash(ADRDir)))
+	if err != nil {
+		return false
+	}
+	heading := regexp.MustCompile(`(?im)^##\s+(sources|fontes|fuentes)\b`)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(ADRDir), e.Name()))
+		if err == nil && !heading.Match(b) {
+			return true
+		}
+	}
+	return false
 }
