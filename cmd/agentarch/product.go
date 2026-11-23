@@ -220,7 +220,7 @@ func printProduct(v any, err error, format string) int {
 	case workflow.Snapshot:
 		fmt.Printf("\n%s · %s\n%s\n", x.Product.Name, x.Product.Profile, tf("workflow.status", x.State.Phase, x.State.Revision, translateAction(x.Next.Action)))
 		for _, m := range x.Next.Missing {
-			fmt.Println("  •", m)
+			fmt.Println("  •", translateMissing(m))
 		}
 		for _, a := range x.Next.Advice {
 			fmt.Println("  ◦", translateAdvice(a))

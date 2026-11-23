@@ -84,8 +84,28 @@ type Core struct {
 	Text   string
 	SHA256 string
 	Lang   string
+	// Source is the core directory the text was read from. It equals Lang unless the owner
+	// chose a language the standard has no translation for, in which case it is the source
+	// language and the core carries a directive to speak the owner's language.
+	Source string
 	Files  []string
 }
+
+// SourceLang is the language the core is written in first; every other is a translation.
+const SourceLang = "en"
+
+// LanguageDirective is appended to an untranslated core. It is deliberately short: the core
+// is a fixed budget, and the smallest targets must still fit with it. Headings stay as the
+// templates have them because the workflow's gates find sections by those names.
+func LanguageDirective(lang string) string {
+	return "\n## Language\n\nThe owner chose `" + lang + "`: speak to them and write every document in it. Keep the templates' `##` headings.\n"
+}
+
+var languageTag = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$`)
+
+// ValidLanguage reports whether lang is a well-formed BCP 47 language tag. Any language in the
+// world can be chosen; only some have a translated core.
+func ValidLanguage(lang string) bool { return languageTag.MatchString(lang) }
 
 // BudgetCore is the ceiling on the concatenated core, in bytes. It is a fixed budget rather
 // than a guideline: adding an invariant must cost something, or the core grows until
@@ -113,8 +133,19 @@ func ContentVersion(fsys fs.FS) string {
 // agentarch/std look identical here. Callers do the rooting; letting this function know which
 // of the two it was handed is what made the paths diverge in the first place.
 func BuildCore(fsys fs.FS, lang string) (Core, error) {
+	if !ValidLanguage(lang) {
+		return Core{}, fmt.Errorf("%q is not a language tag (examples: en, pt-BR, es, fr, ja, zh-Hans)", lang)
+	}
+	source := lang
 	dir := path.Join("core", lang)
 	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		// No translation for this language: the owner still gets their language, through
+		// the source core and a directive the assistant follows.
+		source = SourceLang
+		dir = path.Join("core", source)
+		entries, err = fs.ReadDir(fsys, dir)
+	}
 	if err != nil {
 		return Core{}, fmt.Errorf("core for language %q not found: %w", lang, err)
 	}
@@ -149,9 +180,12 @@ func BuildCore(fsys fs.FS, lang string) (Core, error) {
 		b.WriteString(strings.TrimLeft(body, "\n"))
 	}
 
+	if source != lang {
+		b.WriteString(LanguageDirective(lang))
+	}
 	text := b.String()
 	sum := sha256.Sum256([]byte(text))
-	return Core{Text: text, SHA256: hex.EncodeToString(sum[:]), Lang: lang, Files: names}, nil
+	return Core{Text: text, SHA256: hex.EncodeToString(sum[:]), Lang: lang, Source: source, Files: names}, nil
 }
 
 var (
@@ -183,7 +217,7 @@ func Render(t Target, core Core, version, existing string) (string, error) {
 		"<!-- agentarch:generated v=%s core_sha256=%s target=%s lang=%s\n"+
 			"     DO NOT EDIT. Edit agentarch/std/core/%s/ and run `agentarch sync`.\n"+
 			"     Read by: %s -->\n\n",
-		version, core.SHA256, t.Name, core.Lang, core.Lang, t.Covers)
+		version, core.SHA256, t.Name, core.Lang, coreSource(core), t.Covers)
 
 	b.WriteString(core.Text)
 
@@ -219,3 +253,10 @@ func CoreSHAOf(content string) string {
 
 // StripHeader removes the generated header, for diffing purposes.
 func StripHeader(s string) string { return headerRe.ReplaceAllString(s, "") }
+
+func coreSource(c Core) string {
+	if c.Source != "" {
+		return c.Source
+	}
+	return c.Lang
+}

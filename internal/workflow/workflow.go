@@ -153,7 +153,11 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 	case "draft":
 		missing = s.requirements(snap.Product, snap.Tasks, "specified")
 		action = "Complete the brief and specification; checkpoint specified."
-		next.Advice = s.planningAdvice(snap.Product)
+		// One thing at a time: while the brief and spec are being written, only the advice
+		// that belongs to the spec. The rest arrives at the step where it is acted on.
+		if !s.exists(ScenariosPath) {
+			next.Advice = []string{AdviceScenarios}
+		}
 	case "specified":
 		missing = s.requirements(snap.Product, snap.Tasks, "planned")
 		action = "Record the architecture decision and acceptance-to-check task mapping; checkpoint planned."
@@ -192,13 +196,13 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		} else {
 			action = "All planned tasks are complete; run verification."
 		}
-		next.Advice = append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...)
+		next.Advice = append(append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...), s.tokenColourAdvice()...)
 	case "verifying":
 		action = "Run the engineering profile in an isolated container; fix failed or inconclusive checks."
-		next.Advice = append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...)
+		next.Advice = append(append(releasePlanReminder(s.releasePlanGaps()), s.appRiskAdvice()...), s.tokenColourAdvice()...)
 	case "reviewing":
 		action = "Request an independent human or agent review of this exact fingerprint."
-		next.Advice = s.appRiskAdvice()
+		next.Advice = append(s.appRiskAdvice(), s.tokenColourAdvice()...)
 	case "pr_ready":
 		action = "The local gate passed. Publish the PR with your host; after a person or CI deploys this content, record it with record-release. This tool does not merge or deploy."
 		if gaps := s.releasePlanGaps(); len(gaps) > 0 {

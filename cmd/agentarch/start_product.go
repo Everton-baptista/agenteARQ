@@ -64,7 +64,7 @@ func startProduct(o startProductOptions) int {
 	fmt.Printf("  %-15s %s\n", t("product.plan.tech"), t("product.plan.tech.value"))
 	if !o.yes {
 		if !o.interactive {
-			fmt.Fprintln(os.Stderr, "\nNothing written. Re-run with --yes.")
+			fmt.Fprintln(os.Stderr, "\n"+t("start.nothing_written"))
 			return exitUsage
 		}
 		if !confirm(t("plan.confirm")) {

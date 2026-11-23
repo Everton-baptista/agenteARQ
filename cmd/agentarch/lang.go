@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Everton-baptista/agenteARQ/internal/blueprint"
+	"github.com/Everton-baptista/agenteARQ/internal/render"
 )
 
 // The interview's own words, in every language it speaks.
@@ -74,7 +75,8 @@ func askLanguage() (code string, quit bool) {
 	fmt.Println()
 
 	for attempt := 0; attempt < 3; attempt++ {
-		in := strings.ToLower(strings.TrimSpace(ask("Choose / Escolha 1–2 [1]: ")))
+		raw := strings.TrimSpace(ask("Choose / Escolha 1–2, or any language code (es, fr, ja…) [1]: "))
+		in := strings.ToLower(raw)
 		switch in {
 		case "":
 			return languages[0].Code, false
@@ -91,6 +93,11 @@ func askLanguage() (code string, quit bool) {
 		}
 		if in == "pt" || in == "br" || in == "portugues" {
 			return "pt-BR", false
+		}
+		// Any other language in the world: the interview continues in English, and the
+		// assistant is told to speak this one with the owner.
+		if render.ValidLanguage(raw) {
+			return raw, false
 		}
 		fmt.Fprintln(os.Stderr, "  not one of the options / não é uma das opções")
 	}
@@ -147,6 +154,7 @@ func languageCodes() []string {
 var catalog = map[string]map[string]string{
 
 	"en": {
+		"start.nothing_written": "Nothing written. Re-run with --yes.",
 		// ---- the banner
 		"banner.title": "agentarch — let's get you set up.",
 		"banner.body": "A few questions in plain language; nothing is written until you say so.\n" +
@@ -270,7 +278,8 @@ var catalog = map[string]map[string]string{
 	},
 
 	"pt-BR": {
-		"banner.title": "agentarch — vamos configurar seu projeto.",
+		"start.nothing_written": "Nada foi escrito. Rode de novo com --yes.",
+		"banner.title":          "agentarch — vamos configurar seu projeto.",
 		"banner.body": "Algumas perguntas em linguagem simples. Nada será escrito até você confirmar.\n" +
 			"Quando a escolha é sua, as opções são explicadas e nenhuma é escolhida por você. q sai.",
 
@@ -385,14 +394,14 @@ func projectLanguage(root string) string {
 		if err != nil {
 			continue
 		}
-		if m := generatedLangRe.FindSubmatch(b); m != nil && knownLanguage(string(m[1])) {
+		if m := generatedLangRe.FindSubmatch(b); m != nil && render.ValidLanguage(string(m[1])) {
 			return string(m[1])
 		}
 	}
 	return SourceLang
 }
 
-var generatedLangRe = regexp.MustCompile(`agentarch:generated[^\n]*\blang=([A-Za-z-]+)`)
+var generatedLangRe = regexp.MustCompile(`agentarch:generated[^\n]*\blang=([A-Za-z0-9-]+)`)
 
 // workflowActionsPT translates the workflow's next-step sentences. A sentence with no entry is
 // shown as written, so a new action is never hidden by a missing translation.

@@ -35,6 +35,7 @@ import (
 	agentarch "github.com/Everton-baptista/agenteARQ"
 	"github.com/Everton-baptista/agenteARQ/internal/application"
 	"github.com/Everton-baptista/agenteARQ/internal/mcpserver"
+	"github.com/Everton-baptista/agenteARQ/internal/render"
 	"github.com/Everton-baptista/agenteARQ/internal/validate"
 )
 
@@ -190,10 +191,13 @@ func sessionContext(root string) string {
 				fmt.Fprintf(&b, "\n  … +%d", len(missing)-5)
 				break
 			}
-			b.WriteString("\n  - " + m)
+			b.WriteString("\n  - " + translateMissing(m))
 		}
 	}
 	b.WriteString("\n" + hookMsg("rules_line"))
+	if lang != render.SourceLang {
+		b.WriteString("\n" + fmt.Sprintf(hookMsg("language_line"), lang))
+	}
 	return b.String()
 }
 
@@ -415,6 +419,7 @@ var hookMessages = map[string]map[string]string{
 		"owner_only":      "`%s` publishes, deploys or changes shared history. AgenteARQ never does this on its own: the owner must approve it.",
 		"no_verify":       "--no-verify skips the project's own checks. The owner must approve skipping them.",
 		"validate_failed": "Agent artifacts no longer validate. Fix them (or tell the owner why not) before finishing:",
+		"language_line":   "The owner's language is %s: speak to them and write every document in it.",
 		"verify_stale":    "AgenteARQ: there is no passing verification for the current source. Run `agentarch workflow verify` before claiming the work is done.",
 	},
 	"pt-BR": {
@@ -431,6 +436,7 @@ var hookMessages = map[string]map[string]string{
 		"owner_only":      "`%s` publica, faz deploy ou altera o histórico compartilhado. O AgenteARQ nunca faz isso sozinho: o dono precisa aprovar.",
 		"no_verify":       "--no-verify pula as verificações do próprio projeto. O dono precisa aprovar.",
 		"validate_failed": "Os artefatos de agente não validam mais. Corrija-os (ou explique ao dono por quê) antes de encerrar:",
+		"language_line":   "O idioma do dono é %s: fale com ele e escreva todos os documentos nesse idioma.",
 		"verify_stale":    "AgenteARQ: não há verificação aprovada para o código atual. Rode `agentarch workflow verify` antes de dizer que o trabalho está pronto.",
 	},
 }

@@ -1,4 +1,4 @@
-<!-- agentarch:generated v=1.4.0 core_sha256=bd805b0ca3adbf22285c034bd4a68f15dce82e952a1d5763d449d36a0d60b5cb target=gemini lang=en
+<!-- agentarch:generated v=1.4.0 core_sha256=99c7ba947cc964cbc510be0b070b84fff0d20b0a70225f47f76bb5180f53c87a target=gemini lang=en
      DO NOT EDIT. Edit agentarch/std/core/en/ and run `agentarch sync`.
      Read by: Gemini CLI -->
 
@@ -81,15 +81,14 @@ Full glossary: `agentarch/std/standards/00-index.md`. Five terms carry the invar
 
 ## Where to look
 
-Read only the file for the task at hand. Paths are under `agentarch/std/standards/`:
-`01-agent-contract` scope, autonomy, owner · `02-prompt-and-context` prompts, RAG, citations ·
+Read only what the task needs, under `agentarch/std/standards/`:
+`01-agent-contract` scope, autonomy, owner · `02-prompt-and-context` prompts, RAG ·
 `03-tools` permissions, idempotency · `04-mcp` MCP servers · `05-memory-and-state` ·
 `06-planning-and-multiagent` handoff, loops · `07-hitl` approvals · `08-guardrails` fail modes ·
 `09-security` injection, secrets · `10-privacy` · `11-evaluation` evals, red team ·
-`12-observability` tracing, cost · `13-resilience-and-cost` retries, budgets, SLOs ·
+`12-observability` tracing, cost · `13-resilience-and-cost` retries, SLOs ·
 `14-lifecycle` releasing, revalidation · `15-supply-chain` provenance, AI-BOM ·
-`16-service-and-edge` an agent as an HTTP API · `17-design-quality` UI direction, tokens,
-contrast.
+`16-service-and-edge` agent as an API · `17-design-quality` UI, tokens, contrast.
 
-Step by step: `checklists/`. A framework: `adapters/<framework>.md`. A failed check:
-`agentarch explain <control.id>`; a workflow refusal: `agentarch explain workflow.<id>`.
+Steps: `checklists/`. Frameworks: `adapters/`. Why a check or the workflow refused:
+`agentarch explain <id>`.

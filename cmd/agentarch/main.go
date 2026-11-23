@@ -446,10 +446,15 @@ func cmdSync(args []string) int {
 	fs_ := flag.NewFlagSet("sync", flag.ContinueOnError)
 	check := fs_.Bool("check", false, "report drift without writing; exit 3 if any")
 	root := fs_.String("root", ".", "project root")
-	lang := fs_.String("lang", "en", "language of the generated files")
+	lang := fs_.String("lang", "en", "language of the generated files (default: the language they are already in)")
 	targets := fs_.String("targets", "", "comma-separated subset of targets")
 	if err := fs_.Parse(args); err != nil {
 		return exitUsage
+	}
+	// A plain `agentarch sync`, which the generated files themselves tell the assistant to
+	// run, must not turn a Portuguese or Japanese project back into English.
+	if !langSet(fs_) {
+		*lang = projectLanguage(*root)
 	}
 
 	// Prefer the project's installed copy so that a project pinned to an older content
@@ -828,7 +833,7 @@ func syncSkills(root string, check bool) (int, int) {
 // controls on day one; without a way in that costs nothing on the first day, the gate is
 // switched off and nothing improves. That risk was named in the plan and this is the mitigation.
 func finishAdopt(root, id string, force bool, language string) int {
-	if knownLanguage(language) {
+	if render.ValidLanguage(language) {
 		defer func(prev string) { lang = prev }(lang)
 		lang = language
 	}

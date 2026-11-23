@@ -57,6 +57,7 @@ func cmdDoctor(args []string) int {
 	}
 	lang = projectLanguage(abs)
 	r := runDoctor(abs, runtime.GOOS, exec.LookPath, probeCommand)
+	r.addVersionCheck(abs, pathBinaryContent)
 	if *format == "json" {
 		e := json.NewEncoder(os.Stdout)
 		e.SetIndent("", "  ")
@@ -80,6 +81,65 @@ func probeCommand(dir, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	return cmd.Run()
+}
+
+// pathBinaryContent asks the agentarch on PATH which content release it ships. The hooks and
+// the MCP server run that binary, not necessarily the one running doctor.
+func pathBinaryContent() string {
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "agentarch", "version", "--root", os.TempDir()).Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.HasPrefix(line, "content/") {
+			return strings.Fields(strings.TrimPrefix(line, "content/"))[0]
+		}
+	}
+	return ""
+}
+
+// addVersionCheck compares the content release the project was installed with against the one
+// the agentarch on PATH ships. An older binary reads a newer project's files with older rules —
+// a profile it has never heard of fails with a schema error nobody can act on.
+func (r *doctorReport) addVersionCheck(root string, pathContent func() string) {
+	b, err := os.ReadFile(filepath.Join(root, "agentarch", "std", "VERSION"))
+	if err != nil {
+		return
+	}
+	project := strings.TrimSpace(string(b))
+	binary := pathContent()
+	if binary == "" {
+		return
+	}
+	if compareVersions(binary, project) < 0 {
+		r.Ready = false
+		r.Checks = append(r.Checks, doctorCheck{ID: "agentarch-version", Detail: fmt.Sprintf(dmsg("ver_old"), binary, project), Why: dmsg("ver_why"), Fix: installHint("agentarch", r.OS)})
+		return
+	}
+	r.Checks = append(r.Checks, doctorCheck{ID: "agentarch-version", OK: true, Detail: fmt.Sprintf(dmsg("ver_ok"), binary)})
+}
+
+// compareVersions compares dotted numeric versions; anything unparsable compares equal.
+func compareVersions(a, b string) int {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(pa) && i < len(pb); i++ {
+		var x, y int
+		if _, err := fmt.Sscan(pa[i], &x); err != nil {
+			return 0
+		}
+		if _, err := fmt.Sscan(pb[i], &y); err != nil {
+			return 0
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
+		}
+	}
+	return len(pa) - len(pb)
 }
 
 func runDoctor(root, goos string, look lookPathFunc, probe probeFunc) doctorReport {
@@ -245,6 +305,9 @@ var doctorMessages = map[string]map[string]string{
 		"plugin_ok":      "Connected assistants: %s.",
 		"plugin_drift":   "The %s plugin files changed since install: %s.",
 		"plugin_why":     "The plugin gives your assistant the skills, the workflow tools and (in Claude Code) the real-time guardrail hooks.",
+		"ver_old":        "The agentarch on your PATH ships content %s, older than this project's %s.",
+		"ver_ok":         "agentarch on PATH ships content %s.",
+		"ver_why":        "Your assistant's hooks and tools run that binary; an older one misreads a newer project and fails with errors that are hard to act on.",
 	},
 	"pt-BR": {
 		"title":          "AgenteARQ doctor — o que este projeto precisa",
@@ -275,6 +338,9 @@ var doctorMessages = map[string]map[string]string{
 		"plugin_ok":      "Assistentes conectados: %s.",
 		"plugin_drift":   "Os arquivos do plugin %s mudaram desde a instalação: %s.",
 		"plugin_why":     "O plugin dá ao seu assistente as skills, as ferramentas do workflow e (no Claude Code) os hooks de proteção em tempo real.",
+		"ver_old":        "O agentarch do seu PATH traz o content %s, mais antigo que o %s deste projeto.",
+		"ver_ok":         "O agentarch do PATH traz o content %s.",
+		"ver_why":        "Os hooks e as ferramentas do seu assistente rodam esse binário; um mais antigo lê errado um projeto mais novo e falha com erros difíceis de entender.",
 	},
 }
 

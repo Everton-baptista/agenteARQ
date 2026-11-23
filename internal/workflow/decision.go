@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // A technology decision is only as good as the alternatives it was weighed against. An ADR that
@@ -104,9 +106,9 @@ func decisionGaps(rel, body string) []string {
 	}
 	if haveOptions && haveDecision && len(titles) > 0 {
 		chosen := false
-		lower := strings.ToLower(decision)
+		said := normalizeOption(decision)
 		for _, t := range titles {
-			chosen = chosen || strings.Contains(lower, t)
+			chosen = chosen || strings.Contains(said, normalizeOption(t))
 		}
 		if !chosen {
 			gaps = append(gaps, fmt.Sprintf("%s decision must name the option it chose (one of: %s)", rel, strings.Join(titles, ", ")))
@@ -176,6 +178,11 @@ TODO: name the option chosen, who chose it, and why it wins for this product.
 ## Consequences
 
 TODO: what becomes easier, what becomes harder, and what would make you revisit this decision.
+
+## Sources and cost
+
+TODO: the date and source of every price or limit used above, and the estimated monthly cost the
+owner approved.
 `
 
 // BriefTemplate and SpecTemplate guide a person who has never written one. Technology is asked
@@ -283,4 +290,20 @@ TODO: a opção escolhida, quem escolheu, e por que ela vence para este produto.
 ## Consequências
 
 TODO: o que fica mais fácil, o que fica mais difícil, e o que faria você rever esta decisão.
+
+## Fontes e custo
+
+TODO: a data e a fonte de cada preço ou limite usado acima, e o custo mensal estimado que o dono
+aprovou.
 `
+
+var parenthetical = regexp.MustCompile(`\([^)]*\)`)
+
+// normalizeOption lets a decision name an option the way a person writes it: case, punctuation
+// and a parenthetical detail in the option's heading ("Static site (HTML, CSS and JavaScript)")
+// do not have to be repeated word for word. The option's words still have to appear, in order.
+func normalizeOption(s string) string {
+	s = parenthetical.ReplaceAllString(strings.ToLower(s), " ")
+	fields := strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	return " " + strings.Join(fields, " ") + " "
+}

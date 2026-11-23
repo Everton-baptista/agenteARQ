@@ -342,6 +342,19 @@ Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
   free-tier limits, reminded at `pr_ready` and after release; the release skill's operations
   checklist.
 
+- **Any language:** `--lang` takes any language tag. English and Portuguese have translated
+  rules and messages; any other language gets the English rules plus a directive to speak to
+  the owner and write every document in it, and every generated target still fits its budget.
+  A plain `agentarch sync` keeps the project's language instead of reverting to English.
+- **First dogfood pilot** (a ceramics studio's site, built in Portuguese from `start` to
+  `reviewing` with the real sandboxed verifier and two fresh-context reviews). What it found,
+  now fixed: a decision naming its option without the heading's parenthetical was refused; the
+  ADR template lacked the sources section, so a fresh product started with a warning; four
+  advice lines arrived at the first step; missing items and one `start` line stayed in English;
+  an older `agentarch` on PATH failed on a newer project with a schema error (`doctor` now
+  compares versions); and a literal colour outside the tokens passed every check until a
+  reviewer saw it (`design.tokens_only` is now checked on the stylesheets).
+
 Still open, and why:
 
 - **Phase 0 and 8:** the benchmark cohort and the lay-user pilot need real model runs, their

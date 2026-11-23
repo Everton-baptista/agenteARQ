@@ -75,3 +75,20 @@ func TestPortugueseTemplatesAndReleasePlan(t *testing.T) {
 		t.Fatalf("Portuguese release plan rejected: %v", gaps)
 	}
 }
+
+func TestDecisionNamesAnOptionTheWayAPersonWritesIt(t *testing.T) {
+	for _, c := range []struct {
+		decision, option string
+		want             bool
+	}{
+		{"Site estático com pedido por e-mail, escolhido por Ana", "site estático (html, css e javascript) com pedido por e-mail", true},
+		{"We chose Static Site, because it is free.", "static site", true},
+		{"We chose the managed database.", "static site", false},
+		{"Staticsite wins", "static site", false},
+	} {
+		got := strings.Contains(normalizeOption(c.decision), normalizeOption(c.option))
+		if got != c.want {
+			t.Errorf("decision %q naming %q: got %v, want %v", c.decision, c.option, got, c.want)
+		}
+	}
+}

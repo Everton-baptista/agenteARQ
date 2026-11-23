@@ -228,3 +228,23 @@ func TestDoctorNamesEveryGapWithAFix(t *testing.T) {
 		}
 	}
 }
+
+func TestDoctorFlagsABinaryOlderThanTheProject(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "agentarch", "std"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "agentarch", "std", "VERSION"), []byte("1.4.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := doctorReport{Ready: true, OS: "linux"}
+	r.addVersionCheck(root, func() string { return "1.3.0" })
+	if r.Ready || len(r.Checks) != 1 || r.Checks[0].OK || r.Checks[0].Fix == "" {
+		t.Fatalf("older binary not flagged: %+v", r)
+	}
+	r = doctorReport{Ready: true, OS: "linux"}
+	r.addVersionCheck(root, func() string { return "1.10.0" })
+	if !r.Ready || !r.Checks[0].OK {
+		t.Fatalf("newer binary flagged (versions must compare numerically): %+v", r)
+	}
+}

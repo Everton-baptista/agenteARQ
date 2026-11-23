@@ -127,3 +127,28 @@ func TestADRWithoutSourcesGetsAdvice(t *testing.T) {
 		t.Fatal("Portuguese sources heading not recognised")
 	}
 }
+
+func TestLiteralColoursOutsideTokensAreReported(t *testing.T) {
+	s := riskTree(t, map[string]string{
+		DesignTokensPath: "{}",
+		"style.css": `:root { --color-bg: #eef1f0; --x: rgb(1 2 3); }
+/* a comment with #123456
+   spanning lines */
+body { background: var(--color-bg); }
+input { background: #ffffff; color: rgba(0,0,0,.8); }`,
+		"node_modules/lib/x.css": "a { color: red; background: #000; }",
+		"vendor.min.css":         "a{color:#000}",
+	})
+	got := joined(s.tokenColourAdvice())
+	if !strings.Contains(got, "style.css:5 sets background to the literal colour #ffffff") || !strings.Contains(got, "style.css:5 sets color to the literal colour rgba") {
+		t.Fatalf("literal colours not reported with their line:\n%s", got)
+	}
+	for _, unwanted := range []string{"--color-bg", "#123456", "node_modules", "min.css", "style.css:1"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("reported %s:\n%s", unwanted, got)
+		}
+	}
+	if got := riskTree(t, map[string]string{"style.css": "a { color: #000 }"}).tokenColourAdvice(); len(got) != 0 {
+		t.Fatalf("a product without design tokens was linted: %v", got)
+	}
+}

@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/Everton-baptista/agenteARQ/internal/blueprint"
+	"github.com/Everton-baptista/agenteARQ/internal/render"
 	"gopkg.in/yaml.v3"
 )
 
@@ -175,8 +176,8 @@ func cmdStart(args []string) int {
 	// answer is the same value --lang takes, so it reaches the generated instruction files —
 	// every one of them, for every assistant, not just the one that happens to be running.
 	switch {
-	case !knownLanguage(*langFlag):
-		fmt.Fprintf(os.Stderr, "--lang %q is not a language the interview speaks (%s)\n",
+	case !render.ValidLanguage(*langFlag):
+		fmt.Fprintf(os.Stderr, "--lang %q is not a language tag; any language works (for example %s, es, fr, ja)\n",
 			*langFlag, strings.Join(languageCodes(), ", "))
 		return exitUsage
 	case langSet(fs_):
@@ -389,7 +390,7 @@ func cmdStart(args []string) int {
 
 	if !*yes {
 		if !interactive {
-			fmt.Fprintln(os.Stderr, "\nNothing written. Re-run with --yes.")
+			fmt.Fprintln(os.Stderr, "\n"+t("start.nothing_written"))
 			return exitUsage
 		}
 		if !confirm(t("plan.confirm")) {

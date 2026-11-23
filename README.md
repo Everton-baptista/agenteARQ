@@ -125,7 +125,9 @@ reports drift and `plugin remove` removes only the files it manages.
 - **Runnable agent blueprints** — 7 Python AI-agent services with tests, evals, a Dockerfile and
   deploy guides. You choose the model provider (Anthropic, AWS Bedrock, Google or OpenAI) and the
   framework; none is preselected.
-- **Two languages** — `en` and `pt-BR`, from the interview to every generated instruction file.
+- **Any language** — the interview, refusals and generated files in English and Portuguese, and
+  any other language by tag (`--lang es`, `ja`, `fr-CA`…): the assistant is told to speak to the
+  owner and write every document in it, while the gates keep reading the templates' headings.
 
 ## Limits, stated plainly
 

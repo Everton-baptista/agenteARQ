@@ -234,7 +234,18 @@ func (s *Service) adrLacksSources() bool {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(ADRDir), e.Name()))
-		if err == nil && !heading.Match(b) {
+		if err != nil {
+			continue
+		}
+		loc := heading.FindIndex(b)
+		if loc == nil {
+			return true
+		}
+		body := string(b[loc[1]:])
+		if i := strings.Index(body, "\n## "); i >= 0 {
+			body = body[:i]
+		}
+		if !meaningful(body) {
 			return true
 		}
 	}
