@@ -371,6 +371,12 @@ Still open, and why:
 - **Phase 2:** Opengrep with an AgenteARQ-owned rule set, `MAL-*` records, an SBOM per run and
   the CI-attestation path need changes to the verifier images and an ADR choosing the path
   without local Docker. Driving Apple `container` waits until its isolation flags are verified.
+- **Standard 17 browser checks in the verifier:** axe, focus, reduced motion and the 375, 768
+  and 1280 px layout checks are `fail_closed` in the standard, but the `static-site` and `docs`
+  images have no browser, so today they run only where a product's own tests run them
+  (`typescript-web`). They passed on the first pilot's site in a local headless Chromium,
+  outside the sandbox. Running them in the verifier means adding a pinned Chromium to those
+  images, a size and maintenance cost for the owner to accept in an ADR.
 - **Phase 1:** a fast path for small changes and Spec Kit, OpenSpec and Kiro import need an
   owner decision on what a fast path may skip without weakening "no self-approval".
 - **Hooks for Gemini CLI:** not planned. Its documentation says it was replaced by Antigravity
