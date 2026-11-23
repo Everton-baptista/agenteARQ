@@ -36,3 +36,11 @@ The option chosen, in the present tense, who chose it, and why it wins here.
 
 What becomes easier, and what becomes harder. The second half is the one worth writing: every
 decision has a cost, and the cost is what a future reader needs in order to know when to revisit.
+
+## Sources and cost
+
+Only when the decision is about a third-party service (hosting, database, authentication,
+payments, e-mail, storage, analytics, an AI model provider). List each fact the comparison used
+with its source URL and the date it was read, since prices and limits change monthly, and the
+estimated monthly cost now and at the expected scale. Name secrets the service needs by
+reference only, never by value.

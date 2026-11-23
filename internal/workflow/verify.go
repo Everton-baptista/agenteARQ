@@ -239,6 +239,7 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	st.Verification = v
 	st.Review = nil
 	st.Release, st.ProductionCheck = nil, nil // a new verification starts a new release cycle
+	st.OwnerAcceptance = nil                  // and the owner tries what was verified, again
 	st.Phase = "verifying"
 	if v.Passed {
 		st.Phase = "reviewing"

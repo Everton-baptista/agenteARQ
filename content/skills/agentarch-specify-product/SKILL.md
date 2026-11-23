@@ -2,7 +2,7 @@
 name: agentarch-specify-product
 description: Turn an accepted product brief or change request into traceable requirements, acceptance criteria, and bounded implementation tasks for any software stack.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Specify a software change
@@ -18,6 +18,9 @@ Keep the specification current when an accepted decision changes.
 Split the work into bounded vertical tasks. Each task names the requirement it satisfies,
 prerequisites, affected boundary, and validation that will demonstrate completion. Allow
 parallel work only when write ownership and dependencies are clear.
+
+Once criteria are accepted, write their scenarios and personas with `agentarch-test-scenarios`,
+so every criterion is proven by an executable test rather than by a checkbox.
 
 Use the project's existing artifact format and AgenteARQ workflow when present. A task is
 not complete because a checkbox changed: its acceptance criteria need independent evidence.

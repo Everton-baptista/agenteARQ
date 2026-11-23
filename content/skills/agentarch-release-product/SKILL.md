@@ -2,7 +2,7 @@
 name: agentarch-release-product
 description: Take reviewed software to production safely — write the release plan before verification, record the deployment a person or CI performed, and record the post-deploy check, without deploying anything yourself.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Release a verified product
@@ -13,6 +13,14 @@ change ships and how it is undone. It needs five filled sections: `## Environmen
 `## Post-deploy verification` (what to run or look at, and what counts as healthy) and
 `## Signals` (what to watch, and for how long). A plan added after review changes the source
 and sends the work back to verification.
+
+Add the operating sections a person without an operations team needs, filled before review:
+`## Backups and restore` (what is backed up, where, how often, and the date a restore was last
+actually rehearsed), `## Monitoring` (an uptime monitor and an error tracker, referenced by name
+and never by key or DSN value), and `## Free-tier limits` (each service's limits that can take
+the product down — commercial-use bans, sleeping services, databases that expire or pause — and
+the owner's written acknowledgement of them). Test the rollback before the first release, not
+during an incident.
 
 Do not deploy, merge or change production yourself unless the user explicitly authorizes that
 specific action through the project's own release mechanism. Releasing is a separate decision

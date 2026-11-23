@@ -78,6 +78,7 @@ installs.
 
 ```bash
 agentarch start     # asks what you are building and explains every choice it leaves to you
+agentarch doctor    # what is still missing on this machine, and the exact fix for each item
 ```
 
 or, without the interview:
@@ -100,6 +101,15 @@ reports drift and `plugin remove` removes only the files it manages.
 
 - **Product workflow plugin** — skills plus a local MCP server, for **Claude Code, Codex and
   Gemini CLI**. Other clients can use the reference package from `plugin install external`.
+- **Real-time guardrails in Claude Code** — install adds hooks that inject the product's current
+  step at every session start, deny edits to generated files and workflow evidence, and ask the
+  owner before any push, merge, publish or deploy command or secret-shaped content. A fresh-context,
+  read-only reviewer subagent and a persona-user subagent come with it.
+- **Plain-language refusals** — every workflow refusal says what it means and the next step, in
+  English or Portuguese; `agentarch explain workflow.<id>` repeats it.
+- **Scenarios, personas, design and owner acceptance** — acceptance criteria mapped to
+  `scenarios.yaml`, optional `personas.yaml`, a design direction with DTCG tokens whose contrast
+  and font licences are checked, and `workflow accept` for the owner's own verdict.
 - **Verification profiles** — `typescript-web`, `python-api`, `go-service`, `static-site` (HTML, CSS
   and JavaScript with no build step) and `docs` (Markdown documentation), each with mandatory
   checks; `agentarch workflow init` lists them with what each verifies and lets you choose. Any
@@ -111,7 +121,7 @@ reports drift and `plugin remove` removes only the files it manages.
 - **Architecture rules** — generated instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
   `QWEN.md`, Cursor, Copilot, Windsurf), so every assistant that reads them follows the same rules
   from a single source of truth, in any language.
-- **Standard for AI agents** — 16 standards, 46 controls, 10 packs and 12 framework adapters.
+- **Standards** — 17 standards (16 for AI agents, plus design quality for any interface), 46 controls, 10 packs and 12 framework adapters.
 - **Runnable agent blueprints** — 7 Python AI-agent services with tests, evals, a Dockerfile and
   deploy guides. You choose the model provider (Anthropic, AWS Bedrock, Google or OpenAI) and the
   framework; none is preselected.

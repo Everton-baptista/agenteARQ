@@ -132,6 +132,7 @@ func (s *Service) status() (Snapshot, error) {
 	if st.ProductionCheck != nil && st.ProductionCheck.Outcome == "failed" && snap.State.Phase == "released" {
 		snap.Findings = append(snap.Findings, Finding{"production.check_failed", "product", "failed", "The production check failed; follow the rollback in " + ReleasePlanPath + "."})
 	}
+	acceptanceFindings(&snap)
 	if st.Verification != nil {
 		for _, check := range st.Verification.Checks {
 			if check.Status != "passed" {
@@ -152,9 +153,11 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 	case "draft":
 		missing = s.requirements(snap.Product, snap.Tasks, "specified")
 		action = "Complete the brief and specification; checkpoint specified."
+		next.Advice = s.planningAdvice(snap.Product)
 	case "specified":
 		missing = s.requirements(snap.Product, snap.Tasks, "planned")
 		action = "Record the architecture decision and acceptance-to-check task mapping; checkpoint planned."
+		next.Advice = s.planningAdvice(snap.Product)
 	case "planned":
 		action = "Use a dedicated worktree and begin implementation; checkpoint implementing."
 	case "implementing":
@@ -179,6 +182,11 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		if len(next.ReadyTaskIDs) > 0 {
 			next.TaskID = next.ReadyTaskIDs[0]
 			action = "Implement task " + next.TaskID + " and checkpoint it when complete."
+			for _, t := range snap.Tasks {
+				if t.ID == next.TaskID {
+					next.Context = s.taskContext(t)
+				}
+			}
 		} else if len(next.BlockedTaskIDs) > 0 {
 			action = "Resolve the unfinished task dependencies before continuing implementation."
 		} else {
@@ -194,6 +202,9 @@ func (s *Service) nextFor(snap Snapshot) NextAction {
 		action = "The local gate passed. Publish the PR with your host; after a person or CI deploys this content, record it with record-release. This tool does not merge or deploy."
 		if gaps := s.releasePlanGaps(); len(gaps) > 0 {
 			action += " Releasing also needs " + ReleasePlanPath + " in the reviewed source."
+		}
+		if a := snap.State.OwnerAcceptance; a == nil || a.Verdict != "accepted" {
+			next.Advice = append(next.Advice, AdviceAccept)
 		}
 	case "released":
 		action = "Run the post-deploy verification from " + ReleasePlanPath + " and record it with record-production-check."
@@ -328,6 +339,9 @@ func (s *Service) requirements(p Product, tasks []Task, phase string) []string {
 				}
 			}
 		}
+		missing = append(missing, s.scenarioGaps(spec)...)
+		missing = append(missing, s.personaGaps()...)
+		missing = append(missing, s.designGaps()...)
 	}
 	return missing
 }
@@ -413,6 +427,9 @@ func (s *Service) Checkpoint(req CheckpointRequest) (Snapshot, error) {
 	if req.Phase != st.Phase || req.TaskID != "" {
 		st.Review = nil
 		st.Release, st.ProductionCheck = nil, nil
+	}
+	if req.Phase != st.Phase {
+		st.OwnerAcceptance = nil // a rejection stays visible while the work is redone, then clears
 	}
 	st.Phase = req.Phase
 	st.Checkpoints = append(st.Checkpoints, CheckpointRecord{Phase: req.Phase, TaskID: req.TaskID, Note: req.Note, At: now()})

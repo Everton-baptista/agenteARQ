@@ -34,6 +34,23 @@ compared choice.
   the compared options, and `## Consequences`. Headings may be English, Portuguese or Spanish. The
   design and discovery skills, their checklists, the ADR template and the plugin prompt (1.1.0) say
   to propose options with trade-offs, label a recommendation, and let the owner choose.
+- **Design quality, as a standard.** New `standards/17-design-quality.md` (en, pt-BR): a design
+  direction in `design/brief.md` and `design/tokens.json` (W3C DTCG 2025.10) before any interface,
+  typefaces, icons and density chosen by the owner from compared options, a versioned list of
+  generic-look tells, and checks split into `fail_closed` (direction declared, tokens only, WCAG 2
+  AA contrast, automated accessibility, focus and reduced motion, no placeholder copy, responsive
+  widths, font licence recorded) and `fail_warn` (visual baseline, generic-look score, APCA,
+  model critique). Routed from the core. Proposed in RFC 0003.
+- **New skills and checklists:** `agentarch-design-interface`, `agentarch-test-scenarios`
+  (acceptance criteria to scenarios and personas, each scenario named by its test),
+  `agentarch-persona-run` (advisory persona runs from a host subagent; only reproduced findings
+  become tests) and `agentarch-choose-services` (services compared by criteria with dated sources
+  and a monthly cost in the ADR). Review, release, discovery and specification skills point to
+  them; review covers a fresh-context agent reviewer recorded as weaker than a human, and release
+  adds backups and a rehearsed restore, monitoring by name, and acknowledged free-tier limits.
+- **Claude Code subagents** `agentarch-reviewer` (read-only) and `agentarch-persona-user`
+  (browser tools only), and templates for `scenarios.yaml`, `personas.yaml`, the design brief and
+  `tokens.json`; the ADR template gains a sources-and-cost section for third-party services.
 - **Any product, from the first command.** `agentarch start` asks whether this is any software
   product, a new AI agent, existing code or an agent to refactor, with no default. The product path
   (`start --product`) opens the guided workflow and chooses no stack. The rules synced into every

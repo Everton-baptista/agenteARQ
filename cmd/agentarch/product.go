@@ -24,11 +24,11 @@ import (
 
 func cmdWorkflow(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format json]")
+		fmt.Fprintln(os.Stderr, "usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|accept|record-pr|record-release|record-production-check [--root DIR] [--format json]")
 		return exitUsage
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
+		fmt.Println("usage: agentarch workflow init|status|next|checkpoint|prepare-verifier|verify|review|accept|record-pr|record-release|record-production-check [--root DIR] [--format text|json]\nUse agentarch workflow <command> --help for its flags. Workflow does not publish PRs, merge, or deploy; the record-* commands record what a person or CI did.")
 		return exitOK
 	}
 	command := args[0]
@@ -51,13 +51,14 @@ func cmdWorkflow(args []string) int {
 	diagnostics := f.String("diagnostics-reason", "", "explicit reason to capture bounded redacted test output; default retains only hashes")
 	reviewer := f.String("reviewer", "", "independent reviewer identity")
 	kind := f.String("kind", "human", "human or independent_agent")
-	verdict := f.String("verdict", "", "approved or changes_requested")
-	summary := f.String("summary", "", "review findings, or what the production check observed")
+	verdict := f.String("verdict", "", "review: approved or changes_requested; accept: accepted or rejected")
+	summary := f.String("summary", "", "review findings, what the production check observed, or what the owner tried and saw")
 	prURL := f.String("url", "", "record-pr: the published pull request; record-release: the deployment run; record-production-check: the dashboard, log or report")
 	head := f.String("head", "", "record-pr: exact commit of the pull request; record-release: the commit that was deployed")
 	environment := f.String("environment", "", "record-release: target environment id, such as production")
 	outcome := f.String("outcome", "", "record-production-check: passed or failed")
 	attester := f.String("attester", "", "record-production-check: who checked production")
+	owner := f.String("owner", "", "accept: the owner who tried the product")
 	base := f.String("base", "", "prepare-verifier: base image pinned by @sha256 digest (default: the profile's reviewed base, when it has one)")
 	engine := f.String("engine", "", "prepare-verifier: docker or podman (default: podman if installed, else docker)")
 	common := []string{"root", "format"}
@@ -72,6 +73,7 @@ func cmdWorkflow(args []string) int {
 		"record-pr":               {"url", "head", "expected-revision"},
 		"record-release":          {"url", "head", "environment", "expected-revision"},
 		"record-production-check": {"url", "outcome", "attester", "summary", "expected-revision"},
+		"accept":                  {"owner", "verdict", "summary", "expected-revision"},
 	}
 	own, knownCommand := allowed[command]
 	permitted := map[string]bool{}
@@ -176,6 +178,8 @@ func cmdWorkflow(args []string) int {
 		result, err = s.RecordRelease(workflow.ReleaseRequest{URL: *prURL, Head: *head, Environment: *environment, ExpectedRevision: expected})
 	case "record-production-check":
 		result, err = s.RecordProductionCheck(workflow.ProductionCheckRequest{URL: *prURL, Outcome: *outcome, Attester: *attester, Summary: *summary, ExpectedRevision: expected})
+	case "accept":
+		result, err = acceptProduct(s, *owner, *verdict, *summary, expected)
 	default:
 		err = fmt.Errorf("unknown workflow command %q", command)
 	}
@@ -201,6 +205,7 @@ func csv(s string) []string {
 func printProduct(v any, err error, format string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "agentarch:", err)
+		explainRefusal(os.Stderr, err)
 		return exitUsage
 	}
 	if format == "json" {
@@ -218,7 +223,7 @@ func printProduct(v any, err error, format string) int {
 			fmt.Println("  •", m)
 		}
 		for _, a := range x.Next.Advice {
-			fmt.Println("  ◦", a)
+			fmt.Println("  ◦", translateAdvice(a))
 		}
 		if x.State.Verification != nil {
 			for _, c := range x.State.Verification.Checks {
@@ -231,6 +236,7 @@ func printProduct(v any, err error, format string) int {
 		if c := x.State.ProductionCheck; c != nil {
 			fmt.Printf("  production    %s by %s (attested, not observed by agentarch) · %s\n", c.Outcome, c.Attester, c.URL)
 		}
+		printAcceptance(x.State.OwnerAcceptance)
 	case application.View:
 		if x.Initialized && x.Snapshot != nil {
 			return printProduct(*x.Snapshot, nil, format)

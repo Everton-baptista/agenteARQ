@@ -1,8 +1,8 @@
 ---
 lang: pt-BR
 source: content/standards/en/00-index.md
-source_sha256: "4f67d8682c168aa805decaf65b56b9575ae0c27cf74090d7a8bd435cdddc9760"
-translated_at: "2026-07-30"
+source_sha256: "2ae960d09981cebe631b3974922a46857694840c0aaa5b62d428cb3e57fdb0f0"
+translated_at: "2026-11-23"
 translators: ["everton"]
 ---
 
@@ -133,6 +133,6 @@ words with these meanings — precision here prevents whole classes of design er
 
 ## 7. Status of this catalogue
 
-Published: `01`–`16`. Every routing entry points at a real file. If one ever points at a
+Published: `01`–`17`. Every routing entry points at a real file. If one ever points at a
 planned standard, that is a known gap, not an error — and `agentarch explain` will say so
 rather than pretending otherwise.

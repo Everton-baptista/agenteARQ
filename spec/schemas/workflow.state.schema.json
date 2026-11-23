@@ -15,9 +15,21 @@
     "review": {"$ref": "#/$defs/review"},
     "pr": {"$ref": "#/$defs/pr"},
     "release": {"$ref": "#/$defs/release"},
-    "production_check": {"$ref": "#/$defs/production_check"}
+    "production_check": {"$ref": "#/$defs/production_check"},
+    "owner_acceptance": {"$ref": "#/$defs/owner_acceptance"}
   },
   "$defs": {
+    "owner_acceptance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["owner", "verdict", "summary", "fingerprint", "at"],
+      "properties": {
+        "owner": {"type": "string", "minLength": 1, "maxLength": 120},
+        "verdict": {"enum": ["accepted", "rejected"]},
+        "summary": {"type": "string", "maxLength": 2000},
+        "fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "at": {"type": "string"}
+      }
+    },
     "fingerprint": {
       "type": "object", "additionalProperties": false,
       "required": ["worktree", "git_dir", "head", "branch", "source_sha256", "profile"],

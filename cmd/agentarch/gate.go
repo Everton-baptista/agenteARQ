@@ -395,6 +395,14 @@ func cmdExplain(args []string) int {
 		return exitUsage
 	}
 	id := fs_.Arg(0)
+	if strings.HasPrefix(id, "workflow.") {
+		lang = projectLanguage(*root)
+		if explainRefusalID(os.Stdout, id) {
+			return exitOK
+		}
+		fmt.Fprintf(os.Stderr, "no workflow refusal %q\n", id)
+		return exitUsage
+	}
 
 	cfs, err := contentFS(*root)
 	if err != nil {

@@ -242,6 +242,21 @@ TODO: what you check right after deploying, and where (smoke test, page, dashboa
 ## Signals
 
 TODO: what you watch afterwards, and for how long (errors, latency, sign-ups, complaints).
+
+## Backups and restore
+
+Recommended. TODO: what is backed up, where and how often, and the date a restore was last
+actually rehearsed.
+
+## Monitoring
+
+Recommended. TODO: the uptime monitor and the error tracker, named here; never paste a key or
+DSN value.
+
+## Free-tier limits
+
+Recommended. TODO: each service's limits that can take the product down (commercial-use bans,
+sleeping services, databases that expire or pause) and the owner's written acknowledgement.
 `
 
 const ReleasePlanTemplatePT = `# Plano de release
@@ -265,4 +280,19 @@ TODO: o que você confere logo depois do deploy, e onde (teste rápido, página,
 ## Sinais
 
 TODO: o que você acompanha depois, e por quanto tempo (erros, lentidão, cadastros, reclamações).
+
+## Backups e restauração
+
+Recomendado. TODO: o que tem backup, onde e com que frequência, e a data do último teste real
+de restauração.
+
+## Monitoramento
+
+Recomendado. TODO: o monitor de uptime e o rastreador de erros, pelo nome; nunca cole uma
+chave ou DSN.
+
+## Limites do plano gratuito
+
+Recomendado. TODO: os limites de cada serviço que podem derrubar o produto (proibição de uso
+comercial, serviços que dormem, bancos que expiram ou pausam) e o aceite por escrito do dono.
 `

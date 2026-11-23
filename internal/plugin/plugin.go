@@ -38,13 +38,19 @@ type Capabilities struct {
 }
 
 type Descriptor struct {
-	SchemaVersion string       `json:"schema_version"`
-	ID            string       `json:"id"`
-	Name          string       `json:"name"`
-	Version       string       `json:"version"`
-	SkillsPath    string       `json:"skills_path"`
-	ConfigPath    string       `json:"config_path"`
-	ConfigFormat  string       `json:"config_format"`
+	SchemaVersion string `json:"schema_version"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	SkillsPath    string `json:"skills_path"`
+	ConfigPath    string `json:"config_path"`
+	ConfigFormat  string `json:"config_format"`
+	// HooksPath is the host settings file that receives the real-time guardrail hooks; empty
+	// for a host whose hook protocol `agentarch hook` does not speak.
+	HooksPath string `json:"hooks_path,omitempty"`
+	// AgentsPath is where host subagent definitions (the independent reviewer, the persona
+	// user) are installed; empty for a host without file-defined subagents.
+	AgentsPath    string       `json:"agents_path,omitempty"`
 	Capabilities  Capabilities `json:"capabilities"`
 	Documentation []string     `json:"documentation"`
 	Notes         string       `json:"notes"`
@@ -173,6 +179,24 @@ func Install(root, host string, opts Options) (Report, error) {
 	if string(config) != string(old) {
 		changes = append(changes, mutation{Path: d.ConfigPath, Data: config})
 	}
+	if d.HooksPath != "" {
+		oldHooks, hooksExist, err := readSafe(root, d.HooksPath)
+		if err != nil {
+			return r, err
+		}
+		body, he, err := mergeHooks(oldHooks, hookFragment(host, opts), previous.Entries[d.HooksPath], false)
+		if err != nil {
+			return r, fmt.Errorf("%s: %w", d.HooksPath, err)
+		}
+		he.Existed = hooksExist
+		if prior, ok := previous.Entries[d.HooksPath]; ok {
+			he.Existed = prior.Existed
+		}
+		next.Entries[d.HooksPath] = he
+		if string(body) != string(oldHooks) {
+			changes = append(changes, mutation{Path: d.HooksPath, Data: body})
+		}
+	}
 	// Private state can contain hashes and config backups, but no captured agent content.
 	stateBytes, _ := json.MarshalIndent(next, "", "  ")
 	stateBytes = append(stateBytes, '\n')
@@ -234,6 +258,9 @@ func Check(root, host string) (Report, error) {
 		if e.Kind == "toml" {
 			hash, err = tomlFragmentHash(b)
 		}
+		if e.Kind == "hooks" {
+			hash, err = hooksFragmentHash(b)
+		}
 		if err != nil {
 			r.Issues = append(r.Issues, rel+": "+err.Error())
 			continue
@@ -290,6 +317,12 @@ func Remove(root, host string, opts Options) (Report, error) {
 				return r, fmt.Errorf("%s: %w", rel, err)
 			}
 			changes = append(changes, mutation{Path: rel, Data: body, Delete: !e.Existed && emptyConfig(body, e.Kind)})
+		case "hooks":
+			body, _, err := mergeHooks(old, nil, e, true)
+			if err != nil {
+				return r, fmt.Errorf("%s: %w", rel, err)
+			}
+			changes = append(changes, mutation{Path: rel, Data: body, Delete: !e.Existed && emptyConfig(body, "json")})
 		default:
 			return r, fmt.Errorf("unknown managed entry kind %q", e.Kind)
 		}
@@ -342,6 +375,16 @@ func payload(root string, d Descriptor, o Options) (map[string][]byte, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if d.AgentsPath != "" {
+		agents, _ := fs.Glob(agentarch.Content, "content/plugins/agents/*.md")
+		for _, path := range agents {
+			b, err := agentarch.Content.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			files[d.AgentsPath+"/"+strings.TrimPrefix(path, "content/plugins/agents/")] = b
+		}
 	}
 	b, err := agentarch.Content.ReadFile("content/plugins/" + d.ID + ".json")
 	if err != nil {

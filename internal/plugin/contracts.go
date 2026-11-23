@@ -59,7 +59,7 @@ func contractFiles(root, host string, o Options) (map[string][]byte, error) {
 		"tools":        refs, "mcp": map[string]any{"allowlist_ref": "../../plugins/" + host + "/mcp.allowlist.yaml", "servers_used": []string{"agentarch"}},
 		// The plugin cannot honestly assert enforcement over arbitrary host input/output.
 		// Empty arrays record that boundary; local MCP action validation is declared below.
-		"guardrails":    map[string]any{"input": []any{}, "output": []any{}, "action": []map[string]any{{"control": "control.ai.tool.least_privilege", "fail_mode": "fail_closed", "note": "Applies only to AgenteARQ MCP operations. The host owns all other tool, input, and output controls."}}},
+		"guardrails":    map[string]any{"input": []any{}, "output": []any{}, "action": actionGuardrails(host)},
 		"privacy":       map[string]any{"processes_personal_data": false, "capture_content": false},
 		"observability": map[string]any{"otel": map[string]any{"enabled": false, "capture_content": false}},
 		"lifecycle":     map[string]any{"revalidate_on": []string{"model_changed", "system_prompt_changed", "provider_changed", "tool_added", "autonomy_raised", "mcp_server_added"}, "review_interval_days": 30},
@@ -98,4 +98,15 @@ var ToolSchemas = map[string]map[string]any{
 		"expected_revision": map[string]any{"type": "integer", "minimum": 0},
 		"image":             map[string]any{"type": "string", "pattern": `.+@sha256:[a-f0-9]{64}$`},
 	}, "required": []any{"expected_revision"}, "additionalProperties": false},
+}
+
+// actionGuardrails declares what the install actually enforces. Every host gets the MCP
+// operations' own validation; a host whose hooks `agentarch hook` drives also gets the pre-tool
+// decisions, stated with their real, narrow scope.
+func actionGuardrails(host string) []map[string]any {
+	g := []map[string]any{{"control": "control.ai.tool.least_privilege", "fail_mode": "fail_closed", "note": "Applies only to AgenteARQ MCP operations. The host owns all other tool, input, and output controls."}}
+	if len(hookEventsByHost[host]) > 0 {
+		g = append(g, map[string]any{"control": "control.ai.tool.irreversible_requires_approval", "fail_mode": "fail_closed", "note": "Host PreToolUse hook: asks the owner before push, merge, publish and deploy commands, denies edits to generated files and workflow evidence, and asks before writing secret-shaped content. It does not parse obfuscated commands; CI's agentarch check remains the guarantee."})
+	}
+	return g
 }

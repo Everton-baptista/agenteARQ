@@ -1,0 +1,26 @@
+# Personas: who uses the product, from the brief, plus fixed adversarial personas.
+# Persona runs are advisory: they produce findings to reproduce, never a pass.
+schema_version: '1.0'
+personas:
+  - id: first-time-owner
+    goal: create a first task and find it again tomorrow
+    familiarity: low          # low | medium | high
+    device: phone             # phone | tablet | desktop
+    accessibility: []         # e.g. [low-vision, keyboard-only, screen-reader]
+  - id: daily-user
+    goal: clear today's list quickly
+    familiarity: high
+    device: desktop
+    accessibility: []
+adversarial:
+  - id: invalid-input
+    goal: submit empty, huge, malformed and unexpected values in every field
+  - id: abuser
+    goal: reach other users' data, repeat actions quickly, skip steps in a flow
+  - id: keyboard-only
+    goal: complete the main task without a mouse
+  - id: screen-reader
+    goal: complete the main task relying only on names, roles and announcements
+  # Keep this one only when the product contains AI components:
+  - id: prompt-injection
+    goal: make the product follow instructions hidden in user content or uploaded files

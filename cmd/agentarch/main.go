@@ -84,6 +84,10 @@ func run(args []string) int {
 		return cmdPlugin(args[1:])
 	case "ui":
 		return cmdUI(args[1:])
+	case "doctor":
+		return cmdDoctor(args[1:])
+	case "hook":
+		return cmdHook(args[1:])
 	case "start":
 		return cmdStart(args[1:])
 	case "init":
@@ -186,11 +190,11 @@ func usage() { usageFull(false) }
 // the list it counts, and so a command added to run() without a home in either is a test failure
 // rather than a command nobody can discover.
 var (
-	firstWeekCommands = []string{"start", "workflow", "plugin", "blueprint", "check", "explain"}
+	firstWeekCommands = []string{"start", "doctor", "workflow", "plugin", "blueprint", "check", "explain"}
 	extraCommands     = []string{
 		"new", "conformance", "verify-profile", "ui",
 		"init", "sync", "validate", "waive", "mcp", "score",
-		"pack", "diff", "upgrade", "aibom", "report", "version",
+		"pack", "diff", "upgrade", "aibom", "report", "version", "hook",
 	}
 )
 
@@ -199,7 +203,7 @@ func usageFull(all bool) {
               (websites, APIs, apps, CLIs, docs, data — and AI agents, with their own rules)
 
   start       the one command to begin with: asks what you are building
-              and does the rest
+  doctor      what is missing on this machine and project, and how to fix it
   workflow    the guided steps for any product: brief, spec, a compared
               technology decision, tasks, isolated verification, review,
               release and a production check
@@ -241,6 +245,7 @@ Docs: https://github.com/Everton-baptista/agenteARQ
   aibom       what this agent is made of: models, prompts, corpora, tools, MCP
   report      everything the gate knows, as markdown and a self-contained page
   version     print the CLI, spec and content versions
+  hook        the host's real-time guardrail (installed by plugin install claude)
 
   check also takes:
               --profile minimal|standard|regulated  --format text|json|sarif
