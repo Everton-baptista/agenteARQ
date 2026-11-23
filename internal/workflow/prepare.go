@@ -28,7 +28,6 @@ import (
 // DefaultVerifierBases are reviewed, digest-pinned bases. A profile missing here needs --base,
 // because its right base depends on the project (a Node or a Playwright image, for instance).
 var DefaultVerifierBases = map[string]string{
-	"universal":   "docker.io/library/python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
 	"python-api":  "docker.io/library/python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
 	"go-service":  "docker.io/library/golang:1.27-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea",
 	"static-site": "docker.io/library/node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
@@ -206,6 +205,9 @@ func (s *Service) PrepareVerifier(ctx context.Context, o PrepareOptions) (Verifi
 	if base == "" {
 		base = DefaultVerifierBases[p.Profile]
 	}
+	if base == "" && p.Profile == "universal" {
+		return VerifierRecord{}, fmt.Errorf("the universal profile runs the commands declared in product.yaml, so its image must contain their toolchain; AgenteARQ does not guess it. %s", UniversalBaseOptions(p.Checks))
+	}
 	if base == "" {
 		advice := baseAdvice[p.Profile]
 		if advice == "" {
@@ -264,3 +266,48 @@ func (s *Service) PrepareVerifier(ctx context.Context, o PrepareOptions) (Verifi
 // localImageID is a content-addressed local image: as fixed as a registry digest on the machine
 // that built it, and the only identity a local build has.
 var localImageID = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
+
+// toolchainImages maps a declared check's program to the official images that provide it. They
+// are options to compare, not defaults: the owner picks one and pins it by digest.
+var toolchainImages = []struct {
+	programs []string
+	image    string
+}{
+	{[]string{"python", "python3", "pytest", "ruff", "mypy", "pip", "uv", "poetry"}, "docker.io/library/python:<version>-slim"},
+	{[]string{"node", "npm", "npx", "pnpm", "yarn"}, "docker.io/library/node:<version>-bookworm-slim"},
+	{[]string{"go", "gofmt"}, "docker.io/library/golang:<version>-bookworm"},
+	{[]string{"cargo", "rustc", "rustfmt"}, "docker.io/library/rust:<version>-slim"},
+	{[]string{"java", "mvn", "gradle", "./gradlew", "./mvnw"}, "docker.io/library/eclipse-temurin:<version>-jdk (add Maven or Gradle)"},
+	{[]string{"dotnet"}, "mcr.microsoft.com/dotnet/sdk:<version>"},
+	{[]string{"php", "composer", "phpunit"}, "docker.io/library/php:<version>-cli (add Composer)"},
+	{[]string{"ruby", "bundle", "rake", "rspec"}, "docker.io/library/ruby:<version>-slim"},
+	{[]string{"flutter", "dart"}, "docker.io/library/dart:<version> (Flutter needs its own SDK image)"},
+	{[]string{"swift"}, "docker.io/library/swift:<version>"},
+	{[]string{"elixir", "mix"}, "docker.io/library/elixir:<version>-slim"},
+}
+
+// UniversalBaseOptions names candidate images for the toolchains the declared checks call, and
+// how to pin the chosen one. With no recognisable program it says what to look for instead.
+func UniversalBaseOptions(checks []CheckSpec) string {
+	seen := map[string]bool{}
+	var options []string
+	for _, c := range checks {
+		prog := c.Program
+		if i := strings.LastIndex(prog, "/"); i >= 0 && !strings.HasPrefix(prog, "./") {
+			prog = prog[i+1:]
+		}
+		for _, t := range toolchainImages {
+			for _, p := range t.programs {
+				if p == prog && !seen[t.image] {
+					seen[t.image] = true
+					options = append(options, t.image)
+				}
+			}
+		}
+	}
+	how := "Pin the one you choose: docker pull <image:tag> && docker image inspect --format '{{index .RepoDigests 0}}' <image:tag>, then pass it with --base and record the choice in an ADR."
+	if len(options) == 0 {
+		return "Choose an official image that provides every program your checks run. " + how
+	}
+	return "Images that provide the programs your checks run: " + strings.Join(options, "; ") + ". " + how
+}

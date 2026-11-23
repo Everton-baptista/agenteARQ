@@ -152,3 +152,16 @@ input { background: #ffffff; color: rgba(0,0,0,.8); }`,
 		t.Fatalf("a product without design tokens was linted: %v", got)
 	}
 }
+
+func TestUniversalBaseIsNeverGuessed(t *testing.T) {
+	if _, ok := DefaultVerifierBases["universal"]; ok {
+		t.Fatal("universal has a default base; it would silently pick a toolchain")
+	}
+	got := UniversalBaseOptions([]CheckSpec{{Program: "cargo"}, {Program: "/usr/bin/cargo"}, {Program: "./gradlew"}})
+	if !strings.Contains(got, "rust:") || !strings.Contains(got, "eclipse-temurin") || strings.Count(got, "rust:") != 1 {
+		t.Fatalf("options do not follow the declared programs: %s", got)
+	}
+	if got := UniversalBaseOptions(nil); !strings.Contains(got, "--base") {
+		t.Fatalf("no guidance without checks: %s", got)
+	}
+}

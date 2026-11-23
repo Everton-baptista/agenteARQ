@@ -355,6 +355,13 @@ Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
   compares versions); and a literal colour outside the tokens passed every check until a
   reviewer saw it (`design.tokens_only` is now checked on the stylesheets).
 
+- **Second dogfood pilot** (a tip calculator CLI, in Spanish, on the `universal` profile, to
+  `reviewing` with its declared checks passing in the sandbox). It found that `universal` built
+  a Python image when no base was given, contradicting both the documentation and "technology
+  is chosen, never assumed": a Rust or Java product would have failed with missing programs.
+  `prepare-verifier` now refuses to guess and lists the official images that provide the
+  programs the declared checks run.
+
 Still open, and why:
 
 - **Phase 0 and 8:** the benchmark cohort and the lay-user pilot need real model runs, their
