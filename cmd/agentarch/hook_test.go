@@ -272,3 +272,59 @@ func TestCodexApplyPatchIsCheckedLikeAnEdit(t *testing.T) {
 		t.Errorf("parsePatch = %v %q", paths, added)
 	}
 }
+
+// TestReviewerFoundBypassesStayClosed holds every bypass an independent review reproduced.
+func TestReviewerFoundBypassesStayClosed(t *testing.T) {
+	root := hookProject(t)
+	real, _ := filepath.EvalSymlinks(root)
+	root = real
+	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("<!-- agentarch:generated v=1 -->\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(root, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "agentarch/project/evidence"), filepath.Join(root, "ev")); err != nil {
+		t.Fatal(err)
+	}
+	for name, in := range map[string]hookInput{
+		"via a symlinked project":   {CWD: link, ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"agentarch/project/evidence/latest.json","content":"{}"}`)},
+		"via a symlinked subfolder": {CWD: root, ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"ev/latest.json","content":"{}"}`)},
+		"via different case":        {CWD: root, ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"agentarch/Project/Evidence/latest.json","content":"{}"}`)},
+	} {
+		if d := preToolDecision(root, in); d.Verdict != "deny" {
+			t.Errorf("%s: %q, want deny", name, d.Verdict)
+		}
+	}
+	deny := []string{
+		"rm -rf agentarch/project/evidence",
+		"./x && rm -rf ./agentarch/project//evidence",
+		"cd agentarch/project && rm -r evidence",
+		"echo hi > CLAUDE.md",
+		"echo hi 2> CLAUDE.md",
+		"sed -i s/a/b/ CLAUDE.md",
+		"cp other.md CLAUDE.md",
+	}
+	for _, c := range deny {
+		if d := commandDecisionIn(root, root, c, 0); d.Verdict != "deny" {
+			t.Errorf("%q: %q, want deny", c, d.Verdict)
+		}
+	}
+	ask := []string{
+		`bash -c "git push origin main"`, `sh -c 'git push'`, "timeout 60 git push", "npx --yes vercel --prod",
+		"env -i git push", "sudo -u ci git push", "nohup git push &", "time git push", "vercel",
+		"git commit -n -m x", "git commit -an -m x",
+	}
+	for _, c := range ask {
+		if d := commandDecisionIn(root, root, c, 0); d.Verdict != "ask" {
+			t.Errorf("%q: %q, want ask", c, d.Verdict)
+		}
+	}
+	allow := []string{"cat CLAUDE.md 2>/dev/null", "cp CLAUDE.md /tmp/copy.md", "grep evidence README.md", "rm -rf build/evidence-old"}
+	for _, c := range allow {
+		if d := commandDecisionIn(root, root, c, 0); d.Verdict != "" {
+			t.Errorf("%q: %q, want allow", c, d.Verdict)
+		}
+	}
+}

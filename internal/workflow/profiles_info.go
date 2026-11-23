@@ -8,7 +8,9 @@ import (
 // ProfileInfo says what an engineering profile is for and what it checks, so a person can
 // compare profiles instead of being handed one.
 type ProfileInfo struct {
-	ID, Fits, Checks string
+	ID     string `json:"id"`
+	Fits   string `json:"fits"`
+	Checks string `json:"checks"`
 }
 
 var profileInfo = []ProfileInfo{

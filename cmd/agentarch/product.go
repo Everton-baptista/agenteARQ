@@ -76,6 +76,7 @@ func cmdWorkflow(args []string) int {
 		"record-production-check": {"url", "outcome", "attester", "summary", "expected-revision"},
 		"accept":                  {"owner", "verdict", "summary", "expected-revision"},
 		"import-spec":             {"from"},
+		"profiles":                {},
 	}
 	own, knownCommand := allowed[command]
 	permitted := map[string]bool{}
@@ -125,6 +126,10 @@ func cmdWorkflow(args []string) int {
 			diagnosticErr = errors.New("diagnostics-reason is only supported for workflow verify")
 		}
 		return printProduct(nil, diagnosticErr, *format)
+	}
+	if command == "profiles" {
+		// Listed, never asked: an assistant shows these to the owner in its chat.
+		return printProduct(workflow.ProfileOptions(), nil, *format)
 	}
 	if command == "status" {
 		v, err := application.Status(*root)

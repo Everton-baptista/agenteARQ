@@ -55,7 +55,7 @@ func contractFiles(root, host string, o Options) (map[string][]byte, error) {
 		"out_of_scope": []string{"Merging or deploying without separate user authorization.", "Changing host approvals or claiming global sandbox enforcement.", "Certifying the author's own work as independent review."},
 		"autonomy":     map[string]any{"level": "L2_act_reversible", "max_steps": 24, "max_tool_calls": 80, "stop_conditions": []string{"Authorized deliverable has revision-bound verification and required review evidence.", "A required check fails or an essential owner decision is unavailable.", "Step, tool-call, time, or token budget is exhausted."}, "budget": map[string]any{"usd_per_run": 5.0, "tokens_per_run": 80000, "latency_p95_ms": 120000}},
 		"model":        map[string]any{"provider": o.ModelProvider, "id": o.ModelID, "pinned": true},
-		"prompts":      map[string]any{"system": map[string]any{"path": "prompts/system.v1.md", "version": "1.1.0", "sha256": digest(prompt)}, "variables": []map[string]any{{"name": "task_context", "source": "user", "trusted": false}}},
+		"prompts":      map[string]any{"system": map[string]any{"path": "prompts/system.v1.md", "version": "1.2.0", "sha256": digest(prompt)}, "variables": []map[string]any{{"name": "task_context", "source": "user", "trusted": false}}},
 		"tools":        refs, "mcp": map[string]any{"allowlist_ref": "../../plugins/" + host + "/mcp.allowlist.yaml", "servers_used": []string{"agentarch"}},
 		// The plugin cannot honestly assert enforcement over arbitrary host input/output.
 		// Empty arrays record that boundary; local MCP action validation is declared below.

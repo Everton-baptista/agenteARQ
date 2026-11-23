@@ -2,7 +2,7 @@
 name: agentarch-discover-product
 description: Define the problem, users, success measures, constraints and smallest useful scope for a new software product or a substantial change, of any kind and on any technology, before specifying implementation.
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Discover a product
@@ -31,6 +31,10 @@ does not authorize a purchase, publication, or contact with third parties.
 When the product has a user interface, note that its look will be chosen later with
 `agentarch-design-interface`; do not pick colours or fonts here. When it needs third-party
 services, note the need and leave the choice to `agentarch-choose-services`.
+
+Ask every question in the chat, one at a time, with the host's question tool when there is
+one. agentarch never waits for terminal input when an assistant runs it: it lists choices
+(`agentarch workflow profiles --format json`) and takes the owner's answers as flags.
 
 Record accepted decisions and unresolved questions in the project's existing artifacts.
 If AgenteARQ MCP is available, inspect its schema and workflow state before recording a
