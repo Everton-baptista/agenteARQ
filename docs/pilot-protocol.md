@@ -10,6 +10,10 @@ Two dogfood pilots run by the maintainers (a ceramics studio site in Portuguese,
 calculator CLI in Spanish) preceded this protocol and are not counted: they were driven by
 someone who knows the tool.
 
+The materials (facilitator script, consent form, log template) are in
+[pilot-kit](pilot-kit/README.md), and `scripts/pilot.py` collects each session's evidence and
+computes the measured criteria below.
+
 ## Participants
 
 - Five to eight adults who have never written a program, recruited outside the project. At

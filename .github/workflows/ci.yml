@@ -874,6 +874,8 @@ jobs:
           python3 scripts/benchmark-products.py --dry-run
       - name: live plugin smoke parser and process tests (no model calls)
         run: python3 -m unittest discover -s scripts/tests -p 'test_live_plugin_smoke.py'
+      - name: lay-user pilot collector and summary tests (no model calls)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_pilot.py'
       - name: managed skill helper regressions (no model calls)
         run: |
           # The upgrade-review helper imports PyYAML; same pin as the python-api verifier image.
