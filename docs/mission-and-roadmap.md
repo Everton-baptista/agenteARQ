@@ -365,7 +365,8 @@ Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
 Still open, and why:
 
 - **Phase 0 and 8:** the benchmark cohort and the lay-user pilot need real model runs, their
-  cost and real participants; only the owner can authorise them. CI actions were already
+  cost and real participants; only the owner can authorise them. The pilot is ready to run:
+  [pilot protocol](pilot-protocol.md). CI actions were already
   pinned by commit SHA.
 - **Phase 2:** Opengrep with an AgenteARQ-owned rule set, `MAL-*` records, an SBOM per run and
   the CI-attestation path need changes to the verifier images and an ADR choosing the path

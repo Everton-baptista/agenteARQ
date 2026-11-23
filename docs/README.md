@@ -3,6 +3,7 @@
 **Direction**
 
 - [Mission and roadmap to 1.0](mission-and-roadmap.md) — what AgenteARQ is for, an honest assessment of where it stands, and the phased plan to close the gaps.
+- [Lay-user pilot protocol](pilot-protocol.md) — how non-technical participants are recruited, observed and measured to decide whether AgenteARQ is ready.
 
 **Using AgenteARQ**
 
