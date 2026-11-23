@@ -12,6 +12,7 @@
     "profile": {"enum": ["universal", "typescript-web", "python-api", "go-service", "static-site", "docs"]},
     "author": {"type": "string"},
     "has_ai": {"type": "boolean"},
+    "browser_checks": {"type": "boolean", "description": "static-site only: run standard 17's browser checks (axe, layout at 375/768/1280 px, focus, reduced motion) in a Chromium built into the verifier image."},
     "executor_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"}},
     "application_agent_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"}},
     "checks": {

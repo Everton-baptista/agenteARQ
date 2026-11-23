@@ -95,6 +95,12 @@ func commandsFor(p Product) ([]Command, error) {
 	if p.Profile != "universal" && len(p.Checks) > 0 {
 		return nil, errors.New("custom checks belong to the universal profile; built-in profiles cannot be weakened")
 	}
+	if p.BrowserChecks && p.Profile != "static-site" {
+		return nil, errors.New("browser_checks is available for the static-site profile; typescript-web runs its own test:a11y and test:e2e")
+	}
+	if p.BrowserChecks {
+		out = append(out, BrowserCheck)
+	}
 	if p.Profile == "universal" && len(p.Checks) == 0 {
 		return nil, errors.New("universal profile requires explicit checks in product.yaml")
 	}
@@ -249,3 +255,7 @@ func (s *Service) Verify(ctx context.Context, o VerifyOptions) (Snapshot, error)
 	}
 	return s.status()
 }
+
+// BrowserCheck runs standard 17's browser checks; its program exists only in a verifier image
+// built with the browser, so an image without it makes the check inconclusive.
+var BrowserCheck = Command{ID: "browser", Program: "agentarch-browser", Timeout: 8 * time.Minute}

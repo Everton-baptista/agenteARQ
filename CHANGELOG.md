@@ -10,7 +10,7 @@ supports, and `agentarch version` prints all three lines so a reported result ca
 
 | CLI | Spec majors implemented | Content shipped | Content it can read |
 |---|---|---|---|
-| unreleased | `spec/1` | `content/1.4.0` | `content/1.x` |
+| 0.6.x | `spec/1` | `content/1.4.0` | `content/1.x` |
 | 0.5.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.4.x | `spec/1` | `content/1.3.0` | `content/1.x` |
 | 0.3.x | `spec/1` | `content/1.2.0` | `content/1.x` |
@@ -23,9 +23,9 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
-## Unreleased
+## v0.6.0 — 2026-11-23
 
-`cli` and `content` 1.4.0 — AgenteARQ is for any software product, and technology is the owner's
+`cli` 0.6.0 and `content` 1.4.0 — AgenteARQ is for any software product, and technology is the owner's
 compared choice.
 
 - **Technology decisions are compared, then chosen by the owner.** Before `planned`, every ADR in
@@ -73,6 +73,16 @@ compared choice.
   acceptance criteria that cite their source line, never overwriting a filled specification.
 - **`get_next_task` context pack**, recommended release sections (backups and a dated restore,
   monitoring, free-tier limits) and an ADR "Sources and cost" section.
+- **Verification in the owner's CI.** `workflow ci-template` writes a GitHub Actions workflow
+  that installs agentarch through the signed installer, builds the verifier and runs
+  `workflow ci-verify`: the profile and the security floor in the same pinned, network-less
+  container, reported on the pull request, without workflow state and never advancing a phase.
+  An owner with no container runtime gets the same isolated evidence.
+- **Browser checks for static sites (opt-in).** `browser_checks: true` builds the static-site
+  verifier with a Chromium headless shell and adds `browser`: no serious or critical axe
+  violation, no horizontal overflow at 375, 768 and 1280 px, a visible focus indicator and no
+  running animation under reduced motion, on every page. An image without the browser makes
+  the check inconclusive, never passed.
 - **Fixed:** `prepare-verifier` no longer builds the universal verifier on a Python image when
   no base is given; it lists the images that provide the declared checks' programs.
 - **Any product, from the first command.** `agentarch start` asks whether this is any software

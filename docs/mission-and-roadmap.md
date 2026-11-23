@@ -378,6 +378,14 @@ Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
   was fixed. The `product-workflow` job needs the runner's local registry and browser install;
   its isolated verification was exercised instead by the two dogfood pilots.
 
+- **Verification without local Docker:** `workflow ci-template` and `workflow ci-verify` run the
+  same isolated checks in the owner's GitHub Actions and report them on the pull request,
+  without workflow state and never advancing a phase. Exercised on the first pilot.
+- **Standard 17 browser checks in the verifier (opt-in):** `browser_checks: true` builds the
+  static-site verifier with a Chromium headless shell and adds a `browser` check (axe, layout at
+  375, 768 and 1280 px, focus, reduced motion). It passed on the first pilot and failed a broken
+  page, both inside the network-less 1 GB sandbox. It becomes the default in content 1.5.
+
 Still open, and why:
 
 - **Phase 0 and 8:** the benchmark cohort and the lay-user pilot need real model runs, their
@@ -387,12 +395,10 @@ Still open, and why:
 - **Phase 2:** Opengrep with an AgenteARQ-owned rule set, `MAL-*` records, an SBOM per run and
   the CI-attestation path need changes to the verifier images and an ADR choosing the path
   without local Docker. Driving Apple `container` waits until its isolation flags are verified.
-- **Standard 17 browser checks in the verifier:** axe, focus, reduced motion and the 375, 768
-  and 1280 px layout checks are `fail_closed` in the standard, but the `static-site` and `docs`
-  images have no browser, so today they run only where a product's own tests run them
-  (`typescript-web`). They passed on the first pilot's site in a local headless Chromium,
-  outside the sandbox. Running them in the verifier means adding a pinned Chromium to those
-  images, a size and maintenance cost for the owner to accept in an ADR.
+- **SAST in the security floor:** wiring Opengrep v2.0.0 (LGPL-2.1, binaries pinned by
+  SHA-256) with an AgenteARQ-owned rule set is designed, but testing its rules means running the
+  downloaded scanner, which this session's permissions did not allow. It ships when its rules
+  are tested against fixtures, opt-in first like the browser checks.
 - **Phase 1, fast path:** a change to a shipped product already starts at `implementing` (from
   `production_verified`), skipping brief, specification and ADR; it still needs verification and
   an independent review. Skipping review for "small" changes is deliberately not offered, because

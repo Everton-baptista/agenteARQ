@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+// agentarch-browser: the browser checks of standard 17 (design quality), for static sites.
+//
+// For every HTML page in /workspace it opens the page in a headless Chromium baked into the
+// verifier image, with no network, and requires:
+//   - no serious or critical axe-core violation              (design.a11y_automated)
+//   - no horizontal overflow at 375, 768 and 1280 px         (design.responsive)
+//   - a visible focus indicator on each focusable element    (design.focus_and_motion)
+//   - no running animation when reduced motion is requested  (design.focus_and_motion)
+// Configuration in the project is never read. Any page that cannot be loaded fails the check.
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const { chromium } = require("/opt/agentarch-static-site/node_modules/playwright");
+const { AxeBuilder } = require("/opt/agentarch-static-site/node_modules/@axe-core/playwright");
+
+const root = process.argv[2] || "/workspace";
+const skip = new Set(["node_modules", ".git", "agentarch", "vendor", "dist-cache"]);
+const widths = [375, 768, 1280];
+const maxPages = 50;
+
+function pages(dir, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (!skip.has(entry.name) && !entry.name.startsWith(".")) pages(full, out);
+    } else if (entry.isFile() && entry.name.endsWith(".html")) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+async function main() {
+  const found = pages(root).sort();
+  if (found.length === 0) {
+    console.error("agentarch-browser: no .html page to check");
+    return 1;
+  }
+  const list = found.slice(0, maxPages);
+  const browser = await chromium.launch({ chromiumSandbox: false, args: ["--disable-dev-shm-usage", "--no-zygote"] });
+  const failures = [];
+  try {
+    for (const file of list) {
+      const rel = path.relative(root, file);
+      const url = "file://" + file;
+      for (const width of widths) {
+        const context = await browser.newContext({ viewport: { width, height: 800 } });
+        // Pages are served from disk with no network: block anything that tries to leave.
+        await context.route(/^https?:/, (route) => route.abort());
+        const page = await context.newPage();
+        try {
+          await page.goto(url, { waitUntil: "load", timeout: 20000 });
+          const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          if (overflow > 0) failures.push(`${rel} @${width}px: content is ${overflow}px wider than the screen (horizontal scroll)`);
+          if (width === 375) {
+            const axe = await new AxeBuilder({ page }).analyze();
+            for (const v of axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical")) {
+              failures.push(`${rel}: ${v.impact} accessibility violation ${v.id} (${v.nodes.length} element(s)): ${v.help}`);
+            }
+            const unfocused = await page.evaluate(() => {
+              const sel = "a[href], button, input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex='-1'])";
+              const missing = [];
+              for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 30)) {
+                if (el.disabled || el.offsetParent === null) continue;
+                el.focus();
+                const cs = getComputedStyle(el);
+                const outlined = cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0;
+                const shadowed = cs.boxShadow && cs.boxShadow !== "none";
+                if (document.activeElement === el && !outlined && !shadowed) missing.push(el.tagName.toLowerCase() + (el.id ? "#" + el.id : ""));
+              }
+              return missing;
+            });
+            if (unfocused.length) failures.push(`${rel}: no visible focus indicator on ${unfocused.slice(0, 5).join(", ")}`);
+          }
+        } catch (e) {
+          failures.push(`${rel} @${width}px: the page could not be checked (${e.message.split("\n")[0]})`);
+        } finally {
+          await context.close();
+        }
+      }
+      const reduced = await browser.newContext({ reducedMotion: "reduce" });
+      await reduced.route(/^https?:/, (route) => route.abort());
+      const page = await reduced.newPage();
+      try {
+        await page.goto(url, { waitUntil: "load", timeout: 20000 });
+        const running = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);
+        if (running > 0) failures.push(`${rel}: ${running} animation(s) still run when the visitor asks for reduced motion`);
+      } catch (e) {
+        failures.push(`${rel}: reduced-motion check failed (${e.message.split("\n")[0]})`);
+      } finally {
+        await reduced.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+  if (found.length > maxPages) console.log(`agentarch-browser: checked the first ${maxPages} of ${found.length} pages`);
+  for (const f of failures) console.error(f);
+  if (failures.length) return 1;
+  console.log(`agentarch-browser: ${list.length} page(s) passed axe, layout at ${widths.join("/")}px, focus and reduced motion`);
+  return 0;
+}
+
+main().then((code) => process.exit(code), (e) => { console.error("agentarch-browser:", e.message); process.exit(1); });

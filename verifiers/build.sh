@@ -46,7 +46,7 @@ case "$profile" in
   static-site|docs)
     # Tooling, its lockfile, fixed configs and wrappers come from this repository, never the project.
     if [ "$profile" = static-site ]; then
-      files='package.json package-lock.json htmlvalidate.json eslint.config.mjs agentarch-html agentarch-js-lint agentarch-site-links'
+      files='package.json package-lock.json htmlvalidate.json eslint.config.mjs agentarch-html agentarch-js-lint agentarch-site-links agentarch-browser'
     else
       files='package.json package-lock.json markdownlint.json agentarch-markdown agentarch-docs-links'
     fi
