@@ -1,6 +1,6 @@
 # Mission and roadmap to 1.0
 
-Status: proposal, 2026-11-23. Owner: Everton Baptista. This document states what AgenteARQ is
+Status: in progress, 2026-11-23. Owner: Everton Baptista. This document states what AgenteARQ is
 for, where it stands today against that purpose, and the plan to close the gap. Every exit
 criterion below is meant to be checked from an artifact, not asserted.
 
@@ -316,6 +316,47 @@ completed restore drill.
 - Claim "best" only for the metrics where the results show it, with the conditions stated.
 
 Exit: benchmark published with raw data; `spec/1.0` frozen; signed 1.0 release.
+
+## Progress
+
+Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
+
+- **Phase 1:** `agentarch doctor`; `agentarch hook` and the Claude Code hooks installed by
+  `plugin install claude`; the per-host boundary table in [plugins](plugins.md); a
+  plain-language entry, in English and Portuguese, for every workflow refusal, enforced by a
+  test, with `agentarch explain workflow.<id>`.
+- **Phase 2 (partial):** advisory checks for tables without row level security, service-role
+  keys in browser code and always-true Firebase rules. `doctor` detects Podman, Docker and
+  Apple `container`.
+- **Phase 3:** `scenarios.yaml` and `personas.yaml`, validated when present and advised when
+  absent; `workflow accept` for the owner's verdict, bound to the verified content.
+- **Phase 3b:** standard `17-design-quality` with its RFC; `design/brief.md` and DTCG
+  `design/tokens.json` checked for alias integrity, font licences and WCAG 2 contrast; the
+  `agentarch-design-interface` skill.
+- **Phase 4:** the read-only `agentarch-reviewer` subagent and the review skill's
+  five-line summary for the owner.
+- **Phase 5:** a bounded context pack (task, criteria text, scenarios, checks) in
+  `get_next_task`; the core routing table compacted so every target fits its budget again.
+- **Phase 6:** the `agentarch-choose-services` skill and an ADR "Sources and cost" section,
+  reminded while planning.
+- **Phase 7:** recommended release sections for backups and a dated restore, monitoring and
+  free-tier limits, reminded at `pr_ready` and after release; the release skill's operations
+  checklist.
+
+Still open, and why:
+
+- **Phase 0 and 8:** the benchmark cohort and the lay-user pilot need real model runs, their
+  cost and real participants; only the owner can authorise them. CI actions were already
+  pinned by commit SHA.
+- **Phase 2:** Opengrep with an AgenteARQ-owned rule set, `MAL-*` records, an SBOM per run and
+  the CI-attestation path need changes to the verifier images and an ADR choosing the path
+  without local Docker. Driving Apple `container` waits until its isolation flags are verified.
+- **Phase 1:** a fast path for small changes and Spec Kit, OpenSpec and Kiro import need an
+  owner decision on what a fast path may skip without weakening "no self-approval".
+- **Hooks for Codex and Gemini CLI:** waiting on adapters for their hook protocols.
+- **Making the new checks blocking:** scenarios, risks and recommended release sections are
+  advisory now and are planned to block from content 1.5, after their false-positive rate on
+  real projects is measured.
 
 ## Definition of done for "ready"
 

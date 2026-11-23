@@ -109,6 +109,37 @@ shell command or supply an OS sandbox. Native inclusion settings narrow this ser
 where supported; they do not change global approvals. Follow the host's workspace trust and
 MCP approval prompts yourself. Never turn on bypass/YOLO as an installation workaround.
 
+## Real-time guardrail hooks
+
+`plugin install claude` also merges three hooks into `.claude/settings.json`, as an owned
+fragment: your own hooks, permissions and other settings survive install and `plugin remove`,
+and a changed agentarch fragment is reported by `plugin check` and refused by a reinstall. Each
+hook only runs `agentarch hook --event <event> --host claude`; every decision is made by that
+command, deterministically, from the tool call and the files on disk. No model is called.
+
+| Event | What it does |
+|---|---|
+| `SessionStart` (also after compaction) | Injects the product's phase, next step and first missing items, so the assistant resumes from recorded state rather than from memory. |
+| `PreToolUse` on Edit, Write, MultiEdit, NotebookEdit, Bash | **Denies** edits to `agentarch:generated` files and to workflow state or evidence. **Asks the owner** before `git push`, `git merge`, `git tag`, `gh pr merge/create`, publish and deploy commands (Vercel, Netlify, Fly, Railway, Wrangler, Firebase, Terraform, kubectl, Supabase, npm/cargo publish, image push), `--no-verify`, and content shaped like a secret. A tool call it cannot read is denied (fail closed). |
+| `Stop` | Blocks once when agent artifacts no longer validate; reminds, without blocking, when no verification passes for the current source. |
+
+The install also adds two subagents under `.claude/agents/`: `agentarch-reviewer` (read-only:
+Read, Grep, Glob) for an independent review recorded as `independent_agent`, and
+`agentarch-persona-user`, which drives the running product as a persona through a Playwright
+MCP server and reports findings, never a pass.
+
+What each host really enforces:
+
+| Host | Hooks driven by agentarch | Boundary |
+|---|---|---|
+| Claude Code | yes | Project hooks run once the project's settings are trusted. The command parser recognises plain forms, not obfuscated shell. |
+| Codex | not yet | Codex runs project and plugin hooks only after the user trusts them; until the adapter exists, skills and MCP guide and CI enforces. |
+| Gemini CLI | not yet | A Gemini hook that prints invalid output lets the action through, so a hook there could not be fail-closed. |
+
+Wherever a hook does not run, `agentarch check` and `agentarch sync --check` in CI remain the
+guarantee. `agentarch doctor` reports which assistants are connected and whether their managed
+files drifted.
+
 ## Extending a host integration
 
 The neutral boundary is Agent Skills plus MCP stdio. Add a reviewed descriptor and a tested
