@@ -34,8 +34,7 @@ AgenteARQ moves that decision out of the model in three places: state in the CLI
 the signed sandbox, and the block in the host hook. Every public incident in the category
 (open database rules, a production database deleted by an agent, a hallucinated package, a
 compromised scanner) should become a check that fails, with one plain sentence telling the
-owner what to do next. The research behind this is in
-[Ferramentas e design para AgenteARQ](<../reports/Ferramentas e design para AgenteARQ.md>).
+owner what to do next.
 
 ### What AgenteARQ will not become
 
