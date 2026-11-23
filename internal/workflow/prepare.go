@@ -236,7 +236,12 @@ func (s *Service) PrepareVerifier(ctx context.Context, o PrepareOptions) (Verifi
 	}
 	tag := "localhost/agentarch-verifier-" + p.Profile + ":latest"
 	fmt.Fprintf(out, "building the %s verifier from %s (network enabled for this build only; no source or credentials are copied)\n", p.Profile, base)
-	build := exec.CommandContext(ctx, engine, "build", "--network=default", "--build-arg", "BASE_IMAGE="+base, "--tag", tag, "--file", filepath.Join(dir, "Dockerfile"), dir)
+	args := []string{"build", "--network=default", "--build-arg", "BASE_IMAGE=" + base}
+	if p.BrowserChecks && p.Profile == "static-site" {
+		args = append(args, "--build-arg", "WITH_BROWSER=1")
+	}
+	args = append(args, "--tag", tag, "--file", filepath.Join(dir, "Dockerfile"), dir)
+	build := exec.CommandContext(ctx, engine, args...)
 	build.Stdout, build.Stderr = out, out
 	if e = build.Run(); e != nil {
 		return VerifierRecord{}, fmt.Errorf("verifier build failed: %w", e)

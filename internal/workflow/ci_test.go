@@ -56,3 +56,25 @@ func TestCITemplateNeverOverwrites(t *testing.T) {
 		t.Fatal("the existing workflow changed")
 	}
 }
+
+func TestBrowserChecksAreOptInAndStaticSiteOnly(t *testing.T) {
+	base, err := commandsFor(Product{Profile: "static-site"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	with, err := commandsFor(Product{Profile: "static-site", BrowserChecks: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(with) != len(base)+1 || with[len(with)-1].ID != "browser" {
+		t.Fatalf("browser check not added: %v", with)
+	}
+	for _, c := range base {
+		if c.ID == "browser" {
+			t.Fatal("browser check runs without opting in")
+		}
+	}
+	if _, err := commandsFor(Product{Profile: "docs", BrowserChecks: true}); err == nil {
+		t.Fatal("browser_checks accepted for a profile without a browser recipe")
+	}
+}

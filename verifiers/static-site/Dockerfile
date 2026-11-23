@@ -15,6 +15,19 @@ RUN printf '%s\n' "$BASE_IMAGE" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund && rm -rf /root/.npm
 
+# Browser checks (standard 17) are built in only for a product that sets browser_checks: true.
+# Without them the agentarch-browser program is absent, so an opted-in check is inconclusive,
+# never passed. Playwright installs the Chromium headless shell that matches its pinned version.
+ARG WITH_BROWSER=0
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+COPY agentarch-browser /opt/agentarch-static-site/agentarch-browser
+RUN if [ "$WITH_BROWSER" = 1 ]; then \
+      ./node_modules/.bin/playwright install --with-deps --only-shell chromium \
+      && cp /opt/agentarch-static-site/agentarch-browser /usr/local/bin/agentarch-browser \
+      && chmod 0755 /usr/local/bin/agentarch-browser && chmod -R a+rX /opt/ms-playwright \
+      && rm -rf /var/lib/apt/lists/* /root/.cache; \
+    fi
+
 # The checks' fixed configuration and wrappers. The wrappers ignore configuration in the project.
 COPY htmlvalidate.json eslint.config.mjs ./
 COPY content/agentarch-links.js /opt/agentarch-content/agentarch-links.js

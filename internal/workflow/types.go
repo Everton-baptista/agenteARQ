@@ -25,6 +25,9 @@ type Product struct {
 	ExecutorIDs         []string    `json:"executor_ids" yaml:"executor_ids"`
 	ApplicationAgentIDs []string    `json:"application_agent_ids" yaml:"application_agent_ids"`
 	Checks              []CheckSpec `json:"checks,omitempty" yaml:"checks,omitempty"`
+	// BrowserChecks opts a static site into standard 17's browser checks (axe, layout at
+	// three widths, focus, reduced motion), run in a Chromium built into its verifier image.
+	BrowserChecks bool `json:"browser_checks,omitempty" yaml:"browser_checks,omitempty"`
 }
 
 type Task struct {

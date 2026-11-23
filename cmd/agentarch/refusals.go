@@ -123,7 +123,16 @@ var acceptanceRefusals = []refusal{
 		"O seu aceite só é registrado depois que as verificações passam, e precisa do seu nome, accepted ou rejected, e do que você testou e viu.", "Teste o produto e rode `agentarch workflow accept --owner \"<seu nome>\" --verdict accepted|rejected --summary \"<o que você testou e viu>\"`."),
 }
 
-func init() { refusals = append(refusals, acceptanceRefusals...) }
+var browserRefusals = []refusal{
+	r("workflow.browser_checks_profile", `^browser_checks is available for the static-site profile`,
+		"Built-in browser checks exist for static sites; a TypeScript web app runs its own accessibility and end-to-end tests.", "Remove browser_checks from product.yaml, or keep the profile's own test:a11y and test:e2e scripts.",
+		"As checagens de navegador prontas existem para sites estáticos; um app web TypeScript roda os próprios testes de acessibilidade e ponta a ponta.", "Tire browser_checks do product.yaml, ou mantenha os scripts test:a11y e test:e2e do próprio perfil."),
+}
+
+func init() {
+	refusals = append(refusals, acceptanceRefusals...)
+	refusals = append(refusals, browserRefusals...)
+}
 
 func lookupRefusal(message string) (refusal, bool) {
 	for _, x := range refusals {

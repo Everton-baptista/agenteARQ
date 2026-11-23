@@ -203,8 +203,8 @@ to validate its agents.
 
 | | |
 |---|---|
-| `go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.5.0` | if you have Go |
-| `curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.5.0/scripts/install.sh \| sh` | if you do not |
+| `go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.6.0` | if you have Go |
+| `curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.6.0/scripts/install.sh \| sh` | if you do not |
 | `docker run --rm -it -v "$PWD:/work" -w /work ghcr.io/everton-baptista/agentarch:latest start` | needs nothing but Docker |
 | [Releases](https://github.com/Everton-baptista/agenteARQ/releases) | signed binaries, verified by hand |
 
@@ -221,7 +221,7 @@ to add it.
 Piping a script into a shell is a decision, not a default:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.5.0/scripts/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.6.0/scripts/install.sh -o install.sh
 less install.sh && sh install.sh
 ```
 
@@ -296,10 +296,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.5.0
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.6.0
         with:
           command: sync --check
-      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.5.0
+      - uses: Everton-baptista/agenteARQ/.github/actions/agentarch@v0.6.0
         with:
           command: check --profile standard
 ```
