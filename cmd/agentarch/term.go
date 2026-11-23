@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // colorEnabled reports whether ANSI color codes should be emitted.
@@ -104,8 +105,8 @@ func formatBanner() string {
 	bgOrange := "\033[48;5;208;1;30m"
 	reset := "\033[0m"
 
-	title := "   ⚡ AGENTE ARQ  •  OPEN STANDARD FOR AI AGENTS (agentarch)   "
-	pad := strings.Repeat(" ", len(title))
+	title := "   ⚡ AGENTE ARQ  •  " + t("banner.strip") + "   "
+	pad := strings.Repeat(" ", utf8.RuneCountInString(title)+1)
 
 	lineTop := bgOrange + pad + reset
 	lineMid := bgOrange + title + reset

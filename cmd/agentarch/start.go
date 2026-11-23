@@ -181,7 +181,8 @@ func cmdStart(args []string) int {
 			*langFlag, strings.Join(languageCodes(), ", "))
 		return exitUsage
 	case langSet(fs_):
-		// Passed explicitly: honour it and do not ask.
+		// Passed explicitly: honour it and do not ask. `pt` gets the Portuguese interview.
+		*langFlag = resolveLanguage(*langFlag)
 		lang = *langFlag
 	case interactive:
 		chosen, quit := askLanguage()

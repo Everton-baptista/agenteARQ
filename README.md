@@ -56,16 +56,16 @@ closed until the evidence exists.
 ```bash
 # Signed release binary, no Go or sudo needed (curl and tar; the installer verifies the
 # signature and checksum, fetching a pinned cosign if you have none, and refuses anything unverified)
-curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.6.0/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Everton-baptista/agenteARQ/v0.6.1/scripts/install.sh | sh
 
 # With Go 1.22+
-go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.6.0
+go install github.com/Everton-baptista/agenteARQ/cmd/agentarch@v0.6.1
 
 # As a container
-docker run --rm ghcr.io/everton-baptista/agentarch:v0.6.0 version
+docker run --rm ghcr.io/everton-baptista/agentarch:v0.6.1 version
 
 # Docker, but on your PATH: copy the binary out of the image (no Go, sudo or cosign download)
-mkdir -p ~/.local/bin && id=$(docker create ghcr.io/everton-baptista/agentarch:v0.6.0) \
+mkdir -p ~/.local/bin && id=$(docker create ghcr.io/everton-baptista/agentarch:v0.6.1) \
   && docker cp "$id":/agentarch ~/.local/bin/agentarch && docker rm "$id" >/dev/null
 agentarch version    # if not found, add ~/.local/bin to your PATH
 ```

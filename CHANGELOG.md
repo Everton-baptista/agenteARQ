@@ -23,6 +23,17 @@ The CLI may be ahead of the content a project has installed, and uses the projec
 being judged by that release. A `schema_version` major the CLI does not implement is refused with
 exit 1 rather than read on a best-effort basis.
 
+## v0.6.1 — 2026-11-23
+
+`cli` 0.6.1, `content` 1.4.0 unchanged.
+
+- **Fixed: `--lang pt` interviewed in English.** A language tag without its own translation now
+  uses the translation of the same base language: `pt`, `pt-PT` and `pt-br` get the Portuguese
+  interview, refusals and generated rules (`pt-BR`), as `--help` promises, instead of English
+  with a directive. Applies to `start`, `init`, `sync`, adoption and the typed language answer.
+- The start banner says what AgenteARQ is now, in the chosen language, instead of "open
+  standard for AI agents".
+
 ## v0.6.0 — 2026-11-23
 
 `cli` 0.6.0 and `content` 1.4.0 — AgenteARQ is for any software product, and technology is the owner's

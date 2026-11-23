@@ -138,12 +138,26 @@ func BuildCore(fsys fs.FS, lang string) (Core, error) {
 		return Core{}, fmt.Errorf("%q is not a language tag (examples: en, pt-BR, es, fr, ja, zh-Hans)", lang)
 	}
 	source := lang
-	// Tags are case-insensitive: pt-br is pt-BR on every filesystem.
+	// Tags are case-insensitive (pt-br is pt-BR), and a tag without its own translation uses one
+	// of the same base language (pt and pt-PT read the pt-BR core) before falling back to English.
 	if dirs, derr := fs.ReadDir(fsys, "core"); derr == nil {
+		exact, sameBase := "", ""
+		base := strings.ToLower(strings.SplitN(lang, "-", 2)[0])
 		for _, d := range dirs {
-			if d.IsDir() && strings.EqualFold(d.Name(), lang) {
-				source = d.Name()
+			if !d.IsDir() {
+				continue
 			}
+			if strings.EqualFold(d.Name(), lang) {
+				exact = d.Name()
+			} else if sameBase == "" && strings.ToLower(strings.SplitN(d.Name(), "-", 2)[0]) == base {
+				sameBase = d.Name()
+			}
+		}
+		switch {
+		case exact != "":
+			source = exact
+		case sameBase != "":
+			source = sameBase
 		}
 	}
 	dir := path.Join("core", source)
@@ -189,7 +203,9 @@ func BuildCore(fsys fs.FS, lang string) (Core, error) {
 		b.WriteString(strings.TrimLeft(body, "\n"))
 	}
 
-	if !strings.EqualFold(source, lang) {
+	// Only a language read from the source core needs the directive; a sibling translation
+	// (pt-BR for pt-PT) is already in the owner's language.
+	if !strings.EqualFold(source, lang) && strings.EqualFold(source, SourceLang) {
 		b.WriteString(LanguageDirective(lang))
 	}
 	text := b.String()

@@ -97,7 +97,7 @@ func askLanguage() (code string, quit bool) {
 		// Any other language in the world: the interview continues in English, and the
 		// assistant is told to speak this one with the owner.
 		if render.ValidLanguage(raw) {
-			return raw, false
+			return resolveLanguage(raw), false
 		}
 		fmt.Fprintln(os.Stderr, "  not one of the options / não é uma das opções")
 	}
@@ -155,6 +155,7 @@ var catalog = map[string]map[string]string{
 
 	"en": {
 		"start.nothing_written": "Nothing written. Re-run with --yes.",
+		"banner.strip":          "ANY PRODUCT, FROM IDEA TO PRODUCTION, WITH EVIDENCE",
 		// ---- the banner
 		"banner.title": "agentarch — let's get you set up.",
 		"banner.body": "A few questions in plain language; nothing is written until you say so.\n" +
@@ -279,6 +280,7 @@ var catalog = map[string]map[string]string{
 
 	"pt-BR": {
 		"start.nothing_written": "Nada foi escrito. Rode de novo com --yes.",
+		"banner.strip":          "QUALQUER PRODUTO, DA IDEIA À PRODUÇÃO, COM EVIDÊNCIA",
 		"banner.title":          "agentarch — vamos configurar seu projeto.",
 		"banner.body": "Algumas perguntas em linguagem simples. Nada será escrito até você confirmar.\n" +
 			"Quando a escolha é sua, as opções são explicadas e nenhuma é escolhida por você. q sai.",
@@ -433,4 +435,23 @@ func translateAction(action string) string {
 		return "Implemente a tarefa " + id + " e registre o checkpoint quando terminar."
 	}
 	return action
+}
+
+// resolveLanguage maps a language tag onto the closest language the tool has translations for:
+// an exact match ignoring case, then the same base language (pt and pt-PT read the pt-BR
+// interview and rules rather than English). A language with no translation at all is kept as
+// given, and the generated files tell the assistant to speak it.
+func resolveLanguage(tag string) string {
+	for _, l := range languages {
+		if strings.EqualFold(l.Code, tag) {
+			return l.Code
+		}
+	}
+	base := strings.ToLower(strings.SplitN(tag, "-", 2)[0])
+	for _, l := range languages {
+		if strings.ToLower(strings.SplitN(l.Code, "-", 2)[0]) == base {
+			return l.Code
+		}
+	}
+	return tag
 }
