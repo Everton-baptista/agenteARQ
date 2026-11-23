@@ -60,6 +60,7 @@ func cmdWorkflow(args []string) int {
 	attester := f.String("attester", "", "record-production-check: who checked production")
 	owner := f.String("owner", "", "accept: the owner who tried the product")
 	base := f.String("base", "", "prepare-verifier: base image pinned by @sha256 digest (default: the profile's reviewed base, when it has one)")
+	from := f.String("from", "auto", "import-spec: kiro, spec-kit, openspec or auto")
 	engine := f.String("engine", "", "prepare-verifier: docker or podman (default: podman if installed, else docker)")
 	common := []string{"root", "format"}
 	allowed := map[string][]string{
@@ -74,6 +75,7 @@ func cmdWorkflow(args []string) int {
 		"record-release":          {"url", "head", "environment", "expected-revision"},
 		"record-production-check": {"url", "outcome", "attester", "summary", "expected-revision"},
 		"accept":                  {"owner", "verdict", "summary", "expected-revision"},
+		"import-spec":             {"from"},
 	}
 	own, knownCommand := allowed[command]
 	permitted := map[string]bool{}
@@ -180,6 +182,8 @@ func cmdWorkflow(args []string) int {
 		result, err = s.RecordProductionCheck(workflow.ProductionCheckRequest{URL: *prURL, Outcome: *outcome, Attester: *attester, Summary: *summary, ExpectedRevision: expected})
 	case "accept":
 		result, err = acceptProduct(s, *owner, *verdict, *summary, expected)
+	case "import-spec":
+		result, err = s.ImportSpec(*from)
 	default:
 		err = fmt.Errorf("unknown workflow command %q", command)
 	}
@@ -243,10 +247,15 @@ func printProduct(v any, err error, format string) int {
 		}
 		fmt.Println(x.Message)
 	case workflow.NextAction:
-		fmt.Println(x.Action)
+		fmt.Println(translateAction(x.Action))
 		for _, m := range x.Missing {
-			fmt.Println("  •", m)
+			fmt.Println("  •", translateMissing(m))
 		}
+	case workflow.ImportResult:
+		for _, src := range x.Sources {
+			fmt.Printf("  %-9s %s\n", src.Format, strings.Join(src.Files, ", "))
+		}
+		fmt.Printf("%d acceptance criteria written to %s; review and merge them before checkpoint specified.\n", x.Criteria, x.Written)
 	case plugin.Report:
 		fmt.Printf("Plugin %s · installed=%v · dry_run=%v\n", x.Host, x.Installed, x.DryRun)
 		for _, c := range x.Changes {

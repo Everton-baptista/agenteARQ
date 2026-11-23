@@ -51,6 +51,30 @@ compared choice.
 - **Claude Code subagents** `agentarch-reviewer` (read-only) and `agentarch-persona-user`
   (browser tools only), and templates for `scenarios.yaml`, `personas.yaml`, the design brief and
   `tokens.json`; the ADR template gains a sources-and-cost section for third-party services.
+- **Real-time guardrails.** `agentarch hook` answers Claude Code's and Codex's SessionStart,
+  PreToolUse and Stop hooks, which `plugin install claude|codex` merges into
+  `.claude/settings.json` or `.codex/hooks.json` as an owned fragment: it injects the product's
+  current step, denies edits to generated files and workflow evidence, and asks (Claude Code) or
+  blocks (Codex) before push, merge, publish and deploy commands and secret-shaped content.
+- **`agentarch doctor`** names every missing prerequisite — Git, container runtime, verifier
+  image, connected assistant, an `agentarch` on PATH older than the project — with the fix for
+  the operating system.
+- **Plain-language refusals.** Every workflow refusal says what it means and the next step, in
+  English and Portuguese, enforced by a test; `agentarch explain workflow.<id>` repeats it.
+- **Any language.** `--lang` takes any language tag; languages without a translated core get the
+  English core plus a directive to speak the owner's language. A plain `sync` keeps the
+  project's language.
+- **Scenarios, personas, design tokens, owner acceptance.** `scenarios.yaml` and `personas.yaml`
+  are validated when present; a UI product's DTCG `design/tokens.json` is checked for aliases,
+  font licences and WCAG 2 contrast; `workflow accept` records the owner's verdict.
+- **Advisory checks for AI-built apps:** tables without row level security, service-role keys in
+  browser code, always-true Firebase rules, and literal colours outside the design tokens.
+- **`workflow import-spec`** turns Kiro, Spec Kit and OpenSpec requirements into numbered
+  acceptance criteria that cite their source line, never overwriting a filled specification.
+- **`get_next_task` context pack**, recommended release sections (backups and a dated restore,
+  monitoring, free-tier limits) and an ADR "Sources and cost" section.
+- **Fixed:** `prepare-verifier` no longer builds the universal verifier on a Python image when
+  no base is given; it lists the images that provide the declared checks' programs.
 - **Any product, from the first command.** `agentarch start` asks whether this is any software
   product, a new AI agent, existing code or an agent to refactor, with no default. The product path
   (`start --product`) opens the guided workflow and chooses no stack. The rules synced into every

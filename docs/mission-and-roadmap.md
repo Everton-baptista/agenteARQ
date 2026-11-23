@@ -338,6 +338,8 @@ Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
   `get_next_task`; the core routing table compacted so every target fits its budget again.
 - **Phase 6:** the `agentarch-choose-services` skill and an ADR "Sources and cost" section,
   reminded while planning.
+- **Phase 1, import:** `agentarch workflow import-spec` reads Kiro, Spec Kit and OpenSpec
+  requirements into numbered acceptance criteria citing their source line.
 - **Phase 7:** recommended release sections for backups and a dated restore, monitoring and
   free-tier limits, reminded at `pr_ready` and after release; the release skill's operations
   checklist.
@@ -377,8 +379,10 @@ Still open, and why:
   (`typescript-web`). They passed on the first pilot's site in a local headless Chromium,
   outside the sandbox. Running them in the verifier means adding a pinned Chromium to those
   images, a size and maintenance cost for the owner to accept in an ADR.
-- **Phase 1:** a fast path for small changes and Spec Kit, OpenSpec and Kiro import need an
-  owner decision on what a fast path may skip without weakening "no self-approval".
+- **Phase 1, fast path:** a change to a shipped product already starts at `implementing` (from
+  `production_verified`), skipping brief, specification and ADR; it still needs verification and
+  an independent review. Skipping review for "small" changes is deliberately not offered, because
+  no deterministic rule can tell a small change from a risky one.
 - **Hooks for Gemini CLI:** not planned. Its documentation says it was replaced by Antigravity
   CLI on 2026-06-18; an Antigravity adapter waits until its hook protocol is verified. Codex
   hooks are implemented (`plugin install codex`), denying where Claude Code would ask.
@@ -388,15 +392,17 @@ Still open, and why:
 
 ## Definition of done for "ready"
 
-AgenteARQ is ready when, on the published benchmark and pilot:
+The owner decided on 2026-11-23 that a lay-user pilot is not a release criterion. AgenteARQ is
+ready for release when:
 
-- at least 80% of non-technical participants take a product of their choice to
-  `production_verified` without outside help;
-- products built with AgenteARQ show fewer defects escaping to hidden tests than the baseline
-  on every host measured;
-- no participant had to fabricate a reviewer, edit a generated file or bypass a gate;
-- tokens per product stay within the stated ceiling over the baseline;
-- every gap in the table above is closed or explicitly accepted in an ADR.
+- every capability in this roadmap that can be built and verified without outside participants
+  or paid model runs is implemented and tested (see Progress);
+- the branch passes every CI job that can run without network-only infrastructure, run locally
+  step by step from `.github/workflows/ci.yml`;
+- the remaining gaps are listed below with the decision or resource each one needs.
+
+The [lay-user pilot](pilot-protocol.md) and the comparative [benchmark](benchmark.md) remain
+available as evidence to gather after release; neither blocks it.
 
 ## Open decisions for the owner
 
