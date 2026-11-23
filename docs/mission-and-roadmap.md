@@ -364,6 +364,20 @@ Implemented on branch `feat/roadmap-phases` (2026-11-23), each with tests:
   `prepare-verifier` now refuses to guess and lists the official images that provide the
   programs the declared checks run.
 
+- **Questions in the chat, not the terminal.** When an assistant runs agentarch there is no
+  terminal prompt: it lists choices (`agentarch workflow profiles --format json`) and takes
+  answers as flags. The plugin prompt (1.2.0), the session-start hook and the discovery skill
+  tell the assistant to ask the owner in its chat, with its question tool when it has one.
+- **Independent review of the branch.** A fresh-context reviewer reproduced bypasses of the
+  pre-tool hook (symlinked paths, `bash -c`, wrappers such as `timeout` and `sudo -u`, shell
+  writes to generated files, a panic failing open) and defects in spec import, translucent
+  contrast and file scanning. All are fixed, each with a regression test.
+- **CI, run locally step by step:** 46 of the 48 steps of the `sync-check`, `test`, `examples`
+  and `blueprint-tests` jobs pass; the two others need `shellcheck` and the runner's install
+  directory, and touch no file this branch changed. A stale check for the pt-BR core's old title
+  was fixed. The `product-workflow` job needs the runner's local registry and browser install;
+  its isolated verification was exercised instead by the two dogfood pilots.
+
 Still open, and why:
 
 - **Phase 0 and 8:** the benchmark cohort and the lay-user pilot need real model runs, their
