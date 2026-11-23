@@ -75,6 +75,9 @@ func DetectSpecSources(root, from string) ([]SpecSource, error) {
 				return nil, err
 			}
 			for _, m := range matches {
+				if !insideRoot(root, m) {
+					continue // a symlinked spec folder must not pull in files from elsewhere
+				}
 				rel, _ := filepath.Rel(root, m)
 				rel = filepath.ToSlash(rel)
 				if !seen[rel] {
@@ -135,6 +138,11 @@ func extractCriteria(root, rel string) ([]importedCriterion, error) {
 // ImportSpec writes the detected requirements as numbered acceptance criteria.
 func (s *Service) ImportSpec(from string) (ImportResult, error) {
 	var r ImportResult
+	unlock, err := s.lock()
+	if err != nil {
+		return r, err
+	}
+	defer unlock()
 	sources, err := DetectSpecSources(s.Root, from)
 	if err != nil {
 		return r, err
@@ -174,30 +182,38 @@ func (s *Service) ImportSpec(from string) (ImportResult, error) {
 	if err != nil {
 		return r, err
 	}
-	if existing, err := os.ReadFile(path); err == nil && specHasContent(string(existing)) {
+	if existing, err := os.ReadFile(path); err == nil && !isUntouchedSpec(string(existing)) {
 		target = ImportedSpecPath
 		if path, err = safePath(s.Root, target); err != nil {
 			return r, err
+		}
+		if _, err := os.Lstat(path); err == nil {
+			return r, fmt.Errorf("%s already exists; merge it into spec.md or delete it, then import again", ImportedSpecPath)
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return r, err
 	}
-	if err := os.WriteFile(path, []byte(b.String()), fs.FileMode(0o644)); err != nil {
+	if err := atomicWrite(path, []byte(b.String()), fs.FileMode(0o644)); err != nil {
 		return r, err
 	}
 	r.Written = target
 	return r, nil
 }
 
-// specHasContent reports whether a spec says anything beyond the template's TODO criteria.
-func specHasContent(spec string) bool {
-	for _, line := range strings.Split(spec, "\n") {
-		if m := regexp.MustCompile(`^\s*-\s*AC-\d+:\s*(.*)$`).FindStringSubmatch(line); m != nil {
-			if t := strings.TrimSpace(m[1]); t != "" && !strings.EqualFold(t, "TODO") {
-				return true
-			}
-		}
+// isUntouchedSpec reports whether spec.md is still exactly a template, the only case the import
+// may replace it; anything the owner or an assistant has written stays where it is.
+func isUntouchedSpec(spec string) bool {
+	norm := strings.TrimSpace(spec)
+	return norm == "" || norm == strings.TrimSpace(SpecTemplate) || norm == strings.TrimSpace(SpecTemplatePT)
+}
+
+func insideRoot(root, path string) bool {
+	r, err1 := filepath.EvalSymlinks(root)
+	p, err2 := filepath.EvalSymlinks(path)
+	if err1 != nil || err2 != nil {
+		return false
 	}
-	return false
+	rel, err := filepath.Rel(r, p)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

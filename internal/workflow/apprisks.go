@@ -72,8 +72,8 @@ func (s *Service) appRiskAdvice() []string {
 		if files++; files > riskMaxFiles {
 			return filepath.SkipAll
 		}
-		if d.Type()&fs.ModeSymlink != 0 {
-			return nil
+		if !d.Type().IsRegular() {
+			return nil // symlinks, FIFOs and devices are never read
 		}
 		info, err := d.Info()
 		if err != nil || info.Size() > riskMaxBytes {

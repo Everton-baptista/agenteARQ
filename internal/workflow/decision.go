@@ -108,7 +108,7 @@ func decisionGaps(rel, body string) []string {
 		chosen := false
 		said := normalizeOption(decision)
 		for _, t := range titles {
-			chosen = chosen || strings.Contains(said, normalizeOption(t))
+			chosen = chosen || namesAffirmatively(said, normalizeOption(t))
 		}
 		if !chosen {
 			gaps = append(gaps, fmt.Sprintf("%s decision must name the option it chose (one of: %s)", rel, strings.Join(titles, ", ")))
@@ -306,4 +306,23 @@ func normalizeOption(s string) string {
 	s = parenthetical.ReplaceAllString(strings.ToLower(s), " ")
 	fields := strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 	return " " + strings.Join(fields, " ") + " "
+}
+
+var negations = map[string]bool{"not": true, "no": true, "não": true, "nao": true, "sem": true, "without": true, "rejected": true, "rejeitado": true, "rejeitada": true, "nunca": true, "never": true, "ni": true, "sin": true}
+
+// namesAffirmatively finds the option in the decision, ignoring a mention right after a negation
+// ("not Postgres", "não Postgres"), which names an option only to rule it out.
+func namesAffirmatively(said, option string) bool {
+	for from := 0; ; {
+		i := strings.Index(said[from:], option)
+		if i < 0 {
+			return false
+		}
+		at := from + i
+		before := strings.Fields(said[:at])
+		if len(before) == 0 || !negations[before[len(before)-1]] {
+			return true
+		}
+		from = at + 1
+	}
 }

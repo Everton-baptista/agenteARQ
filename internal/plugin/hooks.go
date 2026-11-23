@@ -81,7 +81,10 @@ func ownedGroup(raw json.RawMessage) bool {
 		return false
 	}
 	for _, h := range g.Hooks {
-		if !strings.Contains(h.Command, " hook --event ") || !strings.Contains(h.Command, " --host ") {
+		// The command must start with an agentarch binary, not merely mention the words.
+		fields := strings.Fields(strings.Trim(h.Command, " "))
+		if len(fields) == 0 || !strings.HasSuffix(strings.Trim(fields[0], "'\""), "agentarch") ||
+			!strings.Contains(h.Command, " hook --event ") || !strings.Contains(h.Command, " --host ") {
 			return false
 		}
 	}

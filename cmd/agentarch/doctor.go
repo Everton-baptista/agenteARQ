@@ -94,7 +94,9 @@ func pathBinaryContent() string {
 	}
 	for _, line := range strings.Split(string(out), "\n") {
 		if strings.HasPrefix(line, "content/") {
-			return strings.Fields(strings.TrimPrefix(line, "content/"))[0]
+			if f := strings.Fields(strings.TrimPrefix(line, "content/")); len(f) > 0 {
+				return f[0]
+			}
 		}
 	}
 	return ""
@@ -124,13 +126,17 @@ func (r *doctorReport) addVersionCheck(root string, pathContent func() string) {
 // compareVersions compares dotted numeric versions; anything unparsable compares equal.
 func compareVersions(a, b string) int {
 	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
-	for i := 0; i < len(pa) && i < len(pb); i++ {
-		var x, y int
-		if _, err := fmt.Sscan(pa[i], &x); err != nil {
-			return 0
+	for i := 0; i < len(pa) || i < len(pb); i++ {
+		var x, y int // a missing component counts as 0, so 1.4 equals 1.4.0
+		if i < len(pa) {
+			if _, err := fmt.Sscan(pa[i], &x); err != nil {
+				return 0
+			}
 		}
-		if _, err := fmt.Sscan(pb[i], &y); err != nil {
-			return 0
+		if i < len(pb) {
+			if _, err := fmt.Sscan(pb[i], &y); err != nil {
+				return 0
+			}
 		}
 		if x != y {
 			if x < y {
@@ -139,7 +145,7 @@ func compareVersions(a, b string) int {
 			return 1
 		}
 	}
-	return len(pa) - len(pb)
+	return 0
 }
 
 func runDoctor(root, goos string, look lookPathFunc, probe probeFunc) doctorReport {
@@ -175,7 +181,7 @@ func runDoctor(root, goos string, look lookPathFunc, probe probeFunc) doctorRepo
 		// Apple's container CLI is detected so the owner hears about it, but verification does
 		// not drive it yet: its isolation flags have not been verified against the contract.
 		add(doctorCheck{ID: "container-runtime", Detail: dmsg("oci_apple"), Why: dmsg("oci_why"), Fix: installHint("oci", goos)})
-	case engine == "docker" && probe(root, "docker", "info") != nil:
+	case (engine == "docker" || engine == "podman") && probe(root, engine, "info") != nil:
 		add(doctorCheck{ID: "container-runtime", Detail: dmsg("oci_down"), Why: dmsg("oci_why"), Fix: dmsg("oci_start")})
 	default:
 		add(doctorCheck{ID: "container-runtime", OK: true, Detail: fmt.Sprintf(dmsg("oci_ok"), engine)})
@@ -288,8 +294,8 @@ var doctorMessages = map[string]map[string]string{
 		"git_why":        "Every check and review is tied to an exact commit, so the work needs Git.",
 		"oci_missing":    "No container runtime (Podman or Docker) is installed.",
 		"oci_apple":      "Only Apple's container CLI was found; AgenteARQ does not drive it yet.",
-		"oci_down":       "Docker is installed but not running.",
-		"oci_start":      "Start Docker Desktop (or: sudo systemctl start docker), then run doctor again.",
+		"oci_down":       "The container runtime is installed but not running.",
+		"oci_start":      "Start it (Docker Desktop, or: podman machine start on macOS and Windows), then run doctor again.",
 		"oci_ok":         "Container runtime: %s.",
 		"oci_why":        "Checks run in an isolated container with no network, so they cannot cheat or leak secrets. Without one, verification is inconclusive and the work cannot advance.",
 		"wf_ok":          "Product workflow initialized.",
@@ -321,8 +327,8 @@ var doctorMessages = map[string]map[string]string{
 		"git_why":        "Cada verificação e revisão fica presa a um commit exato, por isso o trabalho precisa do Git.",
 		"oci_missing":    "Nenhum runtime de contêiner (Podman ou Docker) está instalado.",
 		"oci_apple":      "Só foi encontrado o container da Apple; o AgenteARQ ainda não o utiliza.",
-		"oci_down":       "O Docker está instalado, mas não está rodando.",
-		"oci_start":      "Abra o Docker Desktop (ou: sudo systemctl start docker) e rode o doctor de novo.",
+		"oci_down":       "O runtime de contêiner está instalado, mas não está rodando.",
+		"oci_start":      "Inicie-o (Docker Desktop, ou: podman machine start no macOS e no Windows) e rode o doctor de novo.",
 		"oci_ok":         "Runtime de contêiner: %s.",
 		"oci_why":        "As verificações rodam num contêiner isolado e sem rede, para não trapacear nem vazar segredos. Sem ele, a verificação fica inconclusiva e o trabalho não avança.",
 		"wf_ok":          "Workflow do produto inicializado.",

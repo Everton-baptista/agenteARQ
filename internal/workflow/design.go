@@ -352,7 +352,10 @@ func luminance(c rgba) float64 { return 0.2126*c.r + 0.7152*c.g + 0.0722*c.b }
 // ContrastRatio is the WCAG 2 ratio of a foreground composited over an opaque background.
 func ContrastRatio(fg, bg rgba) float64 {
 	if fg.a < 1 {
-		fg = rgba{fg.r*fg.a + bg.r*(1-fg.a), fg.g*fg.a + bg.g*(1-fg.a), fg.b*fg.a + bg.b*(1-fg.a), 1}
+		// Browsers blend gamma-encoded sRGB, not linear light; blending linear values
+		// overstates the contrast of translucent light text on a dark background.
+		mix := func(f, b float64) float64 { return linearize(encode(f)*fg.a + encode(b)*(1-fg.a)) }
+		fg = rgba{mix(fg.r, bg.r), mix(fg.g, bg.g), mix(fg.b, bg.b), 1}
 	}
 	l1, l2 := luminance(fg), luminance(bg)
 	if l1 < l2 {
@@ -425,4 +428,12 @@ func pairColor(tokens map[string]*designToken, ref any) (rgba, error) {
 		return rgba{}, fmt.Errorf("%s is not a colour token", path)
 	}
 	return parseColor(v)
+}
+
+// encode is the inverse of linearize: linear light back to the gamma-encoded sRGB channel.
+func encode(c float64) float64 {
+	if c <= 0.0031308 {
+		return 12.92 * c
+	}
+	return 1.055*math.Pow(c, 1/2.4) - 0.055
 }

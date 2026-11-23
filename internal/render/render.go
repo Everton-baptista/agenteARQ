@@ -9,6 +9,7 @@ package render
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
@@ -137,9 +138,17 @@ func BuildCore(fsys fs.FS, lang string) (Core, error) {
 		return Core{}, fmt.Errorf("%q is not a language tag (examples: en, pt-BR, es, fr, ja, zh-Hans)", lang)
 	}
 	source := lang
-	dir := path.Join("core", lang)
+	// Tags are case-insensitive: pt-br is pt-BR on every filesystem.
+	if dirs, derr := fs.ReadDir(fsys, "core"); derr == nil {
+		for _, d := range dirs {
+			if d.IsDir() && strings.EqualFold(d.Name(), lang) {
+				source = d.Name()
+			}
+		}
+	}
+	dir := path.Join("core", source)
 	entries, err := fs.ReadDir(fsys, dir)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		// No translation for this language: the owner still gets their language, through
 		// the source core and a directive the assistant follows.
 		source = SourceLang
@@ -180,7 +189,7 @@ func BuildCore(fsys fs.FS, lang string) (Core, error) {
 		b.WriteString(strings.TrimLeft(body, "\n"))
 	}
 
-	if source != lang {
+	if !strings.EqualFold(source, lang) {
 		b.WriteString(LanguageDirective(lang))
 	}
 	text := b.String()

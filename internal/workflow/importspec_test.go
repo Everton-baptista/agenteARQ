@@ -12,7 +12,7 @@ func TestImportSpecReadsKiroSpecKitAndOpenSpec(t *testing.T) {
 		".kiro/specs/cart/requirements.md": "# Requirements\n\n### Requirement 1\n\n1. WHEN the user adds an item THEN the system SHALL show the new total\n2. Narrative text without a requirement.\n",
 		"specs/001-login/spec.md":          "## Requirements\n\n- **FR-001**: System MUST lock an account after 5 failed attempts\n\n```\nMUST not be read from a code block\n```\n\n1. **Given** a locked account, **When** the user logs in, **Then** an unlock email is offered\n",
 		"openspec/specs/search/spec.md":    "### Requirement: Search\nThe system SHALL return results in under 1 second.\n#### Scenario: empty query\n- WHEN the query is empty THEN no request is sent\n",
-		documents[1]:                       "# Specification\n\n- AC-1: TODO\n",
+		documents[1]:                       SpecTemplate,
 	})
 	r, err := s.ImportSpec("auto")
 	if err != nil {
@@ -53,6 +53,9 @@ func TestImportSpecNeverOverwritesAFilledSpec(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(s.Root, documents[1]))
 	if !strings.Contains(string(b), "Visitors can book a class") {
 		t.Fatal("the owner's spec was overwritten")
+	}
+	if _, err := s.ImportSpec("kiro"); err == nil {
+		t.Fatal("a second import replaced spec.imported.md, losing the owner's merge")
 	}
 }
 

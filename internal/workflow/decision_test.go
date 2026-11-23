@@ -92,3 +92,16 @@ func TestDecisionNamesAnOptionTheWayAPersonWritesIt(t *testing.T) {
 		}
 	}
 }
+
+func TestANegatedOptionIsNotTheChoice(t *testing.T) {
+	said := normalizeOption("We chose SQLite, not Postgres, because the owner wants no server.")
+	if namesAffirmatively(said, normalizeOption("Postgres")) {
+		t.Error("a rejected option counted as chosen")
+	}
+	if !namesAffirmatively(said, normalizeOption("SQLite")) {
+		t.Error("the chosen option was not recognised")
+	}
+	if !namesAffirmatively(normalizeOption("Não Postgres; Postgres gerenciado é a escolha."), normalizeOption("Postgres gerenciado")) {
+		t.Error("a later affirmative mention was missed")
+	}
+}

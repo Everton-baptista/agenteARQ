@@ -165,3 +165,11 @@ func TestUniversalBaseIsNeverGuessed(t *testing.T) {
 		t.Fatalf("no guidance without checks: %s", got)
 	}
 }
+
+func TestTranslucentContrastIsBlendedLikeABrowser(t *testing.T) {
+	white30 := rgba{1, 1, 1, 0.3}
+	black := rgba{0, 0, 0, 1}
+	if r := ContrastRatio(white30, black); r > 3 || r < 2 {
+		t.Fatalf("white at 30%% on black should render near #4D4D4D (about 2.5:1), got %.2f", r)
+	}
+}

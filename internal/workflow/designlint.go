@@ -48,11 +48,14 @@ func (s *Service) tokenColourAdvice() []string {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(d.Name(), ".css") || strings.HasSuffix(d.Name(), ".min.css") {
+		if !strings.HasSuffix(d.Name(), ".css") || strings.HasSuffix(d.Name(), ".min.css") || !d.Type().IsRegular() {
+			return nil // symlinks, FIFOs and devices are never read
+		}
+		if info, err := d.Info(); err != nil || info.Size() > riskMaxBytes {
 			return nil
 		}
 		b, err := os.ReadFile(path)
-		if err != nil || len(b) > riskMaxBytes {
+		if err != nil {
 			return nil
 		}
 		// Blank out comments but keep their newlines, so line numbers stay true.
